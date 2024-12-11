@@ -1,0 +1,194 @@
+{
+  "expo": {
+    "name": "NuCliq",
+    "slug": "NuCliqV1",
+    "version": "1.0.114",
+    "orientation": "portrait",
+    "platforms": [
+      "android",
+      "ios"
+    ],
+    "icon": "./assets/icon.png",
+    "scheme": "nucliqv1",
+    "userInterfaceStyle": "automatic",
+    "associatedDomains": [
+      "applinks:nucliq-c6d24.web.app"
+    ],
+    "notification": {
+      "icon": "./assets/icon.png"
+    },
+    "scripts": {
+      "test": "jest"
+    },
+    "jest": {
+      "preset": "jest-expo"
+    },
+    "splash": {
+      "image": "./assets/logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#121212"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": false,
+      "NSUserTrackingUsageDescription": "We may use tracking data to personalize your experience and deliver relevant content.",
+      "associatedDomains": [
+        "applinks:nucliq-c6d24.web.app"
+      ],
+      "applinks": {
+        "apps": [],
+        "details": [
+          {
+            "appID": "LPUC32K439.com.drstem369.NuCliqV1",
+            "paths": [
+              "*"
+            ]
+          }
+        ]
+      },
+      "bundleIdentifier": "com.drstem369.NuCliqV1",
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "infoPlist": {
+        "UIBackgroundModes": {
+          "remote-notification": [
+            "background-fetch"
+          ]
+        },
+        "NSUserTrackingUsageDescription": "We may use tracking data to personalize your experience and deliver relevant content.",
+        "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to allow you to select images for profile pictures, posts and themes.",
+        "LSApplicationQueriesSchemes": [
+          "nucliqv1"
+        ],
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": [
+              "nucliqv1"
+            ],
+            "LSApplicationQueriesSchemes": [
+              "nucliqv1"
+            ]
+          }
+        ]
+      },
+      "usesAppleSignIn": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#121212"
+      },
+      "usesCleartextTraffic": true,
+      "package": "com.drstem369.NuCliqV1",
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "NOTIFICATIONS",
+        "INTERNET"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "data": [
+            {
+              "scheme": "https",
+              "host": "nucliqv1.page.link",
+              "pathPrefix": "/"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ],
+          "autoVerify": true
+        }
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "2d0637e5-835f-479f-92b0-1d3a15f22b6b"
+      },
+      "linking": {
+        "prefixes": [
+          "nucliqv1://"
+        ]
+      }
+    },
+    "build": {
+      "preview": {
+        "distribution": "internal",
+        "channel": "preview"
+      },
+      "production": {
+        "channel": "production"
+      },
+      "development-simulator": {
+        "developmentClient": true,
+        "distribution": "internal",
+        "ios": {
+          "simulator": true
+        }
+      }
+    },
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 34,
+            "targetSdkVersion": 34,
+            "buildToolsVersion": "34.0.0"
+          },
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
+      ],
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone."
+        }
+      ],
+      [
+        "expo-apple-authentication"
+      ],
+      [
+        "@react-native-firebase/app",
+        "@react-native-firebase/analytics"
+      ],
+      [
+        "@react-native-google-signin/google-signin"
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png"
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow NuCliq to access your camera."
+        }
+      ],
+      "react-native-compressor",
+      [
+        "expo-tracking-transparency",
+        {
+          "userTrackingPermission": "This may be used to deliver personalized ads to you (through third-party services)."
+        }
+      ]
+    ],
+    "runtimeVersion": {
+      "policy": "sdkVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/2d0637e5-835f-479f-92b0-1d3a15f22b6b"
+    },
+    "owner": "drstem369"
+  }
+}
