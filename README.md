@@ -4,4 +4,12 @@ NuCliq is a scalable, cross-platform social platform designed for seamless user 
 - ### Cross-Platform Compatibility:
   - Web application powered by React.
   - Mobile application built with React Native.
+- ### Real-Time Functionality:
+  - Firebase integration for real-time updates and scalable backend operations.
+- ### Interactive User Experience:
+  - Pagination, lazy loading, and animations for optimized performance.
+- ### Push Notifications:
+  - Engages users with timely updates.
+- ### Secure Authentication:
+  - Authentication flows implemented via Firebase.
 
