@@ -27,9 +27,9 @@ NuCliq is a scalable, cross-platform social platform designed for seamless user 
  - React/React Native Carousel
 ## Key Challenges Solved
 - ### Performance Optimization:
- - Implemented lazy loading and pagination for improved scalability.
+   - Implemented lazy loading and pagination for improved scalability.
 - ### Real-Time Updates:
- - Leveraged Firebase for seamless, real-time data interactions.
+   - Leveraged Firebase for seamless, real-time data interactions.
 - ### Cross-Platform Consistency:
- - Ensured consistent functionality and UI/UX across web and mobile platforms.
+   - Ensured consistent functionality and UI/UX across web and mobile platforms.
 
