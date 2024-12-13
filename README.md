@@ -12,4 +12,17 @@ NuCliq is a scalable, cross-platform social platform designed for seamless user 
   - Engages users with timely updates.
 - ### Secure Authentication:
   - Authentication flows implemented via Firebase.
+## Technologies Used
+### Frontend:
+ - React, React Native
+ - TypeScript
+ - TailwindCSS (Web)
+### Backend:
+ - Node.js
+ - Firebase (Serverless Architecture)
+### Tools and Libraries:
+ - React Native Reanimated
+ - Firebase Authentication and Firestore
+ - React Intersection Observer (Web)
+ - React/React Native Carousel
 
