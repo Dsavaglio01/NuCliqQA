@@ -1,6 +1,6 @@
 import 'expo-dev-client';
 import 'react-native-url-polyfill/auto';
-import React, {useRef, useState,  useEffect, useContext,} from "react";
+import React, {useRef, useState,  useEffect} from "react";
 import { StyleSheet, AppState, DeviceEventEmitter, Alert} from "react-native";
 import { NavigationContainer, DarkTheme, DefaultTheme, useNavigationContainerRef } from '@react-navigation/native';
 import {LogBox} from 'react-native';
@@ -23,6 +23,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import RootNavigator from './TabNavigator';
 import {PURCHASE_URL} from "@env";
 import { Montserrat_600SemiBold, Montserrat_400Regular, Montserrat_500Medium, Montserrat_700Bold, useFonts } from '@expo-google-fonts/montserrat';
+import { ProfileProvider } from './lib/profileContext';
+import { RequestProvider } from './lib/requestContext';
 
     
 LogBox.ignoreAllLogs()
@@ -320,8 +322,12 @@ if (isReady && navigationReady && user && reportedContent.length < 10 && firstNa
       <themeContext.Provider value={darkmode === true ? theme.dark : theme.light}>
       <Provider>
         <AuthProvider>
-          <AppContent />
-          </AuthProvider>
+          <ProfileProvider>
+            <RequestProvider>
+              <AppContent />
+            </RequestProvider>
+          </ProfileProvider>
+        </AuthProvider>
     </Provider>
     </themeContext.Provider>
     </GestureHandlerRootView>

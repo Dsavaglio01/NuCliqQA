@@ -146,13 +146,6 @@ const MultiPost = ({route}) => {
   setText(newText);
   
 };
-
-  const handleMentionComplete = (text) => {
-    // Example: Extract the mentioned username
-    const mentionedUser = text.substring(text.lastIndexOf('@') + 1, text.indexOf(' '));
-    console.log('Mentioned user:', mentionedUser);
-    // Add your logic to handle the completed mention
-  };
   useEffect(() => {
     if (route.params?.initialText) {
       setText(initialText.value)

@@ -285,22 +285,19 @@ const SpecificTheme = ({route}) => {
         })
   }
   async function applyToPosts() {
-    
     setApplyLoading(true)
-      await updateDoc(doc(db, 'profiles', user.uid), {
-            postBackground: theme,
-            forSale: selling,
-            postBought: selling
-        }).then(() => { 
-          setTimeout(() => {
-              setAppliedThemeModal(true); 
-          setPostDoneApplying(true);
-          setApplyLoading(false)
-          }, 1000);
-           })
-    //setUseThemeModalLoading(true)
+    await updateDoc(doc(db, 'profiles', user.uid), {
+      postBackground: theme,
+      forSale: selling,
+      postBought: selling
+    }).then(() => { 
+      setTimeout(() => {
+      setAppliedThemeModal(true); 
+      setPostDoneApplying(true);
+      setApplyLoading(false)
+      }, 1000);
+    })
   }
-  //console.log(free)
   async function applyToBoth() {
    setApplyLoading(true)
     await updateDoc(doc(db, 'profiles', user.uid), {

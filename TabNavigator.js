@@ -489,7 +489,7 @@ const HomeStack = () => {
       },
     })}/>
     
-    {/* <Tab.Screen name='Cliqs' component={GroupStack}/> */}
+    <Tab.Screen name='Cliqs' component={GroupStack}/>
     <Tab.Screen name='Vidz' component={VideoStack} options={{}} listeners={({ navigation, route }) => ({
       tabPress: (e) => {
         // Get the current state of the navigator
@@ -527,7 +527,7 @@ const HomeStack = () => {
     })}/>
     <Tab.Screen name='New Post' component={PostStack} options={{unmountOnBlur: true}}  />
            
-          <Tab.Screen name='Users' component={PeopleStack} />
+          {/* <Tab.Screen name='Users' component={PeopleStack} /> */}
         
         <Tab.Screen name='Themes' component={ThemeStack} />
         <Tab.Screen name='Profile' component={ProfileStack} />

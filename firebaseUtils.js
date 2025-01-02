@@ -1,6 +1,7 @@
 import { db } from './firebase';
 import { getDoc, doc, collection, where, onSnapshot, setDoc, getDocs, startAfter, arrayUnion, serverTimestamp, updateDoc, 
-arrayRemove, increment, orderBy, limit, startAt, endAt, query} from 'firebase/firestore';
+arrayRemove, increment, orderBy, limit, startAt, endAt, query, or, documentId,
+writeBatch} from 'firebase/firestore';
 export const repostFunction = async (user, blockedUsers, repostComment, forSale, notificationToken, 
     username, background, pfp, repostItem, setRepostLoading, handleClose, schedulePushRepostNotification) => {
     const docRef = await addDoc(collection(db, 'posts'), {
@@ -282,6 +283,12 @@ export const getChangingProfileDetails = async(userId) => {
         return null;
     }
 }
+/**
+ * Gets a user's profile details provided by the fieldValues from their user document via the Firestore database.
+ * @param {Object} userId - The userId performing the action.
+ * @throws {Error} - If `userId` is undefined.
+ * @returns {Promise<void>} - A promise that resolves when the Firestore update is complete.
+*/
 export const getProfileDetails = async(userId) => {
   if (!userId) {
     throw new Error("Error: 'userId' is undefined.");
@@ -289,21 +296,17 @@ export const getProfileDetails = async(userId) => {
   try {
     const docRef = doc(db, 'profiles', userId);
     const docSnap = await getDoc(docRef);
-
     if (docSnap.exists()) {
       const data = docSnap.data();
       return {
         username: data.userName,
         pfp: data.pfp,
         followers: data.followers,
-        private: data.private,
         following: data.following,
         forSale: data.forSale,
         firstName: data.firstName, 
         paymentMethodLast4: data.paymentMethodLast4,
         lastName: data.lastName,
-        smallKeywords: data.smallKeywords,
-        largeKeywords: data.largeKeywords,
         postBackground: data.postBackground,
         background: data.background,
         blockedUsers: data.blockedUsers,
@@ -313,7 +316,8 @@ export const getProfileDetails = async(userId) => {
       console.warn("Profile does not exist.");
       return null;
     }
-  } catch (error) {
+  } 
+  catch (error) {
     console.error("Error fetching profile details:", error);
     return null;
   }
@@ -325,7 +329,18 @@ export const fetchStory = async({user}) => {
       })
       return {story}
 }
-export const fetchNotifications = async({user, setNonMessageNotifications}) => {
+export const fetchGroupNotifications = async(groupId, userId, collectionName, setMessageNotifications) => {
+  const q = query(collection(db, "groups", groupId, 'notifications', userId, collectionName));
+  const unsubscribe = onSnapshot(q, (querySnapshot) => {
+    const cities = [];
+    querySnapshot.forEach((doc) => {
+        cities.push(doc.id);
+    });
+    setMessageNotifications(cities.length)
+  });
+  return unsubscribe;
+}
+export const fetchNotifications = async(user, setNonMessageNotifications) => {
     const q = query(collection(db, "profiles", user.uid, 'checkNotifications'));
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
         const cities = [];
@@ -359,6 +374,87 @@ export const fetchUsernames = async () => {
     console.error("Error fetching usernames:", error);
     return []; // Return an empty array if there's an error
   }
+}
+export const fetchCliquePostsExcludingBlockedUsers = async (groupId, blockedUsers) => {
+  const posts = [];
+  let fetchedCount = 0;
+  const q = query(collection(db, 'groups', groupId, 'posts'), orderBy('timestamp', 'desc'), limit(3))
+  const querySnapshot = await getDocs(q);
+  querySnapshot.forEach((doc) => {
+    if (blockedUsers.includes(doc.data().userId)) {
+        fetchedCount++; // Increment blocked count
+      } else {
+        posts.push({ id: doc.id, loading: false, postIndex: 0, ...doc.data() });
+      }
+  });
+  // Fetch more posts if all initial ones are blocked
+  if (fetchedCount === 3 && posts.length === 0) {
+    const nextQuery = query(
+      collection(db, 'groups', groupId, 'posts'),
+      orderBy('timestamp', 'desc'),
+      startAfter(querySnapshot.docs[querySnapshot.docs.length - 1]), // Start after last doc
+      limit(3)
+    );
+    const nextSnapshot = await getDocs(nextQuery);
+    nextSnapshot.forEach((doc) => {
+      posts.push({ id: doc.id, postIndex: 0, loading: false, ...doc.data() });
+    })
+  }
+  return { posts, lastVisible: querySnapshot.docs[querySnapshot.docs.length - 1] };
+}
+export const fetchMoreCliquePostsExcludingBlockedUsers = async (groupId, blockedUsers, lastVisible) => {
+  const tempPosts = [];
+  let fetchedCount = 0;
+  const q = query(collection(db, 'groups', groupId, 'posts'), orderBy('timestamp', 'desc'), startAfter(lastVisible), limit(3))
+  const querySnapshot = await getDocs(q);
+  querySnapshot.forEach((doc) => {
+    if (blockedUsers.includes(doc.data().userId)) {
+        fetchedCount++; // Increment blocked count
+      } else {
+        tempPosts.push({ id: doc.id, loading: false, postIndex: 0, ...doc.data() });
+      }
+  });
+  // Fetch more posts if all initial ones are blocked
+  if (fetchedCount === 3 && tempPosts.length === 0) {
+    const nextQuery = query(
+      collection(db, 'groups', groupId, 'posts'),
+      orderBy('timestamp', 'desc'),
+      startAfter(querySnapshot.docs[querySnapshot.docs.length - 1]), // Start after last doc
+      limit(3)
+    );
+    const nextSnapshot = await getDocs(nextQuery);
+    nextSnapshot.forEach((doc) => {
+      tempPosts.push({ id: doc.id, postIndex: 0, loading: false, ...doc.data() });
+    })
+  }
+  return { tempPosts, lastVisible: querySnapshot.docs[querySnapshot.docs.length - 1] };
+}
+export const fetchCliquePostsExcludingBlockedUsersWithActualNewPost = async (groupId, blockedUsers, actualNewPost) => {
+  const posts = [];
+  let fetchedCount = 0;
+  const q = query(collection(db, 'groups', groupId, 'posts'), orderBy('timestamp', 'desc'), limit(3))
+  const querySnapshot = await getDocs(q);
+  querySnapshot.forEach((doc) => {
+    if (blockedUsers.includes(doc.data().userId) && actualNewPost.id !== doc.id) {
+        fetchedCount++; // Increment blocked count
+      } else if (actualNewPost.id !== doc.id) {
+        posts.push({ id: doc.id, loading: false, postIndex: 0, ...doc.data() });
+      }
+  });
+  // Fetch more posts if all initial ones are blocked
+  if (fetchedCount === 3 && posts.length === 0) {
+    const nextQuery = query(
+      collection(db, 'groups', groupId, 'posts'),
+      orderBy('timestamp', 'desc'),
+      startAfter(querySnapshot.docs[querySnapshot.docs.length - 1]), // Start after last doc
+      limit(3)
+    );
+    const nextSnapshot = await getDocs(nextQuery);
+    nextSnapshot.forEach((doc) => {
+      posts.push({ id: doc.id, postIndex: 0, loading: false, ...doc.data() });
+    })
+  }
+  return { posts, lastVisible: querySnapshot.docs[querySnapshot.docs.length - 1] };
 }
 export const fetchPublicPostsExcludingBlockedUsers = async (blockedUsers) => {
   const posts = [];
@@ -439,18 +535,56 @@ export const fetchMorePublicPostsExcludingBlockedUsers = async (blockedUsers, la
   }
   return { posts, lastVisible: querySnapshot.docs[querySnapshot.docs.length - 1] };
 }
+export const ableToMessageFunction = async(userOneId, userTwoId, setAbleToMessage) => {
+  if (!userOneId || !userTwoId) {
+    throw new Error("Error: 'userIds' are not defined.");
+  }
+  const q = query(collection(db, "friends"), or(where(documentId(), '==', userOneId + userTwoId), where(documentId(), '==', userTwoId + userOneId)));
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const messages = [];
+      querySnapshot.forEach((doc) => {
+          messages.push({id: doc.id, ...doc.data()});
+      });
+      setAbleToMessage(messages)
+    });
+    return unsubscribe;
+}
+export const fetchNewPost = async (groupId, postId) => {
+  if (!groupId || !postId) {
+    throw new Error("Error: 'group and/or post' is undefined.");
+  }
+  const docSnap = await getDoc(doc(db, 'groups', groupId, 'posts', postId))
+  if (docSnap.exists()) {
+    return {id: docSnap.id, ...docSnap.data()}
+  }
+}
 export const ableToShareFunction = async (itemId) => {
     if (!itemId) {
-        throw new Error("Error: 'itemId' is undefined.");
+      throw new Error("Error: 'itemId' is undefined.");
     }
     const docRef = doc(db, 'posts', itemId);
     const docSnap = await getDoc(docRef);
     
     return docSnap.exists();
 }
+export const fetchGroupRequests = async(userId, callback) => {
+  if (!userId) {
+    throw new Error("Error: 'groupId' is undefined.");
+  }
+  const q = query(collection(db, 'profiles', userId, 'groupRequests'))
+  // Set up the onSnapshot listener
+  const unsub = onSnapshot(q, (snapshot) => {
+    const requests = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+    callback(requests); // Pass the data to the callback function
+  });
+  return unsub;
+}
 export const getRequests = async (userId, callback) => {
     if (!userId) {
-        throw new Error("Error: 'userId' is undefined.");
+      throw new Error("Error: 'userId' is undefined.");
     }
     const q = query(
     collection(db, 'profiles', userId, 'requests'),
@@ -494,4 +628,199 @@ export const fetchUserSearchesLarge = async (specificSearch) => {
 
   })
   return {userSearches}
+}
+/**
+ * Gets first 9 posts that aren't reposts for the profile screen ordered by latest posts first.
+ * @param {String} userId - The id of the user whose profile is being viewed.
+ * @param {Function} setPosts - State setter function for updating `posts` after fetching the first 9 non-repost posts.
+ * @param {Function} setLastVisible - State setter function for updating `lastVisible` after fetching the first 9 posts to fetch the next 9 when applicable.
+ * @returns {Function} - An unsubscribe function to stop listening to changes.
+ * @throws {Error} - If `userId` is not provided.
+*/
+export const fetchPosts = (userId, setPosts, setLastVisible) => {
+  if (!userId) {
+    throw new Error("userId is undefined");
+  }
+  const q = query(collection(db, 'profiles', userId, 'posts'), where('repost', '==', false), orderBy('timestamp', 'desc'), limit(9))
+  const unsubscribe = onSnapshot(q, (snapshot) => {
+    const posts = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+    setPosts(posts);
+    if (snapshot.docs.length > 0) {
+      setLastVisible(snapshot.docs[snapshot.docs.length - 1])
+    }
+  })
+  return unsubscribe;
+}
+/**
+ * Gets the number of posts or reposts that a user has. The number is useful to show users on the profile screen.
+ * @param {String} userId - The id of the user to perform this action.
+ * @param {String} subCollection - The name of the collection we are querying in Firestore (usually `posts`).
+ * @param {Array} conditions - The query conditions we specify (`reposts` == false, `reposts` == true, etc.)
+ * @param {Function} callback - A callback function that receives the number of posts/reposts a user has.
+ * @returns {Function} - An unsubscribe function to stop listening to changes.
+ * @throws {Error} - If `userId` or `subCollection` is not provided or exists.
+*/   
+export const fetchCount = async (userId, subCollection, conditions = [], callback) => {
+  if (!userId || !subCollection) {
+    throw new Error("Invalid parameters: userId or subCollection is undefined");
+  }
+  let coll = collection(db, "profiles", userId, subCollection);
+  if (conditions.length > 0) {
+    coll = query(coll, ...conditions);
+  }
+  try {
+    const snapshot = await getCountFromServer(coll);
+    callback(snapshot.data().count);
+  } 
+  catch (error) {
+    console.error("Error fetching count:", error);
+    callback(0); // Fallback to 0 on error
+  }
+};
+/**
+ * Gets first 9 posts that are reposts for the profile screen ordered by latest posts first.
+ * @param {String} userId - The id of the user whose profile is being viewed.
+ * @param {Function} setPosts - State setter function for updating `posts` after fetching the first 9 repost posts.
+ * @param {Function} setLastVisible - State setter function for updating `lastVisible` after fetching the first 9 posts to fetch the next 9 when applicable.
+ * @returns {Function} - An unsubscribe function to stop listening to changes.
+ * @throws {Error} - If `userId` is not provided.
+*/
+export const fetchReposts = (userId, setReposts, setLastVisible) => {
+  if (!userId) {
+    throw new Error("userId is undefined");
+  }
+  const q = query(collection(db, 'profiles', userId, 'posts'), where('repost', '==', true), orderBy('timestamp', 'desc'), limit(9))
+  const unsubscribe = onSnapshot(q, (snapshot) => {
+    const reposts = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+    setReposts(reposts);
+    if (snapshot.docs.length > 0) {
+      setLastVisible(snapshot.docs[snapshot.docs.length - 1])
+    }
+  })
+  return unsubscribe;
+}
+export const updateCliquePfp = async(groupId, url) => {
+  if (!groupId)  {
+    throw new Error("groupId is undefined");
+  }
+  try {
+    const profileDocRef = doc(db, 'groups', groupId);
+    await updateDoc(profileDocRef, {
+      banner: url
+    })
+  }
+  catch (e) {
+    console.error(e)
+  }
+}
+export const updatePfp = async(userId, url) => {
+  if (!userId)  {
+    throw new Error("userId is undefined");
+  }
+  try {
+    const batch = writeBatch(db)
+    const profileDocRef = doc(db, 'profiles', userId);
+    batch.update(profileDocRef, {pfp: url})
+    const usernameDocRef = doc(db, 'usernames', userId);
+    batch.update(usernameDocRef, {pfp: url})
+    await batch.commit();
+  }
+  catch (e) {
+    console.error(e)
+  }
+}
+export const fetchPerson = async(userId) => {
+  const docRef = doc(db, 'profiles', userId);
+  const docSnap = await getDoc(docRef);
+  if (docSnap.exists()) {
+    return {id: docSnap.id, ...docSnap.data()}
+  }
+  return {};
+}
+export const fetchFriendId = async(ogUserId, userId) => {
+  const docRef = doc(db, 'profiles', ogUserId, 'friends', userId);
+  const docSnap = await getDoc(docRef);
+  if (docSnap.exists()) {
+    return docSnap.data().friendId
+  }
+  return '';
+}
+export const fetchCliqueData = async(groupId, setContacts, setRequests, setReported, setMemberRequests) => {
+  if (!groupId)  {
+    throw new Error("groupId is undefined");
+  }
+  try {
+    const contactQ = query(collection(db, 'groups', groupId, 'adminContacts'))
+    const requestQ = query(collection(db, 'groups', groupId, 'adminRequests'))
+    const reportedQ = query(collection(db, 'groups', groupId, 'reportedContent'))
+    const memberQ = query(collection(db, 'groups', groupId, 'memberRequests'))
+    const contactUnsub = onSnapshot(contactQ, (querySnapshot) => {
+      const contacts = [];
+      querySnapshot.forEach((doc) => {
+        contacts.push({id: doc.id});
+      });
+      setContacts(contacts)
+    });
+    const requestUnsub = onSnapshot(requestQ, (querySnapshot) => {
+      const requests = [];
+      querySnapshot.forEach((doc) => {
+        requests.push({id: doc.id});
+      });
+      setRequests(requests)
+    });
+    const reportedUnsub = onSnapshot(reportedQ, (querySnapshot) => {
+      const reported = [];
+      querySnapshot.forEach((doc) => {
+        reported.push({id: doc.id});
+      });
+      setReported(reported)
+    });
+    const memberUnsub = onSnapshot(memberQ, (querySnapshot) => {
+      const members = [];
+      querySnapshot.forEach((doc) => {
+        members.push({id: doc.id});
+      });
+      setMemberRequests(members)
+    });
+    return contactUnsub, requestUnsub, reportedUnsub, memberUnsub;
+  }
+  catch (e) {
+    console.error(e)
+  }
+}
+/**
+ * Gets first 10 themes based on subCollection (price, date, etc.) and order (ascending, descending) that were collected/purchased by a user.
+ * @param {String} userId - The id of the user perfoming this action.
+ * @param {String} subCollection - The name of the field/subCollection that we are ordering the query by (price, date, etc.).
+ * @param {String} order - The name of the order that we are ordering the query by (ascending, descending, etc.).
+ * @param {Function} setPurchasedThemes - State setter function for updating `purchasedThemes` after fetching the first 10 purchased themes.
+ * @param {Function} setPurchasedLastVisible - State setter function for updating `purchasedLastVisible` after fetching the first 10 purchasedThemes.
+ * Used to get the last document in our query in case user fetches more (separate function).
+ * @returns {Function} - An unsubscribe function to stop listening to changes.
+ * @throws {Error} - If `userId` or `subCollection` is not provided.
+*/
+export const fetchPurchasedThemes = (userId, subCollection, order, setPurchasedThemes, setPurchasedLastVisible) => {
+  if (!userId || !subCollection) {
+    throw new Error("userId is undefined");
+  }
+  const purchasedQuery = query(collection(db, 'profiles', userId, 'purchased'), orderBy(subCollection, order), limit(10))
+  const unsubscribe = onSnapshot(purchasedQuery, (snapshot) => {
+    const purchased = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+      transparent: false
+    }));
+    setPurchasedThemes(purchased);
+    if (snapshot.docs.length > 0) {
+      setPurchasedLastVisible(snapshot.docs[snapshot.docs.length - 1]);
+    }
+
+  return unsubscribe;
+  });
 }

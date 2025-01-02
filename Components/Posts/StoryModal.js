@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View, Modal, Animated, TouchableOpacity, Dimensions, FlatList, TextInput } from 'react-native'
-import React, {useState, useRef} from 'react'
+import React, {useState, useRef, useEffect} from 'react'
 import FastImage from 'react-native-fast-image'
 import {MaterialCommunityIcons, MaterialIcons} from '@expo/vector-icons';
 import getDateAndTime from '../../lib/getDateAndTime';
@@ -10,9 +10,7 @@ import { Divider } from 'react-native-paper';
 import MainButton from '../MainButton';
 import { useDownloadImage } from '../../Hooks/useDownloadImage';
 const storyWidth = Dimensions.get('screen').width
-const StoryModal = ({userStoryModal, closeStoryModal, closeText, closeUserStoryModal, openText, openUserStoryModal, username,
-    user, background, forSale, pfp
-}) => {
+const StoryModal = ({userStoryModal, closeStoryModal, storyItem, closeUserStoryModal, openUserStoryModal, user}) => {
     const storyRef = useRef(null);
     const handleClose = () => {
         if (userStoryModal) {
@@ -32,11 +30,16 @@ const StoryModal = ({userStoryModal, closeStoryModal, closeText, closeUserStoryM
     };
     const [story, setStory] = useState([]);
     const [storyLoading, setStoryLoading] = useState(false);
-    const {loading, data, pickImage} = usePickImage();
+    const {imageLoading, data, pickImage} = usePickImage();
     const {videoLoading, videoData, pickVideo} = usePickVideo();
     const [activeStoryIndex, setActiveStoryIndex] = useState(0);
     const [textOpen, setTextOpen] = useState(false);
     const [text, setText] = useState('');
+    useEffect(() => {
+      if (storyItem) {
+        setStory(storyItem)
+      }
+    }, [storyItem])
     const renderStory = ({item, index}) => {
       return (
         <TouchableOpacity style={{ width: storyWidth, height: '100%', alignItems: 'center', justifyContent: 'center'}} onPress={handleScreenPress} activeOpacity={1}> 
@@ -182,9 +185,11 @@ const StoryModal = ({userStoryModal, closeStoryModal, closeText, closeUserStoryM
                   <Text style={styles.noPostsText}>No Story Yet!</Text>
                 </View>}
               </View>
+              {story.length > 0 ? story[0].userId == user.uid ? 
               <View style={{marginHorizontal: '5%'}}>
                 <NextButton text={"Add To Story →"} onPress={() => {handleSwitch()}}/>
               </View>
+              : null : null}
               </View>
             </View>
           </View>
@@ -515,7 +520,7 @@ const styles = StyleSheet.create({
   storyButton: {
     marginTop: '10%',
     marginLeft: 'auto',
-    marginRight: '5%'
+    marginRight: '7.5%'
   },
   noPostsText: {
     fontFamily: 'Montserrat_500Medium',

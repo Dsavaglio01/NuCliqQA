@@ -1,72 +1,31 @@
-import { StyleSheet, Text, TouchableOpacity, View, Image, FlatList,  Alert, TextInput, ActivityIndicator} from 'react-native'
+import { StyleSheet, Text, TouchableOpacity, View, FlatList,  Alert} from 'react-native'
 import React, {useState, useEffect, useMemo, useContext} from 'react'
-import {MaterialCommunityIcons, Entypo, MaterialIcons} from '@expo/vector-icons';
+import {MaterialCommunityIcons, MaterialIcons} from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import useAuth from '../Hooks/useAuth';
-import { onSnapshot, query, collection, orderBy, getDocs, getFirestore, doc, getDoc, deleteDoc, addDoc, startAfter, where,
-  serverTimestamp, setDoc, limit, updateDoc, arrayRemove, arrayUnion, increment } from 'firebase/firestore';
-import { Provider, Menu, Divider } from 'react-native-paper';
-import Header from '../Components/Header';
-import { KeyboardAvoidingView } from 'react-native';
-import NextButton from '../Components/NextButton';
-import RecentSearches from '../Components/RecentSearches';
+import { onSnapshot, query, collection, orderBy, getDocs, doc, getDoc, deleteDoc, where, limit } from 'firebase/firestore';
 import FastImage from 'react-native-fast-image';
-import SearchBar from '../Components/SearchBar';
 import { Swipeable } from 'react-native-gesture-handler';
 import RequestedIcon from '../Components/RequestedIcon';
-import {BACKEND_URL} from "@env"
-import { useFonts, Montserrat_500Medium, Montserrat_600SemiBold, Montserrat_700Bold } from '@expo-google-fonts/montserrat';
 import themeContext from '../lib/themeContext';
 import { db } from '../firebase';
 const GroupChannels = ({route}) => {
-    //const {id, pfp, name, person, group} = route.params;
     let row = [];
     let prevOpenedRow;
-    const {friendId, pfp, id, name, sending, payload, theme, group, payloadUsername, notifications, newPost} = route.params;
-    //console.log(payloadUsername)
-    //console.log(id)
+    const {pfp, id, name, sending, payload, theme, group} = route.params;
     const navigation = useNavigation();
     const modeTheme = useContext(themeContext)
     const [notificationDone, setNotificationDone] = useState(false);
     const [admins, setAdmins] = useState([])
-    const [recentSearches, setRecentSearches] = useState(false);
     const [completeNotifications, setCompleteNotifications] = useState([]);
-    const [filteredGroup, setFilteredGroup] = useState([]);
     const [friendRequests, setFriendRequests] = useState([]);
-    const [notificationVisible, setNotificationVisible] = useState();
     const [loading, setLoading] = useState(true);
-    const [doneGetting, setDoneGetting] = useState(false);
-    const [lastVisible, setLastVisible] = useState();
     const [messages, setMessages] = useState(true);
     const [chats, setChats] = useState([]);
-    const [privateChats, setPrivateChats] = useState(false);
-    const [following, setFollowing] = useState(true)
-    const [explore, setExplore] = useState(false)
-    const [requests, setRequests] = useState([]);
-    const [finalRequests, setFinalRequests] = useState([]);
-    const [visible, setVisible] = useState(false);
-    const [caption, setCaption] = useState('')
-    const [actuallySending, setActuallySending] = useState(false);
     const [userNotifications, setUserNotifications] = useState([]);
-    const [allowNotifications, setAllowNotifications] = useState([]);
     const [messageNotifications, setMessageNotifications] = useState([]);
-   const openMenu = () => setVisible(true)
-   const [firstName, setFirstName] = useState('');
-   const [lastName, setLastName] = useState('');
-   const [searches, setSearches] = useState([]);
-   const closeMenu = () => setVisible(false)
-    const [lastMessages, setLastMessages] = useState([]);
-    const [searching, setSearching] = useState(false)
-    const [filtered, setFiltered] = useState();
     const [ableToShare, setAbleToShare] = useState(true);
-    const [actualNewChannel, setNewChannel] = useState(null);
-    const [privateNewChannel, setPrivateNewChannel] = useState(null);
-    const [filteredEvent, setFilteredEvent] = useState([]);
-    const [isSearching, setIsSearching] = useState(false);
     const {user} = useAuth()
-   
-    //console.log(id)
-    const [isDead, setIsDead] = useState(false);
     const docRef = doc(db, 'groups', id)
     useEffect(() => {
       if (route.params?.payload) {
@@ -103,17 +62,6 @@ const GroupChannels = ({route}) => {
       fetchCards();
       return unsub
     }, [])
-    //console.log(messageNotifications)
-    useEffect(() => {
-      const getData = async() => {
-        const docSnap = await getDoc(docRef)
-        const profileSnap = await getDoc(doc(db, 'profiles', user.uid))
-        setAllowNotifications(docSnap.data().allowMessageNotifications)
-        setLastName(profileSnap.data().lastName)
-        setFirstName(profileSnap.data().firstName)
-      }
-      getData()
-    }, [])
      useEffect(() => {
         const getData = async() => {
             const docRef= doc(db, 'groups', id)
@@ -121,28 +69,6 @@ const GroupChannels = ({route}) => {
         }
         getData()
     }, [])
-  function schedulePushPostNotification(firstName, lastName, username, notificationToken, clique, channel) {
-    //console.log('first')
-    //console.log(notificationToken)
-        fetch(`${BACKEND_URL}/api/postCliqueNotification`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        firstName: firstName, lastName: lastName, username: username, pushToken: notificationToken, clique: clique, channel: channel
-      }),
-      })
-    .then(response => response.json())
-    .then(responseData => {
-      // Handle the response from the server
-      console.log(responseData);
-    })
-    .catch(error => {
-      // Handle any errors that occur during the request
-      console.error(error);
-    })
-    }
     useEffect(() => {
       let unsub = [];
       const fetchCards = async () => {
@@ -436,19 +362,6 @@ const GroupChannels = ({route}) => {
       await deleteDoc(doc(db, 'groups', id, 'notifications', user.uid, 'notifications', item.item.id))
       //console.log(item)
     }
-
- 
-const [fontsLoaded, fontError] = useFonts({
-    // your other fonts here
-    Montserrat_500Medium,
-    Montserrat_600SemiBold,
-    Montserrat_700Bold
-  });
-
-  if (!fontsLoaded || fontError) {
-    // Handle loading errors
-    return null;
-  }
   const deleteMessageNotifications = async(item) => {
     const querySnapshot = await getDocs(collection(db, 'groups', id, 'notifications', user.uid, 'messageNotifications'));
     querySnapshot.forEach(async(document) => {
@@ -460,173 +373,6 @@ const [fontsLoaded, fontError] = useFonts({
     });
     //await deleteDoc(doc())
   }
-    const renderNotifications = ({item, index}, onClick) => {
-     
-    const closeRow = (index) => {
-      console.log('closerow');
-      if (prevOpenedRow && prevOpenedRow !== row[index]) {
-        prevOpenedRow.close();
-      }
-      prevOpenedRow = row[index];
-    };
-
-    const renderRightActions = (progress, dragX, onClick) => {
-      return (
-        <TouchableOpacity
-          style={{
-            margin: 0,
-            alignContent: 'center',
-            justifyContent: 'center',
-            width: 70,
-          }} onPress={() => deleteNotification(item)}>
-          <MaterialIcons name='delete-outline' size={35} style={{alignSelf: 'center', paddingBottom: 10}} color="red"/>
-        </TouchableOpacity>
-      );
-    };
-    return (
-        <Swipeable renderRightActions={(progress, dragX) =>
-          renderRightActions(progress, dragX, onClick)
-        }
-        onSwipeableOpen={() => closeRow(index)}
-        ref={(ref) => (row[index] = ref)}
-        rightOpenValue={-100}
-        >
-          <View>
-        {item.item.like ? 
-        <View style={{margin: '2.5%', flexDirection: 'row', paddingBottom: 10, marginTop: 0, borderBottomWidth: 1, borderBottomColor: "#d3d3d3",}}>
-        <View style={{flexDirection: 'row', alignItems: 'center', width:'91%'}}>
-          {item.info.pfp ? <FastImage source={{uri: item.info.pfp}} style={styles.image}/> :
-              <FastImage source={require('../assets/defaultpfp.jpg')} style={styles.image}/>
-              }
-          <Text numberOfLines={1} style={[styles.addText, {color: modeTheme.color}]}><Text style={{fontWeight: '700'}} onPress={() => navigation.navigate('ViewingProfile', {name: item.item.requestUser, viewing: true, name: item.postInfo.userId, groupId: id})}>@{item.info.userName}</Text> liked your post: </Text>
-        
-        </View>
-        {item.postInfo.post[0].image ? 
-      <TouchableOpacity style={{borderRadius: 10, marginLeft: 'auto'}} onPress={() => navigation.navigate('Post', {post: item.postInfo.id, requests: friendRequests, name: item.postInfo.userId, groupId: id})}>
-        <FastImage source={{uri: item.postInfo.post[0].post, priority: 'normal'}} style={[styles.image, {borderRadius: 1}]}/>
-      </TouchableOpacity> : item.postInfo.post[0].video ? <TouchableOpacity style={{borderRadius: 10, marginLeft: 'auto'}} onPress={() => navigation.navigate('Post', {post: item.postInfo.id, requests: requests, name: item.postInfo.userId, groupId: id})}>
-        <FastImage source={{uri: item.postInfo.post[0].thumbnail, priority: 'normal'}} style={[styles.image, {borderRadius: 1}]}/>
-      </TouchableOpacity> : <TouchableOpacity style={{borderRadius: 10, marginLeft: 'auto', alignSelf: 'center'}} onPress={() => navigation.navigate('Post', {post: item.postInfo.id, requests: requests, name: item.postInfo.userId, groupId: id})}>
-        <Text style={[styles.image, {fontSize: item.postInfo.post[0].textSize, color: theme.color, borderRadius: 1}]}>{item.postInfo.post[0].value}</Text>
-      </TouchableOpacity>}
-        </View> :
-        item.item.request ? 
-        <View style={{margin: '2.5%', flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: "#d3d3d3", paddingBottom: 10, marginTop: 0}}>
-        <View style={{flexDirection: 'row', alignItems: 'center', width: '75%'}}>
-          {item.info.pfp ? <FastImage source={{uri: item.info.pfp}} style={styles.image}/> :
-              <FastImage source={require('../assets/defaultpfp.jpg')} style={styles.image}/>
-              }
-          <Text numberOfLines={2} style={[styles.addText, {color: modeTheme.color}]}><Text  style={{fontWeight: '700'}} onPress={() => navigation.navigate('ViewingProfile', {name: item.item.requestUser, viewing: true, name: item.postInfo.userId, groupId: id})}>@{item.info.userName}</Text> invited you to join the "{item.postInfo.name}" channel.</Text>
-        </View>
-        <View style={{alignItems: 'center', justifyContent: 'center', marginLeft: 'auto'}}>
-          <NextButton text={"Accept"} textStyle={{padding: 7.5, paddingLeft: 7.5, paddingRight: 7.5, fontSize: 12.29, fontFamily: 'Montserrat_500Medium'}} onPress={() => acceptRequest(item)}/>
-        </View>
-        
-        </View> :
-        item.item.report ? 
-        <View style={{flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: "#d3d3d3", paddingBottom: 10, marginTop: 0}}>
-        <View style={{flexDirection: 'row', alignItems: 'center', width: '97.5%'}}>
-          {item.item.comments ? <View>
-            <Text numberOfLines={2} style={[styles.addText, {color: modeTheme.color}]}>You have been reported for this comment: "{item.item.comment}" for {item.item.item}</Text>
-          </View> : item.item.post ? 
-          <View style={{flexDirection: 'row', flex: 1, marginTop: 0}}>
-            <Text numberOfLines={2} style={[styles.addText, {color: modeTheme.color}]}>This post has been reported for {item.item.item}: </Text>
-            {item.postInfo.post[0].image ? 
-            <TouchableOpacity style={{borderRadius: 10, marginLeft: 'auto', alignSelf: 'center'}} onPress={() => navigation.navigate('Post', {post: item.postInfo.id, requests: friendRequests, name: item.postInfo.userId, groupId: id})}>
-              <FastImage source={{uri: item.postInfo.post[0].post, priority: 'normal'}} style={[styles.image, {borderRadius: 1}]}/>
-            </TouchableOpacity> : item.postInfo.post[0].video ? <TouchableOpacity style={{borderRadius: 10, marginLeft: 'auto', alignSelf: 'center'}} onPress={() => navigation.navigate('Post', {post: item.postInfo.id, requests: requests, name: item.postInfo.userId, groupId: id})}>
-        <FastImage source={{uri: item.postInfo.post[0].thumbnail, priority: 'normal'}} style={[styles.image, {borderRadius: 1}]}/>
-      </TouchableOpacity> : <TouchableOpacity style={{borderRadius: 10, marginLeft: 'auto', alignSelf: 'center'}} onPress={() => navigation.navigate('Post', {post: item.postInfo.id, requests: requests, name: item.postInfo.userId, groupId: id})}>
-        <Text style={[styles.image, {fontSize: item.postInfo.post[0].textSize, color: theme.color}]}>{item.postInfo.post[0].value}</Text>
-      </TouchableOpacity>
-      }
-          </View> : item.item.cliqueMessage ? 
-          <View> 
-             <Text numberOfLines={2} style={[styles.addText, {color: modeTheme.color}]}>You have been reported for a chat message for {item.item.item}</Text>
-          </View> : null}
-        </View>
-        
-        </View> :
-        item.item.comment ? item.item.likedComment ? 
-        <View style={{margin: '2.5%', flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: "#d3d3d3", paddingBottom: 10}}>
-        <View style={{flexDirection: 'row', alignItems: 'center', width: '75%'}}>
-          <FastImage source={item.info.pfp != undefined ? {uri: item.info.pfp} : require('../assets/defaultpfp.jpg')} style={styles.image}/>
-          <Text numberOfLines={2} style={[styles.addText]}><Text  style={{fontFamily: 'Montserrat_700Bold'}} onPress={() => navigation.navigate('ViewingProfile', {name: item.item.requestUser, viewing: true, groupId: id})}>@{item.item.likedBy}</Text> liked your comment:  {item.item.item} </Text>
-        </View>
-        {item.postInfo.post[0].image ? 
-      <TouchableOpacity style={{borderRadius: 10, marginLeft: 'auto', alignSelf: 'center'}} onPress={() => navigation.navigate('Post', {post: item.postInfo.id, requests: friendRequests, name: item.postInfo.userId, groupId: id})}>
-        <FastImage source={{uri: item.postInfo.post[0].post, priority: 'normal'}} style={[styles.image, {borderRadius: 1}]}/>
-      </TouchableOpacity> : item.postInfo.post[0].video ? <TouchableOpacity style={{borderRadius: 10, marginLeft: 'auto', alignSelf: 'center'}} onPress={() => navigation.navigate('Post', {post: item.postInfo.id, requests: friendRequests, name: item.postInfo.userId, groupId: id})}>
-        <FastImage source={{uri: item.postInfo.post[0].thumbnail, priority: 'normal'}} style={[styles.image, {borderRadius: 1}]}/>
-      </TouchableOpacity> : <TouchableOpacity style={{borderRadius: 10, marginLeft: 'auto', alignSelf: 'center'}} onPress={() => navigation.navigate('Post', {post: item.postInfo.id, requests: friendRequests, name: item.postInfo.userId, groupId: id})}>
-        <Text style={[styles.image, {fontSize: item.postInfo.post[0].textSize, color: theme.color}]}>{item.postInfo.post[0].value}</Text>
-      </TouchableOpacity>}
-        </View> : 
-        <View style={{margin: '2.5%', flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: "#d3d3d3", paddingBottom: 10}}>
-        <View style={{flexDirection: 'row', alignItems: 'center', width: '75%'}}>
-          <FastImage source={item.info.pfp != undefined ? {uri: item.info.pfp} : require('../assets/defaultpfp.jpg')} style={styles.image}/>
-          <Text numberOfLines={2} style={[styles.addText, {color: modeTheme.color}]}><Text  style={{fontFamily: 'Montserrat_700Bold'}} onPress={() => navigation.navigate('ViewingProfile', {name: item.item.requestUser, viewing: true, groupId: id})}>@{item.item.likedBy}</Text> commented:  {item.item.item} </Text>
-        </View>
-        {item.postInfo.post[0].image ? 
-      <TouchableOpacity style={{borderRadius: 10, marginLeft: 'auto', alignSelf: 'center'}} onPress={() => navigation.navigate('Post', {post: item.postInfo.id, requests: friendRequests, name: item.postInfo.userId, groupId: id})}>
-        <FastImage source={{uri: item.postInfo.post[0].post, priority: 'normal'}} style={[styles.image, {borderRadius: 1}]}/>
-      </TouchableOpacity> : item.postInfo.post[0].video ? <TouchableOpacity style={{borderRadius: 10, marginLeft: 'auto'}} onPress={() => navigation.navigate('Post', {post: item.postInfo.id, requests: requests, name: item.postInfo.userId, groupId: id})}>
-        <FastImage source={{uri: item.postInfo.post[0].thumbnail, priority: 'normal'}} style={[styles.image, {borderRadius: 1}]}/>
-      </TouchableOpacity> : <TouchableOpacity style={{borderRadius: 10, marginLeft: 'auto', alignSelf: 'center'}} onPress={() => navigation.navigate('Post', {post: item.postInfo.id, requests: requests, name: item.postInfo.userId, groupId: id})}>
-        <Text style={[styles.image, {fontSize: item.postInfo.post[0].textSize, color: theme.color}]}>{item.postInfo.post[0].value}</Text>
-      </TouchableOpacity>}
-        </View>
-        : item.item.reply ?
-        <View style={{margin: '2.5%', flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: "#d3d3d3", paddingBottom: 10}}>
-        <View style={{flexDirection: 'row', alignItems: 'center', width: '75%'}}>
-          <FastImage source={item.info.pfp != undefined ? {uri: item.info.pfp} : require('../assets/defaultpfp.jpg')} style={styles.image}/>
-          <Text numberOfLines={2} style={[styles.addText, {color: modeTheme.color}]}><Text  style={{fontFamily: 'Montserrat_700Bold'}} onPress={() => navigation.navigate('ViewingProfile', {name: item.item.requestUser, viewing: true, groupId: id})}>@{item.item.likedBy}</Text> replied to you:  {item.item.item} </Text>
-        </View>
-        {item.postInfo.post[0].image ? 
-      <TouchableOpacity style={{borderRadius: 10, marginLeft: 'auto', alignSelf: 'center'}} onPress={() => navigation.navigate('Post', {post: item.postInfo.id, requests: friendRequests, name: item.postInfo.userId, groupId: id})}>
-        <FastImage source={{uri: item.postInfo.post[0].post, priority: 'normal'}} style={[styles.image, {borderRadius: 1}]}/>
-      </TouchableOpacity> : item.postInfo.post[0].video ? <TouchableOpacity style={{borderRadius: 10, marginLeft: 'auto'}} onPress={() => navigation.navigate('Post', {post: item.postInfo.id, requests: requests, name: item.postInfo.userId, groupId: id})}>
-        <FastImage source={{uri: item.postInfo.post[0].thumbnail, priority: 'normal'}} style={[styles.image, {borderRadius: 1}]}/>
-      </TouchableOpacity> : <TouchableOpacity style={{borderRadius: 10, marginLeft: 'auto', alignSelf: 'center'}} onPress={() => navigation.navigate('Post', {post: item.postInfo.id, requests: requests, name: item.postInfo.userId, groupId: id})}>
-        <Text style={[styles.image, {fontSize: item.postInfo.post[0].textSize, color: theme.color}]}>{item.postInfo.post[0].value}</Text>
-      </TouchableOpacity>}
-        </View> :
-
-        item.item.mention ? 
-         <View style={{margin: '2.5%', flexDirection: 'row', marginTop: 0, borderBottomWidth: 1, borderBottomColor: "#d3d3d3", paddingBottom: 10}}>
-        <View style={{flexDirection: 'row', alignItems: 'center', width: '75%'}}>
-          <FastImage source={item.info.pfp != undefined ? {uri: item.info.pfp} : require('../assets/defaultpfp.jpg')} style={styles.image}/>
-          <Text numberOfLines={2} style={[styles.addText, {color: modeTheme.color}]}><Text  style={{fontFamily: 'Montserrat_700Bold'}} onPress={() => navigation.navigate('ViewingProfile', {name: item.item.requestUser, viewing: true, name: item.postInfo.userId, groupId: id})}>@{item.item.likedBy}</Text> mentioned you in a comment.</Text>
-        </View>
-        {item.postInfo.post[0].image ? 
-      <TouchableOpacity style={{borderRadius: 10, marginLeft: 'auto', alignSelf: 'center'}} onPress={() => navigation.navigate('Post', {post: item.postInfo.id, requests: requests, name: item.postInfo.userId, groupId: id})}>
-        <FastImage source={{uri: item.postInfo.post[0].post, priority: 'normal'}} style={[styles.image, {borderRadius: 1}]}/>
-      </TouchableOpacity> : item.postInfo.post[0].video ? <TouchableOpacity style={{borderRadius: 10, marginLeft: 'auto', alignSelf: 'center'}} onPress={() => navigation.navigate('Post', {post: item.postInfo.id, requests: requests, name: item.postInfo.userId, groupId: id})}>
-        <FastImage source={{uri: item.postInfo.post[0].thumbnail, priority: 'normal'}} style={[styles.image, {borderRadius: 1}]}/>
-      </TouchableOpacity> : <TouchableOpacity style={{borderRadius: 10, marginLeft: 'auto', alignSelf: 'center'}} onPress={() => navigation.navigate('Post', {post: item.postInfo.id, requests: requests, name: item.postInfo.userId, groupId: id})}>
-        <Text style={[styles.image, {fontSize: item.postInfo.post[0].textSize, color: theme.color}]}>{item.postInfo.post[0].value}</Text>
-      </TouchableOpacity>}
-        </View> : item.item.postMention ? 
-        <View style={{margin: '2.5%', flexDirection: 'row', marginTop: 0, borderBottomWidth: 1, borderBottomColor: "#d3d3d3", paddingBottom: 10}}>
-        <View style={{flexDirection: 'row', alignItems: 'center', width: '75%'}}>
-          <FastImage source={item.info.pfp != undefined ? {uri: item.info.pfp} : require('../assets/defaultpfp.jpg')} style={styles.image}/>
-          <Text numberOfLines={2} style={[styles.addText, {color: modeTheme.color}]}><Text  style={{fontFamily: 'Montserrat_700Bold'}} onPress={() => navigation.navigate('ViewingProfile', {name: item.item.requestUser, viewing: true, name: item.postInfo.userId, groupId: id})}>@{item.item.likedBy}</Text> mentioned you in a post.</Text>
-        </View>
-        {item.postInfo.post[0].image ? 
-      <TouchableOpacity style={{borderRadius: 10, marginLeft: 'auto', alignSelf: 'center'}} onPress={() => navigation.navigate('Post', {post: item.postInfo.id, requests: requests, name: item.postInfo.userId, groupId: id})}>
-        <FastImage source={{uri: item.postInfo.post[0].post, priority: 'normal'}} style={[styles.image, {borderRadius: 1}]}/>
-      </TouchableOpacity> : item.postInfo.post[0].video ? <TouchableOpacity style={{borderRadius: 10, marginLeft: 'auto', alignSelf: 'center'}} onPress={() => navigation.navigate('Post', {post: item.postInfo.id, requests: requests, name: item.postInfo.userId, groupId: id})}>
-        <FastImage source={{uri: item.postInfo.post[0].thumbnail, priority: 'normal'}} style={[styles.image, {borderRadius: 1}]}/>
-      </TouchableOpacity> : <TouchableOpacity style={{borderRadius: 10, marginLeft: 'auto', alignSelf: 'center'}} onPress={() => navigation.navigate('Post', {post: item.postInfo.id, requests: requests, name: item.postInfo.userId, groupId: id})}>
-        <Text style={[styles.image, {fontSize: item.postInfo.post[0].textSize, color: theme.color}]}>{item.postInfo.post[0].value}</Text>
-      </TouchableOpacity>}
-        </View> :
-        null
-        }
-        </View>
-        </Swipeable>
-    )
-}
     const renderChats = ({item, index}, onClick) => {
       //console.log(item)
       if (item != undefined && item.members != undefined) {
@@ -722,197 +468,188 @@ const [fontsLoaded, fontError] = useFonts({
         )
             } 
     }
-    const handleSearchCallback = (dataToSend) => {
-      //console.log(dataToSend)
-      setSearching(dataToSend)
-    }
-    const handleGroupCallback = (dataToSend) => {
-    setFilteredGroup(dataToSend)
-  }
   return (
-    <Provider>
-        <View style={[styles.container, {backgroundColor: modeTheme.backgroundColor}]}>
-          <View style={{backgroundColor: modeTheme.backgroundColor}}>
-          <View style={{ backgroundColor: modeTheme.backgroundColor, borderBottomWidth: 1, borderColor: modeTheme.color}}>
-          <View style={notifications ? {width: '95%', flexDirection: 'row', alignItems: 'center', marginTop: '10%', marginBottom: '2.5%'} : {width: '95%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: '10%', marginBottom: '2.5%'}}>
-            <TouchableOpacity style={{ alignSelf: 'center', marginLeft: '2.5%'}} onPress={() => navigation.goBack()}>
+    <View style={styles.container}>
+      <View style={{backgroundColor: "#121212"}}>
+        <View style={styles.header}>
+          <View style={styles.backContainer}>
+            <TouchableOpacity style={styles.back} onPress={() => navigation.goBack()}>
               <MaterialCommunityIcons name='chevron-left' size={35} color={modeTheme.color} />
             </TouchableOpacity>
-          {
-            !notifications ?
-                  <>
-                  <TouchableOpacity activeOpacity={1} style={{alignSelf: 'center', flexDirection: 'row', marginLeft: '1%'}} onPress={() => {setMessages(true)}}>
-                    <FastImage source={pfp ? {uri: pfp} : require('../assets/defaultpfp.jpg')} style={{height: 35, width: 35, borderRadius: 8, marginLeft: 0, marginRight: 10, alignSelf: 'center', borderWidth: 1.5, borderColor: '#000'}}/>
-                    <Text numberOfLines={1} style={[styles.messageText, {paddingHorizontal: 0, width: '70%', color: "#fafafa"}]}>{name} Messages</Text>
-            {/* {messageNotification.length > 0 ? <View style={[styles.greenDot, {left: 100, top: 10}] }/> : null} */}
-            
-          </TouchableOpacity>
-          <MaterialCommunityIcons name='plus' size={30} color={"#fafafa"} onPress={() => navigation.navigate('ChannelsName', {id: id})}/>
-        </>
-        : 
-        <>        
-        <View style={{alignSelf: 'center', flexDirection: 'row', marginLeft: '5%', borderColor: modeTheme.color}}>
-                    <FastImage source={pfp ? {uri: pfp} : require('../assets/defaultpfp.jpg')} style={{height: 35, width: 35, borderRadius: 8, marginLeft: 0, marginRight: 10, alignSelf: 'center', borderColor: modeTheme.color, borderWidth: 1.5, borderColor: '#000'}}/>
-                    <Text numberOfLines={1} style={[styles.messageText, {paddingHorizontal: 0, width: '75%', color: modeTheme.color}]}>{name} Notifications</Text>
-            {/* {messageNotification.length > 0 ? <View style={[styles.greenDot, {left: 100, top: 10}] }/> : null} */}
-            
+            <TouchableOpacity activeOpacity={1} style={styles.titleContainer} onPress={() => {setMessages(true)}}>
+              <FastImage source={pfp ? {uri: pfp} : require('../assets/defaultpfp.jpg')} style={styles.pfp}/>
+              <Text numberOfLines={1} style={styles.messageText}>{name} Messages</Text>
+            </TouchableOpacity>
+            <MaterialCommunityIcons name='plus' size={30} color={"#fafafa"} onPress={() => navigation.navigate('ChannelsName', {id: id})}/>
           </View>
-        </>}
+        </View>
       </View>
-      </View>
-    </View>
-{
-           !searching && notifications && userNotifications.length > 0 ? <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{flex: 1, margin: '2.5%'}}>
-            <FlatList 
-                data={completeNotifications.slice().sort((a, b) => b.item.timestamp - a.item.timestamp)}
-                renderItem={renderNotifications}
-                keyExtractor={(item, index) => index.toString()}
-                style={{height: '50%'}} 
-                contentContainerStyle={{zIndex: 0}}
-                ListFooterComponent={<View style={{paddingBottom: 50}}/>}
-            />
-            {
-              loading ?  <View style={{alignItems: 'center', justifyContent: 'flex-start', flex: 1}}>
-        <ActivityIndicator color={modeTheme.theme != 'light' ? "#9EDAFF" : "#005278"}/> 
-        </View> : null}
-        </KeyboardAvoidingView> 
-       : !searching && notifications ? 
-        <View style={{flex: 1, alignItems: 'center', justifyContent: 'center', marginBottom: '20%', backgroundColor: modeTheme.backgroundColor}}>
-          <Text style={[styles.noChats, {color: modeTheme.color}]}>Sorry no Notifications</Text>
-          <MaterialCommunityIcons name='emoticon-sad-outline' color={modeTheme.color} size={50} style={{alignSelf: 'center', marginTop: '5%'}}/>
-        </View> : !searching && !notifications ? 
-        <FlatList 
+      <FlatList 
         data={chats}
         renderItem={renderChats}
-        keyExtractor={(item, index) => index.toString()}
-                style={{height: '50%'}} 
-                contentContainerStyle={{zIndex: 0}}
-                ListFooterComponent={<View style={{paddingBottom: 50}}/>}
-        /> 
-        : null}
-          
-        
-        </View>
-    </Provider>
+        keyExtractor={(item, index) => item.id.toString()}
+        style={{height: '50%'}} 
+        contentContainerStyle={{zIndex: 0}}
+        ListFooterComponent={<View style={{paddingBottom: 50}}/>}
+      /> 
+    </View>
   )
 }
 
 export default GroupChannels
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: "#fff"
-    },
-    profilesContainer: {
-        flexDirection: 'row'
-    },
-    searchContainer: {
-        height: 60,
-        width: 60,
-        borderRadius: 30,
-        backgroundColor: '#005278',
-        justifyContent: 'center',
-        //flex: 1,
-        alignItems: 'center',
-        marginRight: '5%',
-        //marginLeft: '2.5%'
-    },
-    online: {
-        height: 12,
-        width: 12,
-        borderRadius: 6,
-        backgroundColor: 'green',
-        position: 'absolute',
-        //top: 2,
-        bottom: 45,
-        left: 45,
-        zIndex: 3
-    },
-    messageContainer: {
-        borderRadius: 10,
-        borderBottomWidth: 1,
-        borderBottomColor: "#d3d3d3",
-        padding: 10,
-        marginBottom: '2.5%',
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    name: {
-        fontSize: 15.36,
-        paddingTop: 5,
-        fontFamily: 'Montserrat_700Bold',
-        color: "#fafafa", 
-        //width: '95%'
-    },
-    message: {
-        fontSize: 15.36,
-        fontFamily: 'Montserrat_500Medium',
-        paddingBottom: 5,
-        color: "#fafafa"
-      
-    },
-    clock: {
-        paddingTop: 5,
-        fontSize: 12.29,
-        fontFamily: 'Montserrat_500Medium',
-        //paddingRight: 5
-    },
-  categories: {
-    fontSize: 15.36,
-    fontFamily: 'Montserrat_500Medium',
-    width: '80%',
-    padding: 10
+  container: {
+    flex: 1,
+    backgroundColor: "#121212"
   },
-  iconStyle: {
-    alignSelf: "center", 
-    position: 'absolute', 
-    left: 320
+  header: {
+    backgroundColor: "#121212", 
+    borderBottomWidth: 1, 
+    borderColor: "#fafafa"
   },
-    noChats: {
-      fontSize: 24,
+  backContainer: {
+    width: '95%', 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'space-between', 
+    marginTop: '10%', 
+    marginBottom: '2.5%'
+  },
+  titleContainer: {
+    alignSelf: 'center', 
+    flexDirection: 'row', 
+    marginLeft: '1%'
+  },
+  back: { 
+    alignSelf: 'center', 
+    marginLeft: '2.5%'
+  },
+  pfp: {
+    height: 35, 
+    width: 35, 
+    borderRadius: 8, 
+    marginLeft: 0, 
+    marginRight: 10, 
+    alignSelf: 'center', 
+    borderWidth: 1.5, 
+    borderColor: '#000'
+  },
+  profilesContainer: {
+      flexDirection: 'row'
+  },
+  searchContainer: {
+      height: 60,
+      width: 60,
+      borderRadius: 30,
+      backgroundColor: '#005278',
+      justifyContent: 'center',
+      //flex: 1,
+      alignItems: 'center',
+      marginRight: '5%',
+      //marginLeft: '2.5%'
+  },
+  online: {
+      height: 12,
+      width: 12,
+      borderRadius: 6,
+      backgroundColor: 'green',
+      position: 'absolute',
+      //top: 2,
+      bottom: 45,
+      left: 45,
+      zIndex: 3
+  },
+  messageContainer: {
+      borderRadius: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: "#d3d3d3",
       padding: 10,
-      fontFamily: 'Montserrat_500Medium',
-      textAlign: 'center'
-    },
-    messageText: {
-      fontSize: 19.20, color: "#000", alignSelf: 'center', fontWeight: '600', fontFamily: 'Montserrat_600SemiBold',
-      padding: 5
-    },
-    input: {
-      borderTopWidth: 0.25,
-      width: '110%',
-      marginLeft: '-5%',
-      padding: 15,
-      margin: '2.5%',
-      marginTop: 0
-      //backgroundColor: 'red'
-    },
-    joinContainer: {
-      flexDirection: 'row', 
-      borderWidth: 1, 
-      borderRadius: 8, 
-      borderColor: "#9edaff",
-      alignItems: 'center', 
-      alignSelf: 'flex-start', 
-      //marginRight: '10%', 
-      //marginTop: '3%'
+      marginBottom: '2.5%',
+      flexDirection: 'row',
+      alignItems: 'center',
   },
-  joinText: {
-      fontSize: 12.29,
-      padding: 5,
-      fontFamily: 'Montserrat_500Medium',
-      paddingLeft: 15,
-      color: "#9edaff", 
-    },
-    addText: {
+  name: {
       fontSize: 15.36,
-      color: "#090909",
-      padding: 7.5,
-      paddingLeft: 15,
+      paddingTop: 5,
+      fontFamily: 'Montserrat_700Bold',
+      color: "#fafafa", 
+      //width: '95%'
+  },
+  message: {
+      fontSize: 15.36,
       fontFamily: 'Montserrat_500Medium',
-      maxWidth: '90%'
-      //paddingTop: 0
-    },
-    image: {height: 40, width: 40, borderRadius: 8, alignSelf: 'center'}
+      paddingBottom: 5,
+      color: "#fafafa"
+    
+  },
+  clock: {
+      paddingTop: 5,
+      fontSize: 12.29,
+      fontFamily: 'Montserrat_500Medium',
+      //paddingRight: 5
+  },
+categories: {
+  fontSize: 15.36,
+  fontFamily: 'Montserrat_500Medium',
+  width: '80%',
+  padding: 10
+},
+iconStyle: {
+  alignSelf: "center", 
+  position: 'absolute', 
+  left: 320
+},
+  noChats: {
+    fontSize: 24,
+    padding: 10,
+    fontFamily: 'Montserrat_500Medium',
+    textAlign: 'center'
+  },
+  messageText: {
+    fontSize: 19.20, 
+    alignSelf: 'center', 
+    fontWeight: '600', 
+    fontFamily: 'Montserrat_600SemiBold',
+    padding: 5,
+    paddingHorizontal: 0, 
+    width: '70%', 
+    color: "#fafafa"
+  },
+  input: {
+    borderTopWidth: 0.25,
+    width: '110%',
+    marginLeft: '-5%',
+    padding: 15,
+    margin: '2.5%',
+    marginTop: 0
+    //backgroundColor: 'red'
+  },
+  joinContainer: {
+    flexDirection: 'row', 
+    borderWidth: 1, 
+    borderRadius: 8, 
+    borderColor: "#9edaff",
+    alignItems: 'center', 
+    alignSelf: 'flex-start', 
+    //marginRight: '10%', 
+    //marginTop: '3%'
+},
+joinText: {
+    fontSize: 12.29,
+    padding: 5,
+    fontFamily: 'Montserrat_500Medium',
+    paddingLeft: 15,
+    color: "#9edaff", 
+  },
+  addText: {
+    fontSize: 15.36,
+    color: "#090909",
+    padding: 7.5,
+    paddingLeft: 15,
+    fontFamily: 'Montserrat_500Medium',
+    maxWidth: '90%'
+    //paddingTop: 0
+  },
+  image: {height: 40, width: 40, borderRadius: 8, alignSelf: 'center'}
 })

@@ -4,7 +4,7 @@ import * as VideoThumbnails from 'expo-video-thumbnails';
 import { useState } from 'react';
 import {Image} from 'react-native-compressor';
 export const usePickImage = () => {
-    const [loading, setLoading] = useState(false);
+    const [imageLoading, setImageLoading] = useState(false);
     const [data, setData] = useState([]);
     async function addImageToArray(item, type, index) {
       if (type == 'video') {
@@ -14,7 +14,7 @@ export const usePickImage = () => {
       );
        setData([{id: index, image: false, video: true, thumbnail: uri, post: item, visible: false}])
        setTimeout(() => {
-        setLoading(false)
+        setImageLoading(false)
        }, 1000);
     } catch (e) {
       console.warn(e);
@@ -23,14 +23,13 @@ export const usePickImage = () => {
       else {
          setData(prevState => [...prevState, {id: index, image: true, video: false, thumbnail: null, post: item, visible: false}])
          setTimeout(() => {
-            setLoading(false)
+            setImageLoading(false)
           }, 1000);
       }
 
     }
     const pickImage = async () => {
-    if (mStatus !== false) {
-      setLoading(true)
+      setImageLoading(true)
       await ImagePicker.launchImageLibraryAsync({
           mediaTypes: ImagePicker.MediaTypeOptions.Images,
           allowsEditing: true,
@@ -50,22 +49,10 @@ export const usePickImage = () => {
             })
             }
             else {
-              setLoading(false)
+              setImageLoading(false)
             }
         }) 
     }
-    else {
-        Alert.alert("No Media Permissions", "To select photos, allow media permissions in your phone's settings", [
-      {
-        text: 'Cancel',
-        onPress: () => console.log('Cancel Pressed'),
-        style: 'cancel',
-      },
-      {text: 'OK', onPress: () => console.log('OK Pressed')},
-    ])
-      
-      }
-    }
-    return {data, loading, pickImage}
+    return {data, imageLoading, pickImage}
       
     };

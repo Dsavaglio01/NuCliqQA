@@ -1,5 +1,7 @@
-import { StyleSheet, Text, View, Modal, TouchableOpacity, TouchableHighlight, FlatList, Keyboard, ActivityIndicator, 
+import { StyleSheet, Text, View, Modal, TouchableOpacity, TouchableHighlight, FlatList, Keyboard, ActivityIndicator, Dimensions,
   KeyboardAvoidingView, TextInput, Alert} from 'react-native'
+import Animated, {useSharedValue, useAnimatedStyle, useAnimatedGestureHandler, withSpring, runOnJS} from 'react-native-reanimated';
+import {  GestureDetector, Gesture} from 'react-native-gesture-handler';
 import React, { useRef, useState, useEffect, useCallback } from 'react'
 import ReportModal from './ReportModal'
 import {MaterialCommunityIcons, MaterialIcons} from '@expo/vector-icons';
@@ -27,9 +29,9 @@ const CommentsModal = ({commentModal, closeCommentModal, deleteReply, postNull, 
         postNull()
     }
     const handleScroll = _.debounce((event) => {
-    // Your logic for fetching more data
-    fetchMoreCommentData()
-  }, 500);
+      // Your logic for fetching more data
+      fetchMoreCommentData()
+    }, 500);
     let row = [];
     let prevOpenedRow;
     const [reportCommentModal, setReportCommentModal] = useState(false);
@@ -45,6 +47,32 @@ const CommentsModal = ({commentModal, closeCommentModal, deleteReply, postNull, 
     const [tempReplyId, setTempReplyId] = useState(0);
     const [reply, setReply] = useState('');
     const [lastCommentVisible, setLastCommentVisible] = useState(null);
+    const { height } = Dimensions.get('window');
+    const translateY = useSharedValue(0);
+    // Handle gesture
+    const gesture = Gesture.Pan()
+      .onUpdate((event) => {
+        translateY.value = event.translationY > 0 ? event.translationY : 0; // Only move downward
+      })
+      .onEnd((event) => {
+        if (event.translationY > height * 0.3) {
+          // Close modal if pulled down far enough
+          runOnJS(closeCommentModal())();
+        } else {
+          // Snap back into position
+          translateY.value = withSpring(0);
+        }
+      });
+
+    // Animated style
+    const animatedStyle = useAnimatedStyle(() => ({
+      transform: [{ translateY: translateY.value }],
+    }));
+    useEffect(() => {
+      if (textInputRef.current && replyToReplyFocus) { 
+        textInputRef.current.focus();
+      }
+    }, [replyToReplyFocus]);
     useEffect(() => {
       const loadComments = async() => {
         if (videoStyling) {
@@ -61,7 +89,6 @@ const CommentsModal = ({commentModal, closeCommentModal, deleteReply, postNull, 
        
         loadComments();
     }, [])
-    //console.log(comments.length)
     const handleNewComment = (inputText) => {
     const sanitizedText = inputText.replace(/\n/g, ''); // Remove all new line characters
     setNewComment(sanitizedText);
@@ -76,18 +103,18 @@ const CommentsModal = ({commentModal, closeCommentModal, deleteReply, postNull, 
         return;
       }
     };
-   async function fetchMoreCommentData () {
-    if (lastCommentVisible != undefined && videoStyling) {
-        const { newComments, lastVisible: newLastVisible } = await fetchMoreComments(focusedPost, lastCommentVisible, blockedUsers, 'videos')
-        setComments([...comments, ...newComments]);
-        setLastCommentVisible(newLastVisible);
+    async function fetchMoreCommentData () {
+      if (lastCommentVisible != undefined && videoStyling) {
+          const { newComments, lastVisible: newLastVisible } = await fetchMoreComments(focusedPost, lastCommentVisible, blockedUsers, 'videos')
+          setComments([...comments, ...newComments]);
+          setLastCommentVisible(newLastVisible);
+      }
+      else if (lastCommentVisible != undefined && !videoStyling) {
+          const { newComments, lastVisible: newLastVisible } = await fetchMoreComments(focusedPost, lastCommentVisible, blockedUsers, 'posts')
+          setComments([...comments, ...newComments]);
+          setLastCommentVisible(newLastVisible);
+      }
     }
-    else if (lastCommentVisible != undefined && !videoStyling) {
-        const { newComments, lastVisible: newLastVisible } = await fetchMoreComments(focusedPost, lastCommentVisible, blockedUsers, 'posts')
-        setComments([...comments, ...newComments]);
-        setLastCommentVisible(newLastVisible);
-    }
-  }
     const deleteReplyFunction = useCallback(
       async(currentItem, currentElement) => {
         if (currentItem && currentElement) {
@@ -1121,11 +1148,7 @@ async function addLike(item) {
                         
                     
                     </View> 
-                    : 
-                    <View>
-
-                    </View>}
-                    
+                    : null}
             </View>
             
         </View>
@@ -1134,8 +1157,9 @@ async function addLike(item) {
       }
 }
   return (
+    <GestureDetector gesture={gesture}>
    <Modal visible={commentModal} animationType="slide" transparent onRequestClose={() => handleClose()}>
-            <View style={styles.modalContainer}>
+            <View style={[styles.modalContainer, {transform: [{ translateY: translateY.value }]}]}>
                 <View style={styles.modalView}>
                    <View style={styles.container}>
       {reportCommentModal ? <Text style={styles.headerText}>Report</Text> : <Text style={styles.headerText}>Comments</Text> }
@@ -1245,6 +1269,7 @@ async function addLike(item) {
                 </View>
             </View>
         </Modal>
+        </GestureDetector>
   )
 }
 
@@ -1252,8 +1277,8 @@ export default CommentsModal
 
 const styles = StyleSheet.create({
     modalContainer: {
-        flex: 1,
-        marginTop: '10%',
+        marginTop: '55%',
+        height: '75%',
         backgroundColor: "#121212"
     },
     modalView: {
