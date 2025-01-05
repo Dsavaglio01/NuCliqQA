@@ -1,73 +1,27 @@
-import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View, Image, ImageBackground, ActivityIndicator} from 'react-native'
+import { StyleSheet, Text, View, ImageBackground} from 'react-native'
 import React, {useState, useEffect, useContext} from 'react'
 import RegisterHeader from '../Components/RegisterHeader'
 import { useNavigation } from '@react-navigation/native'
-import NextButton from '../Components/NextButton'
-import { updateDoc, doc, collection, addDoc, serverTimestamp, arrayUnion, getFirestore, setDoc, getDoc} from 'firebase/firestore'
 import useAuth from '../Hooks/useAuth'
-import {MaterialCommunityIcons} from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
-import { ref, uploadBytes, getDownloadURL, getStorage } from 'firebase/storage'
 import * as Crypto from 'expo-crypto';
 import PfpImage from '../Components/PfpImage'
-import { useFonts, Montserrat_500Medium } from '@expo-google-fonts/montserrat'
 import themeContext from '../lib/themeContext'
-import { db } from '../firebase'
 const GroupPfp = ({route}) => {
     const {name, groupSecurity, category, description} = route.params
     const navigation = useNavigation();
-    const [image, setImage] = useState(null);
     const [id, setId] = useState();
     const theme = useContext(themeContext)
-    const [pfp, setPfp] = useState();
-    const [profilePic, setProfilePic] = useState();
-    const [uploading, setUploading] = useState(false);
-    const [uploaded, setUploaded] = useState(false);
     const {user} = useAuth()
-    const [firstName, setFirstName] = useState();
-    const [lastName, setLastName] = useState();
-    const [username, setUsername] = useState();
-    const [userPfp, setUserPfp] = useState();
-    const storage = getStorage();
     useEffect(() => {
     (async () => {
       const initialDigest = await Crypto.digestStringAsync(
         Crypto.CryptoDigestAlgorithm.MD5,
         `${name}`
       );
-      //console.log(initialDigest)
-      //console.log('Digest: ', digest);
       setId(initialDigest)
       /* Some crypto operation... */
     })();
   }, []);
-    useEffect(() => {
-        const getProfileDetails = async() => {
-            const docSnap = await getDoc(doc(db, 'profiles', user.uid));
-            if (docSnap.exists()) {
-                const profileVariables = {
-                    pfp: await(await getDoc(doc(db, 'profiles', user.uid))).data().pfp,
-                    username: await(await getDoc(doc(db, 'profiles', user.uid))).data().userName,
-                    firstName: await (await getDoc(doc(db, 'profiles', user.uid))).data().firstName,
-                    lastName: await (await getDoc(doc(db, 'profiles', user.uid))).data().lastName,
-                }
-                setUserPfp(profileVariables.pfp)
-                setFirstName(profileVariables.firstName);
-                setLastName(profileVariables.lastName);
-                setUsername(profileVariables.username);
-            }
-        }
-        getProfileDetails();
-    }, [])
-    const [fontsLoaded, fontError] = useFonts({
-    // your other fonts here
-    Montserrat_500Medium
-  });
-
-  if (!fontsLoaded || fontError) {
-    // Handle loading errors
-    return null;
-  }
     
   return (
     <ImageBackground style={styles.container} source={require('../assets/background2.jpg')} resizeMode="cover">

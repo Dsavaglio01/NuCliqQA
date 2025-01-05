@@ -1,59 +1,13 @@
-import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View, Image, ImageBackground, ActivityIndicator} from 'react-native'
-import React, {useState, useEffect, useContext} from 'react'
+import {StyleSheet, Text, View, ImageBackground} from 'react-native'
+import React, {useContext} from 'react'
 import RegisterHeader from '../Components/RegisterHeader'
 import { useNavigation } from '@react-navigation/native'
-import NextButton from '../Components/NextButton'
-import { updateDoc, doc, getFirestore } from 'firebase/firestore'
-import { ref, uploadBytesResumable, getDownloadURL, getStorage } from 'firebase/storage'
-
-import axios from 'axios'
-import useAuth from '../Hooks/useAuth'
 import PfpImage from '../Components/PfpImage'
-import { useFonts, Montserrat_500Medium } from '@expo-google-fonts/montserrat'
 import themeContext from '../lib/themeContext'
-import { db } from '../firebase'
 const Pfp = ({route}) => {
     const navigation = useNavigation();
     const {firstName, lastName, userName, age} = route.params;
-    const [image, setImage] = useState(null);
-    const [pfp, setPfp] = useState();
     const theme = useContext(themeContext)
-    const [uploading, setUploading] = useState(false);
-    //const [uploaded, setUploaded] = useState(false);
-    const storage = getStorage();
-    const {user} = useAuth()
-    /* useEffect(() => {
-        setPfp(`${user.uid}profile.jpg`)
-    }, []) */
-    const updateCurrentUser = () => {
-        uploadImage()
-    }
-    const uploadImage = async() => {
-        setUploading(true);
-        const response = await fetch(image.uri)
-        const blob = await response.blob();
-        const filename = `${userName}profile.jpg`
-        setPfp(filename)
-        var storageRef = ref(storage, filename)
-        try {
-            await storageRef;
-        } catch (error) {
-            console.log(error)
-        }
-        await uploadBytesResumable(storageRef, blob).then(() => getLink(filename))
-        //setUploaded(true)
-        
-    }
-    //console.log(profilePic)
-    const [fontsLoaded, fontError] = useFonts({
-    // your other fonts here
-    Montserrat_500Medium
-  });
-
-  if (!fontsLoaded || fontError) {
-    // Handle loading errors
-    return null;
-  }
   return (
     <ImageBackground style={styles.container} source={require('../assets/background2.jpg')} resizeMode="cover">
         
@@ -104,7 +58,4 @@ const styles = StyleSheet.create({
       shadowRadius: 4,
       elevation: 5,
     },
-    barColor: {
-        borderColor: '#3286ac'
-    }
 })

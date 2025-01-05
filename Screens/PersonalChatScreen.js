@@ -1,6 +1,5 @@
-import { addDoc, collection, onSnapshot, query,  where, serverTimestamp, orderBy, startAfter, updateDoc, setDoc, doc, getCountFromServer, limit, getFirestore, getDoc, getDocs, deleteDoc, arrayUnion } from 'firebase/firestore';
+import { addDoc, collection, onSnapshot, query,  where, serverTimestamp, orderBy, startAfter, updateDoc, doc, getCountFromServer, limit, getDoc, getDocs, deleteDoc, arrayUnion } from 'firebase/firestore';
 import React, { useState, useEffect, useRef, useMemo, useCallback, useContext } from 'react';
-import * as ImagePicker from 'expo-image-picker';
 import {
   View,
   TextInput,
@@ -10,7 +9,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
-  Modal,
   Alert,
   ActivityIndicator,
   Animated,
@@ -19,67 +17,44 @@ import {
 import useAuth from '../Hooks/useAuth';
 import {MaterialCommunityIcons, FontAwesome, MaterialIcons, Ionicons} from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { TapGestureHandler, State } from 'react-native-gesture-handler';
 import MainButton from '../Components/MainButton';
 import { Divider } from 'react-native-paper';
 import * as Clipboard from 'expo-clipboard'
-import * as MediaLibrary from 'expo-media-library';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
-import { useRoute } from '@react-navigation/native';
-import { getStorage, ref, uploadBytesResumable, getDownloadURL, deleteObject} from 'firebase/storage';
-import * as Crypto from 'expo-crypto';
 import uuid from 'react-native-uuid';
 import FastImage from 'react-native-fast-image';
-import {Camera} from 'expo-camera';
-import {BACKEND_URL, MODERATION_API_USER, MODERATION_API_SECRET, IMAGE_MODERATION_URL} from "@env"
+import {BACKEND_URL} from "@env"
 import { useIsFocused } from '@react-navigation/native'
 import { useFonts, Montserrat_600SemiBold, Montserrat_500Medium } from '@expo-google-fonts/montserrat';
-import * as Notifications from 'expo-notifications'
 import { useFocusEffect } from '@react-navigation/native';
-import generateId from '../lib/generateId';
-import {GiftedChat} from 'react-native-gifted-chat'
 import * as Haptics from 'expo-haptics';
-import { Image } from 'react-native-compressor';
 import themeContext from '../lib/themeContext';
 import TypingIndicator from '../Components/TypingIndicator';
-import axios from 'axios';
 import ChatBubble from 'react-native-chat-bubble';
 import { db } from '../firebase'
+import ProfileContext from '../lib/profileContext';
+import { useSinglePickImage } from '../Hooks/useSinglePickImage';
+import getDateAndTime from '../lib/getDateAndTime';
 const PersonalChatScreen = ({route}) => {
   const {person, friendId} = route.params;
   const [loading, setLoading] = useState(true) 
-  const storage = getStorage();
   const isFocused = useIsFocused();
   const [singleMessageLoading, setSingleMessageLoading] = useState(false);
   const [typing, setTyping] = useState(false);
   const [lastMessageId, setLastMessageId] = useState('');
-  const [reportedItem, setReportedItem] = useState(null);
-
   const [readBy, setReadBy] = useState([]);
   const [lastVisible, setLastVisible] = useState();
-  const responseListener = useRef();
   const inputRef = useRef();
-  const [status, setStatus] = useState(null);
   const [messages, setMessages] = useState([]);
   const [animatedValue] = useState(new Animated.Value(0))
-  //console.log(messages.length)
-  const [username, setUsername] = useState('');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
   const [active, setActive] = useState(true);
-  const [actualUser, setActualUser] = useState(null);
   const [newMessages, setNewMessages] = useState([]);
   const [requests, setRequests] = useState([]);
   const [inputText, setInputText] = useState('');
-  const [liked, setLiked] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true); // To track if it's the first render
   const hasScrolled = useRef(false);
   const theme = useContext(themeContext)
   const [imageModal, setImageModal] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null)
-  const [replyItem, setReplyItem] = useState(null);
-  const [replyTo, setReplyTo] = useState('');
-  const [saveModal, setSaveModal] = useState(false);
   const [textCopied, setTextCopied] = useState('');
   const [reportedContent, setReportedContent] = useState([]);
   const [userCopied, setUserCopied] = useState('');
@@ -87,27 +62,13 @@ const PersonalChatScreen = ({route}) => {
   const [themeCopied, setThemeCopied] = useState(null); 
   const [keyboardFocused, setKeyboardFocused] = useState(false);
   const [friends, setFriends] = useState(0);
-  const [image, setImage] = useState(null);
-  const [uploading, setUploading] = useState(false);
-  const [id, setId] = useState();
-   const [tapCount, setTapCount] = useState(0);
-   const [permission, requestPermission] = Camera.useCameraPermissions();
+  const [tapCount, setTapCount] = useState(0);
   const timerRef = useRef(null);
   const {user} = useAuth()
-  //console.log(user.uid)
-  //console.log(newMessages.length)
   const navigation = useNavigation();
-  const routeName = useRoute();
-
-  //console.log(person.pfp)
-  //console.log(routeName
-  useEffect(() => {
-    const getData = async() => {
-      const docSnap = await getDoc(doc(db, 'profiles', user.uid))
-      setActualUser({id: docSnap.id, ...docSnap.data()})
-    }
-    getData()
-  }, [])
+  const profile = useContext(ProfileContext);
+  const {imageLoading, pickImage} = useSinglePickImage({messagePfp: true, firstName: profile.firstName, lastName: profile.lastName, person: person,
+    friendId: friendId, name: `${uuid.v4()}${user.uid}${friendId}${Date.now()}message.jpg`});
   useEffect(() => {
     let unsub;
     unsub = onSnapshot(doc(db, "friends", friendId), (document) => {
@@ -166,7 +127,7 @@ const PersonalChatScreen = ({route}) => {
   let activeNoties = (await getDoc(doc(db, 'profiles', id))).data().activeOnMessage
   let banned = (await getDoc(doc(db, 'profiles', id))).data().banned
   //console.log(first)
-  const deepLink = `nucliqv1://PersonalChat?person=${actualUser}&friendId=${friendId}`;
+  const deepLink = `nucliqv1://PersonalChat?person=${profile}&friendId=${friendId}`;
       if (notis && !activeNoties && !banned) {
       await fetch(`${BACKEND_URL}/api/textNotification`, {
       method: 'POST',
@@ -175,7 +136,7 @@ const PersonalChatScreen = ({route}) => {
       },
       body: JSON.stringify({
         firstName: firstName, lastName: lastName, 
-        message: message, pushToken: notificationToken, "content-available": 1, data: {routeName: 'PersonalChat', person: actualUser, friendId: friendId, deepLink: deepLink}
+        message: message, pushToken: notificationToken, "content-available": 1, data: {routeName: 'PersonalChat', person: profile, friendId: friendId, deepLink: deepLink}
       }),
       })
       .then(response => response.json())
@@ -190,7 +151,7 @@ const PersonalChatScreen = ({route}) => {
     let notis = (await getDoc(doc(db, 'profiles', id))).data().allowNotifications
     let activeNoties = (await getDoc(doc(db, 'profiles', id))).data().activeOnMessage
     let banned = (await getDoc(doc(db, 'profiles', id))).data().banned
-    const deepLink = `nucliqv1://PersonalChat?person=${actualUser}&friendId=${friendId}`;
+    const deepLink = `nucliqv1://PersonalChat?person=${profile}&friendId=${friendId}`;
       if (notis && !activeNoties && !banned) {
       fetch(`${BACKEND_URL}/api/likePostNotification`, {
       method: 'POST',
@@ -198,7 +159,7 @@ const PersonalChatScreen = ({route}) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        firstName: firstName, lastName: lastName, pushToken: notificationToken, "content-available": 1, data: {routeName: 'PersonalChat', person: actualUser, friendId: friendId, deepLink: deepLink}
+        firstName: firstName, lastName: lastName, pushToken: notificationToken, "content-available": 1, data: {routeName: 'PersonalChat', person: profile, friendId: friendId, deepLink: deepLink}
       }),
       })
       .then(response => response.json())
@@ -208,33 +169,6 @@ const PersonalChatScreen = ({route}) => {
       console.error(error);
     })
   }
-  }
-  async function schedulePushImageNotification(id, firstName, lastName, notificationToken) {
-    let notis = (await getDoc(doc(db, 'profiles', id))).data().allowNotifications
-    let activeNoties = (await getDoc(doc(db, 'profiles', id))).data().activeOnMessage
-    let banned = (await getDoc(doc(db, 'profiles', id))).data().banned
-    const deepLink = `nucliqv1://PersonalChat?person=${actualUser}&friendId=${friendId}`;
-      if (notis && !activeNoties && !banned) {
-    fetch(`${BACKEND_URL}/api/imageNotification`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        firstName: firstName, lastName: lastName, pushToken: notificationToken, 'content-available': 1, data: {routeName: 'PersonalChat', person: actualUser, friendId: friendId, deepLink: deepLink}
-      }),
-      })
-    .then(response => response.json())
-    .then(responseData => {
-      // Handle the response from the server
-      //console.log(responseData);
-    })
-    .catch(error => {
-      // Handle any errors that occur during the request
-      console.error(error);
-    })
-  }
-  
   }
   
   //console.log(friendId)
@@ -291,20 +225,6 @@ const PersonalChatScreen = ({route}) => {
       return unsub;
     }
     }
-    //console.log(messages.length)
-  useEffect(() => {
-    const getUsername = async() => {
-      const nameOfUser = (await getDoc(doc(db, 'profiles', user.uid))).data().userName
-      const nameFirst = (await getDoc(doc(db, 'profiles', user.uid))).data().firstName
-      const nameLast = (await getDoc(doc(db, 'profiles', user.uid))).data().lastName
-      
-      setUsername(nameOfUser)
-      setLastName(nameLast)
-      setFirstName(nameFirst)
-  
-    }
-    getUsername()
-  }, [])
   useEffect(() => {
     let unsub;
     //const reportedMessages = (await getDoc(doc(db, 'profiles', user.uid))).data().reportedMessages
@@ -443,68 +363,6 @@ const PersonalChatScreen = ({route}) => {
   }).finally(() => setLoading(false)); 
     }
   }, [messages])
-  //console.log(newMessages[0])
-  //console.log(Math.floor(Math.random() * 20))
-  useEffect(() => {
-    if (image != null){
-      const uploadImage = async() => {
-        setUploading(true);
-        const response = await fetch(image)
-        const bytes = await response.blob();
-        const filename = `${uuid.v4()}${user.uid}${friendId}${Date.now()}message.jpg`
-        //setPfp(filename)
-        var storageRef = ref(storage, filename)
-        try {
-            await storageRef;
-        } catch (error) {
-            console.log(error)
-        }
-        await uploadBytesResumable(storageRef, bytes).then(() => getLink(filename))
-    }
-    uploadImage()
-    setUploading(false)
-    //setImage(null)
-    }
-  }, [image])
-  const getLink = (pfp) => {
-        const starsRef = ref(storage, pfp);
-        getDownloadURL(starsRef).then(async(url) =>
-        checkPfp(url, starsRef))
-    }
-    function containsNumberGreaterThan(array, threshold) {
-      return array.some(function(element) {
-        return element > threshold;
-      });
-    }
-    const getValuesFromImages = (list) => {
-      //console.log(list)
-      let newList = filterByType(list, 'object')
-      //console.log(newList)
-      let tempList = filterByType(list, 'number')
-      tempList.forEach((obj) => {
-        //console.log(obj)
-        filterByType(Object.values(obj), 'object').forEach((e) => {
-          newList.push(e)
-        })
-        filterByType(Object.values(obj), 'number').forEach((e) => {
-          if (e.hasOwnProperty('none')) {
-            delete e['none']
-            Object.values(e).forEach((element) => {
-              newList.push(element)
-            })
-          }
-
-        })
-        //newList.push(filterByType(Object.values(obj), 'object'))
-      })
-      //console.log(newList)
-      return newList
-    }
-    function filterByType(arr, type) {
-      return arr.filter(function(item) {
-        return typeof item !== type;
-      });
-    }
     useEffect(() => {
     Animated.spring(animatedValue, {
       toValue: 1,
@@ -592,115 +450,6 @@ const PersonalChatScreen = ({route}) => {
       },
     ],
   };
-  const checkPfp = async(url, reference) => {
-    //console.log(url, reference)
-     axios.get(`${IMAGE_MODERATION_URL}`, {
-            params: {
-                'url': url,
-                'models': 'nudity-2.0,wad,offensive,gore',
-                'api_user': `${MODERATION_API_USER}`,
-                'api_secret': `${MODERATION_API_SECRET}`,
-            }
-            })
-            .then(async function (response) {
-            if(response.data.nudity.hasOwnProperty('none')) {
-              delete response.data.nudity['none']
-            }
-            if (response.data.nudity.hasOwnProperty('context')) {
-              delete response.data.nudity.context
-            }
-            if (response.data.nudity.hasOwnProperty('erotica')) {
-              if (response.data.nudity.erotica >= 0.68) {
-                Alert.alert('Unable to Send', `This Goes Against Our Guidelines`, [
-                {
-                  text: 'Cancel',
-                  onPress: () => console.log('Cancel Pressed'),
-                  style: 'cancel',
-                },
-                {text: 'OK', onPress: () => deleteObject(reference).then(() => {setUploading(false);}).catch((error) => {
-                  throw error;
-                  
-                })},
-              ]);
-              throw null;
-              }
-              else {
-                delete response.data.nudity.erotica
-              }
-              //console.log(response.data.nudity.suggestive)
-            }
-            if (response.data.drugs > 0.9 || response.data.gore.prob > 0.9 || containsNumberGreaterThan(getValuesFromImages(Object.values(response.data.nudity)), 0.95)
-            || containsNumberGreaterThan(Object.values(response.data.offensive), 0.9) || response.data.recreational_drugs > 0.9 || response.data.medical_drugs > 0.9 ||
-            response.data.skull.prob > 0.9 || response.data.weapon > 0.9 || response.data.weapon_firearm > 0.9 || response.data.weapon_knife > 0.9) {
-              Alert.alert('Unable to Send', 'This Goes Against Our Guidelines', [
-                {
-                  text: 'Cancel',
-                  onPress: () => console.log('Cancel Pressed'),
-                  style: 'cancel',
-                },
-                {text: 'OK', onPress: () => deleteObject(reference).then(() => setUploading(false)).catch((error) => {
-                  console.error(error)
-                })},
-              ]);
-            }
-            else {
-            schedulePushImageNotification(person.id, firstName, lastName, person.notificationToken)
-          const docRef = await addDoc(collection(db, 'friends', friendId, 'chats'), {
-        message: {image: url},
-        liked: false,
-        toUser: person.id,
-        user: user.uid,
-        firstName: firstName,
-        lastName: lastName,
-        pfp: person.pfp,
-        readBy: [],
-        timestamp: serverTimestamp()
-    })
-    addDoc(collection(db, 'friends', friendId, 'messageNotifications'), {
-      //message: true,
-      id: docRef.id,
-      toUser: person.id,
-      readBy: [],
-      timestamp: serverTimestamp()
-    }).then(async() => await updateDoc(doc(db, 'profiles', person.id), {
-      messageNotifications: arrayUnion({id: docRef.id, user: user.uid})
-    })).then(async() => await updateDoc(doc(db, 'friends', friendId), {
-      lastMessage: {image: url},
-      messageId: docRef.id,
-      active: true,
-      readBy: [],
-      toUser: person.id,
-      lastMessageTimestamp: serverTimestamp()
-    }
-    )).then(async() => await updateDoc(doc(db, 'profiles', user.uid, 'friends', person.id), {
-      lastMessageTimestamp: serverTimestamp()
-    })).then(async() => await updateDoc(doc(db, 'profiles', person.id, 'friends', user.uid), {
-      lastMessageTimestamp: serverTimestamp()
-    })).then(() => {
-      //console.log('first')
-      const newArray = [{id: docRef.id,
-      message: {image: url},
-        liked: false,
-        toUser: person.id,
-        user: user.uid,
-        firstName: firstName,
-        lastName: lastName,
-        pfp: person.pfp,
-        readBy: [],
-        timestamp: serverTimestamp()}, ...newMessages]
-        setNewMessages(newArray)
-    })
-    }  
-      
-                    })
-            .catch(function (error) {
-            // handle error
-            if (error.response) console.log(error.response.data);
-            else console.log(error.message);
-            });
-  }
-  //console.log(messages)
-//console.log(person)
 useEffect(() => {
   //console.log('first')
   let unsub;
@@ -745,14 +494,14 @@ useEffect(() => {
       messageTyping: ''
     }) */
     inputRef.current.blur()
-        schedulePushTextNotification(person.id, firstName, lastName, newMessage, person.notificationToken)
+        schedulePushTextNotification(person.id, profile.firstName, profile.lastName, newMessage, person.notificationToken)
     const docRef = await addDoc(collection(db, 'friends', friendId, 'chats'), {
         message: newMessage,
         liked: false,
         toUser: person.id,
         user: user.uid,
-        firstName: firstName,
-        lastName: lastName,
+        firstName: profile.firstName,
+        lastName: profile.lastName,
         pfp: person.pfp,
         readBy: [],
         timestamp: serverTimestamp()
@@ -815,75 +564,11 @@ useEffect(() => {
       return item;
     });
     setNewMessages(updatedArray) 
-    }).then(actualId.user != user.uid ? () => schedulePushLikedMessageNotification(person.id, firstName, lastName, person.notificationToken) : null)
+    }).then(actualId.user != user.uid ? () => schedulePushLikedMessageNotification(person.id, profile.firstName, profile.lastName, person.notificationToken) : null)
     //console.log(updatedArray)
     
     }
     }
-  //console.log(messages)
-  async function pickCamera () {
-    await ImagePicker.launchCameraAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: true,
-            aspect: [4,3],
-            quality: 0.2
-        }).then(image  => {
-          if (image) {
-            setImage(image.assets[0].uri)
-            //setImage(image.assets.uri)
-          }
-        })
-
-  }
-  useEffect(() => {
-    const getPermissions = async() => {
-      const { status: existingStatus } = await ImagePicker.getMediaLibraryPermissionsAsync()
-      let finalStatus = existingStatus;
-      //console.log(existingCameraStatus)
-      if (existingStatus !== 'granted') {
-        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
-        finalStatus = status;
-      }
-      if (finalStatus !== 'granted') {
-        setStatus(false)
-      }
-      }
-    getPermissions()
-  }, [])
-    const pickImage = async() => {
-      if (status !== false) {
-        await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
-          //allowsMultipleSelection: true,
-          allowsEditing: true,
-          aspect: [4, 3],
-          quality: 0.8,
-        }).then(async(image) => {
-          if (!image.canceled) {
-              image.assets.map(async(ite, index) => {
-              const result = await Image.compress(
-                ite.uri,
-                {},
-              );
-              //console.log(result)
-              setImage(result)
-                      
-            })
-            }
-        }) 
-      }
-      else {
-        Alert.alert("No Media Permissions", "To select an image, allow media permissions, in order to select images for profile pictures, posts and themes, in your phone's settings", [
-      {
-        text: 'Cancel',
-        onPress: () => console.log('Cancel Pressed'),
-        style: 'cancel',
-      },
-      {text: 'OK', onPress: () => console.log('OK Pressed')},
-    ])
-      }
-         
-    };
   useEffect(() =>{
     const getFriends = async() => {
       const coll = collection(db, 'profiles', person.id, 'friends');
@@ -1013,92 +698,7 @@ useEffect(() => {
       //console.log(newMessages.indexOf(item) - 1)
 
   }
- 
-  //console.log(textCopied)
-  //console.log(inputRef.current.focus())
-  //console.log(keyboardFocused)
-  //console.log(user.uid)
-  const getCalculatedTime = useMemo(() => {
-    return((time) => {
-      if (time != null) {
-        return time.toDate().toLocaleTimeString([], {hour: 'numeric', minute:'numeric'})
-      }
-    })
-  })
-  /* function getCalculatedTime(time) {
-    if (time != null) {
-      return time.toDate().toLocaleTimeString([], {hour: 'numeric', minute:'numeric'})
-    }
-    } */
-    const getDateAndTime = useMemo(() => {
-      console.log('bruhhhhhh')
-      return (timestamp) => {
-             if (timestamp != null) {
-        var t = new Date(Date.UTC(1970, 0, 1)); // Epoch
-      t.setUTCSeconds(timestamp.seconds);
-      const date = new Date(t);
-      const yesterday = new Date();
-      const twodays = new Date();
-      const threedays = new Date();
-      const fourdays = new Date();
-      const fivedays = new Date();
-      const sixdays = new Date();
-      const lastWeek = new Date();
-      const twoWeeks = new Date();
-      const threeWeeks = new Date();
-      const fourWeeks = new Date();
-      lastWeek.setDate(lastWeek.getDate() - 7);
-      twoWeeks.setDate(twoWeeks.getDate() - 14);
-      threeWeeks.setDate(threeWeeks.getDate() - 21);
-      fourWeeks.setDate(fourWeeks.getDate() - 28);
-      twodays.setDate(twodays.getDate() - 2);
-      threedays.setDate(threedays.getDate() - 3);
-      fourdays.setDate(fourdays.getDate() - 4);
-      fivedays.setDate(fivedays.getDate() - 5);
-      sixdays.setDate(sixdays.getDate() - 6);
-      yesterday.setDate(yesterday.getDate() - 1);
-      //console.log(twodays.getTime())
-      //console.log(yesterday.getTime())
-      //console.log(date.getTime())
-      //console.log(threedays.getTime())
-      //console.log(fourdays.getTime())
-      if  (date.getTime() >= yesterday.getTime()) {
-        return `${getCalculatedTime(timestamp)}`
-      }
-      else if (date.getTime() <= fourWeeks.getTime()) {
-        return `${new Date(timestamp.seconds*1000).toLocaleDateString()}`
-      }
-      else if (date.getTime() <= threeWeeks.getTime()) {
-        return `3w ago`
-      }
-      else if (date.getTime() <= twoWeeks.getTime()) {
-        return `2w ago`
-      }
-      else if (date.getTime() <= lastWeek.getTime()) {
-        return `1w ago`
-      }
-      else if (date.getTime() <= sixdays.getTime()) {
-        return `6d ago`
-      }
-      else if (date.getTime() <= fivedays.getTime()) {
-        return `5d ago`
-      }
-      else if (date.getTime() <= fourdays.getTime()) {
-        return `4d ago`
-      }
-      else if (date.getTime() <= threedays.getTime()) {
-        return `3d ago`
-      }
-      else if (date.getTime() <= twodays.getTime()) {
-        return `2d ago`
-      }
-      else if (date.getTime() <= yesterday.getTime()) {
-        return `Yesterday, ${getCalculatedTime(timestamp)}`
-      }
-      } 
-      
-    }
-    }, []);
+    
   
   function toggleCopyToTrue(e) {
    const updatedArray = newMessages.map(item => {
@@ -1120,9 +720,6 @@ useEffect(() => {
     });
     setNewMessages(updatedArray) 
   }
-
-  //console.log(username)
-  //console.log(person.userName)
   
   function handleImagePress(item) {
     setTapCount(tapCount + 1);
@@ -1388,7 +985,7 @@ useEffect(() => {
       )}
             <Animated.View style={item.user == user.uid ? userBubbleStyle : bubbleStyle}>
               <TouchableOpacity activeOpacity={1}  onPress={() => handleMessagePress(item)}
-              onLongPress={() => {toggleCopyToTrue(item); setTextCopied(item.message.text); setReplyTo(item.user == user.uid ? user.uid : person.userName)}}>
+              onLongPress={() => {toggleCopyToTrue(item); setTextCopied(item.message.text);}}>
                 {item.message.text !== "" ?
                 <>
                 
@@ -1619,7 +1216,7 @@ useEffect(() => {
       )}
             <Animated.View style={item.user == user.uid ? userBubbleStyle : bubbleStyle}>
               <TouchableOpacity activeOpacity={1}  onPress={() => handleMessagePress(item)}
-              onLongPress={() => {toggleCopyToTrue(item); setTextCopied(item.message.text); setReplyTo(item.user == user.uid ? user.uid : person.userName)}}>
+              onLongPress={() => {toggleCopyToTrue(item); setTextCopied(item.message.text);}}>
                 {item.message.text !== "" ?
                 <>
                 
@@ -1704,7 +1301,7 @@ useEffect(() => {
       )}
             <Animated.View style={item.user == user.uid ? userBubbleStyle : bubbleStyle}>
               <TouchableOpacity activeOpacity={1}  onPress={() => handleMessagePress(item)}
-              onLongPress={() => {toggleCopyToTrue(item); setTextCopied(item.message.text); setReplyTo(item.user == user.uid ? user.uid : person.userName)}}>
+              onLongPress={() => {toggleCopyToTrue(item); setTextCopied(item.message.text);}}>
                 {item.message.text !== "" ?
                 <>
                 
@@ -1793,7 +1390,7 @@ useEffect(() => {
                 }
                 
         {/* <Text allowFontScaling={false} style={styles.characterCountText}>{inputText.length}/200</Text> */}
-      {!uploading ? 
+      {!imageLoading ? 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={newMessages.length == 0 ? {flexDirection: 'row', marginTop: '5%'} : {marginBottom: '5%', flexDirection: 'row'}}>
         <View style={inputText.length > 0 ? [styles.input, {width: '75%'}] : styles.input}>
           
@@ -1829,7 +1426,7 @@ useEffect(() => {
           </> : null }
         
         </View>
-        {!singleMessageLoading || !uploading ?
+        {!singleMessageLoading || !imageLoading ?
                 inputText.length > 0 ? <TouchableOpacity style={styles.sendButton} onPress={ () => {sendMessage()}}>
           <Text allowFontScaling={false} style={[styles.sendButtonText, {color: "#fafafa"}]}>Send</Text>
         </TouchableOpacity> : null
@@ -1918,14 +1515,10 @@ const styles = StyleSheet.create({
     margin: '2.5%',
     padding: 5,
     //width: 250,
-    //paddingLeft: 2,
     height: 325,
     width: 245,
-    //width: '65%',
-    //marginBottom: 0,
     borderRadius: 20,
     backgroundColor: "#005278"
-    //alignSelf: 'center'
   },
   messageText: {
     
@@ -1940,12 +1533,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 8,
     marginLeft: 0,
-    //backgroundcolor: '#fafafa',
-    //justifyContent: 'flex-end',
-    //marginBottom: '7.5%',
     marginRight: 0,
     zIndex: 2
-    //backgroundcolor: '#fafafa'
   },
   input: {
     //flex: 1,

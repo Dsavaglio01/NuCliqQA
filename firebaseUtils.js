@@ -549,6 +549,20 @@ export const ableToMessageFunction = async(userOneId, userTwoId, setAbleToMessag
     });
     return unsubscribe;
 }
+export const fetchFriends = async (userId, setFriends) => {
+  if (!userId) {
+    throw new Error("Error: 'userId' is not defined.");
+  }
+  const q = query(collection(db, 'profiles', userId, 'friends'), where('actualFriend', '==', true));
+  const unsubscribe = onSnapshot(q, (querySnapshot) => {
+    const friends = [];
+    querySnapshot.forEach((doc) => {
+      friends.push({id: doc.id});
+    });
+    setFriends(friends)
+  });
+  return unsubscribe;
+}
 export const fetchNewPost = async (groupId, postId) => {
   if (!groupId || !postId) {
     throw new Error("Error: 'group and/or post' is undefined.");
@@ -559,13 +573,22 @@ export const fetchNewPost = async (groupId, postId) => {
   }
 }
 export const ableToShareFunction = async (itemId) => {
-    if (!itemId) {
-      throw new Error("Error: 'itemId' is undefined.");
-    }
-    const docRef = doc(db, 'posts', itemId);
-    const docSnap = await getDoc(docRef);
-    
-    return docSnap.exists();
+  if (!itemId) {
+    throw new Error("Error: 'itemId' is undefined.");
+  }
+  const docRef = doc(db, 'posts', itemId);
+  const docSnap = await getDoc(docRef);
+  
+  return docSnap.exists();
+}
+export const ableToShareCliqueFunction = async (groupId, itemId) => {
+  if (!itemId || !groupId) {
+    throw new Error("Error: 'itemId or groupId' is undefined.");
+  }
+  const docRef = doc(db, 'groups', groupId, 'posts', itemId);
+  const docSnap = await getDoc(docRef);
+  
+  return docSnap.exists();
 }
 export const fetchGroupRequests = async(userId, callback) => {
   if (!userId) {
@@ -823,4 +846,253 @@ export const fetchPurchasedThemes = (userId, subCollection, order, setPurchasedT
 
   return unsubscribe;
   });
+}
+/**
+ * Gets next 10 themes based on subCollection (price, date, etc.) and order (ascending, descending) that were collected/purchased by a user.
+ * @param {String} userId - The id of the user perfoming this action.
+ * @param {String} subCollection - The name of the field/subCollection that we are ordering the query by (price, date, etc.).
+ * @param {String} order - The name of the order that we are ordering the query by (ascending, descending, etc.).
+ * @param {Object} lastVisible - The Firestore document object (last purchased theme object) to `startAfter` when fetching more data.
+ * @returns {Function} - An unsubscribe function to stop listening to changes.
+ * @throws {Error} - If `userId` or `subCollection` is not provided.
+*/
+export const fetchMorePurchasedThemes = async(userId, subCollection, order, lastVisible) => {
+  if (!userId || !subCollection) {
+    throw new Error("userId is undefined");
+  }
+  const tempPosts = [];
+  try {
+    const purchasedQuery = query(collection(db, 'profiles', userId, 'purchased'), orderBy(subCollection, order), startAfter(lastVisible), limit(10))
+    const querySnapshot = await getDocs(purchasedQuery)
+    querySnapshot.forEach((doc) => {
+      tempPosts.push({id: doc.id, ...doc.data(), transparent: false})
+    });
+    return {tempPosts, lastPurchasedVisible: querySnapshot.docs[querySnapshot.docs.length - 1]}
+  } 
+  catch (e) {
+    console.error(e)
+  }
+}
+export const fetchMoreFreeThemes = async(userId, subCollection, order, freeLastVisible) => {
+  if (!userId || !subCollection) {
+    throw new Error("userId or subcollection is undefined");
+  }
+  const tempPosts = []
+  try {
+    const q = query(collection(db, 'freeThemes'), orderBy(subCollection, order), startAfter(freeLastVisible), limit(10))
+    const querySnapshot = await getDocs(q)
+    querySnapshot.forEach((doc) => {
+      tempPosts.push({id: doc.id, ...doc.data(), transparent: false})
+    });
+    return {tempPosts, lastFreeVisible: querySnapshot.docs[querySnapshot.docs.length - 1]}
+  } 
+  catch (e) {
+    console.error(e)
+  }
+}
+/**
+ * Gets first 10 themes based on subCollection (price, date, etc.) and order (ascending, descending) that are 'free'.
+ * @param {String} subCollection - The name of the field/subCollection that we are ordering the query by (date, count, etc.).
+ * @param {String} order - The name of the order that we are ordering the query by (ascending, descending, etc.).
+ * @returns {Function} - An unsubscribe function to stop listening to changes.
+ * @throws {Error} - If `subCollection` is not provided.
+*/
+export const fetchFreeThemes = async(subCollection, order) => {
+  if (!userId || !subCollection) {
+    throw new Error("userId or subcollection is undefined");
+  }
+  const tempPosts = []
+  try {
+    const q = query(collection(db, 'freeThemes'), orderBy(subCollection, order), limit(10))
+    const querySnapshot = await getDocs(q)
+    querySnapshot.forEach((doc) => {
+      tempPosts.push({id: doc.id, ...doc.data(), transparent: false})
+    });
+    return {tempPosts, lastFreeVisible: querySnapshot.docs[querySnapshot.docs.length - 1]}
+  } 
+  catch (e) {
+    console.error(e)
+  }
+
+}
+/**
+ * Gets first 10 themes based on subCollection (price, date, etc.) and order (ascending, descending) that were created by the user.
+ * @param {String} userId - The id of the user perfoming this action.
+ * @param {String} subCollection - The name of the field/subCollection that we are ordering the query by (date, price, etc.).
+ * @param {String} order - The name of the order that we are ordering the query by (ascending, descending, etc.).
+ * @returns {Function} - An unsubscribe function to stop listening to changes.
+ * @throws {Error} - If `myId` or `subCollection` is not provided.
+*/
+export const fetchMyThemes = async(userId, subCollection, order) => {
+  if (!userId || !subCollection) {
+    throw new Error("userId and/or subCollection is undefined");
+  }
+  const tempPosts = []
+  try { 
+    const myQuery = query(collection(db, 'profiles', userId, 'myThemes'), orderBy(subCollection, order), limit(10))
+    const querySnapshot = await getDocs(myQuery)
+    querySnapshot.forEach((doc) => {
+      tempPosts.push({id: doc.id, ...doc.data(), transparent: false})
+    });
+    return {tempPosts, lastMyVisible: querySnapshot.docs[querySnapshot.docs.length - 1]}
+  }
+  catch (e) {
+    console.error(e)
+  }
+}
+export const fetchMoreMyThemes = async(userId, subCollection, order, lastVisible) => {
+  if (!userId || !subCollection) {
+    throw new Error("userId and/or subCollection is undefined");
+  }
+  const tempPosts = []
+  try { 
+    const myQuery = query(collection(db, 'profiles', userId, 'myThemes'), orderBy(subCollection, order), startAfter(lastVisible), limit(10))
+    const querySnapshot = await getDocs(myQuery)
+    querySnapshot.forEach((doc) => {
+      tempPosts.push({id: doc.id, ...doc.data(), transparent: false})
+    });
+    return {tempPosts, lastMyVisible: querySnapshot.docs[querySnapshot.docs.length - 1]}
+  }
+  catch (e) {
+    console.error(e)
+  }
+}
+/**
+ * Gets first 10 themes based on a search performed by a user categorized by collectionName (if they are searching free themes for instance).
+ * @param {String} userId - The id of the user perfoming this action. Useful for queries that require userId.
+ * @param {String} collectionname - The name of the collection that we are fetching (products, freeThemes, myThemes, etc.)
+ * @param {String} specificSearch - The search being performed by the user.
+ * @returns {Promise<Object>} - A promise that resolves with an object containing a `themeSearches` array of theme objects based on the collectionName. 
+ * Each post object includes the document ID, and theme data.
+ * @throws {Error} - If `userId` or `collectionName` is not provided.
+*/
+export const fetchThemeSearches = async(collectionName, specificSearch, userId) => {
+  if (!userId || !collectionName) {
+    throw new Error("userId and/or collectionName is undefined");
+  }
+  try {
+    if (collectionName == 'products') {
+      const themeSearches = [];
+      const q = query(collection(db, collectionName), orderBy('stripe_metadata_keywords'), startAt(specificSearch), endAt(specificSearch + '\uf8ff'))
+      const firstQuerySnapshot = await getDocs(q)
+      firstQuerySnapshot.forEach((doc) => {
+        themeSearches.push({id: doc.id, ...doc.data()})
+      })
+      return {themeSearches}
+    }
+    else if (collectionName == 'freeThemes') {
+      const themeSearches = []
+      const q = query(collection(db, collectionName), where('searchKeywords', 'array-contains', specificSearch.toLowerCase()), limit(10))
+      const firstQuerySnapshot = await getDocs(q)
+      firstQuerySnapshot.forEach((doc) => {
+        themeSearches.push({id: doc.id, ...doc.data()})
+      })
+      return {themeSearches}
+    }
+    else if (collectionName == 'myThemes') {
+      const themeSearches = []
+      const q = query(collection(db, "profiles", userId, collectionName), where('searchKeywords', 'array-contains', specificSearch.toLowerCase()), limit(10));
+      const firstQuerySnapshot = await getDocs(q)
+      firstQuerySnapshot.forEach((doc) => {
+        themeSearches.push({id: doc.id, ...doc.data()})
+      })
+      return {themeSearches}
+    }
+    else if (collectionName == 'purchased') {
+      const themeSearches = []
+      const q = query(collection(db, "profiles", userId, collectionName), where('searchKeywords', 'array-contains', specificSearch.toLowerCase()), limit(10));
+      const firstQuerySnapshot = await getDocs(q)
+      firstQuerySnapshot.forEach((doc) => {
+        themeSearches.push({id: doc.id, ...doc.data()})
+      })
+      return {themeSearches}
+    }
+  }
+  catch (e) {
+    console.error(e)
+  }
+}
+export const fetchThemeNames = async(userId, ) => {
+  const themes = [];
+  const q = collection(db, 'profiles', userId, 'myThemes')
+  const querySnapshot = await getDocs(q);
+  querySnapshot.forEach((doc) => {
+    themes.push(doc.data().name.toLowerCase())
+  });
+  return {themes}
+}
+export const removeCurrentUser = async(item, userId) => {
+  if (!userId)  {
+    throw new Error("userId is undefined");
+  }
+  try {
+    const batch = writeBatch(db)
+    const profileDocRef = doc(db, 'profiles', userId);
+    batch.update(profileDocRef, {adminGroups: arrayRemove(item)})
+    const q = collection(db, 'profiles')
+    const querySnapshot = await getDocs(q);
+    querySnapshot.forEach((doc) => {
+      
+    });
+    await batch.commit();
+  }
+  catch (e) {
+    console.error(e)
+  }
+}
+export const addImageToMessage = async(friendId, url, person, user, firstName, lastName) => {
+  if (!friendId)  {
+    throw new Error("friendId is undefined");
+  }
+  try {
+    /* const newArray = [{id: docRef.id,
+    message: {image: url},
+    liked: false,
+    toUser: person.id,
+    user: user.uid,
+    firstName: firstName,
+    lastName: lastName,
+    pfp: person.pfp,
+    readBy: [],
+    timestamp: serverTimestamp()}, ...newMessages] */
+    setNewMessages(newArray)
+    const batch = writeBatch(db)
+    const profileDocRef = doc(db, 'profiles', person.id)
+    const friendRef = doc(db, 'friends', friendId)
+    const oneFriendRef = doc(db, 'profiles', user.uid, 'friends', person.id)
+    const twoFriendRef = doc(db, 'profiles', person.id, 'friends', user.uid)
+    const docRef = await addDoc(collection(db, 'friends', friendId, 'chats'), {
+      message: {image: url},
+      liked: false,
+      toUser: person.id,
+      user: user.uid,
+      firstName: firstName,
+      lastName: lastName,
+      pfp: person.pfp,
+      readBy: [],
+      timestamp: serverTimestamp()
+    })
+    addDoc(collection(db, 'friends', friendId, 'messageNotifications'), {
+      //message: true,
+      id: docRef.id,
+      toUser: person.id,
+      readBy: [],
+      timestamp: serverTimestamp()
+    })
+    batch.update(profileDocRef, {messageNotifications: arrayUnion({id: docRef.id, user: user.uid})})
+    batch.update(friendRef, {
+      lastMessage: {image: url},
+      messageId: docRef.id,
+      active: true,
+      readBy: [],
+      toUser: person.id,
+      lastMessageTimestamp: serverTimestamp()
+    })
+    batch.update(oneFriendRef, {lastMessageTimestamp: serverTimestamp()})
+    batch.update(twoFriendRef, {lastMessageTimestamp: serverTimestamp()})
+    await batch.commit();
+  }
+  catch (e) {
+    console.error(e)
+  }
 }

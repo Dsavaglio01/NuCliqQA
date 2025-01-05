@@ -1,12 +1,11 @@
 import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator, Dimensions} from 'react-native'
-import React, {useState, useRef, useCallback, useEffect, useContext, Suspense} from 'react'
+import React, {useState, useRef, useEffect, useContext,} from 'react'
 import Carousel from 'react-native-reanimated-carousel'
-import {MaterialCommunityIcons, Entypo, Ionicons, FontAwesome, AntDesign} from '@expo/vector-icons';
-import { Menu } from 'react-native-paper';
+import {MaterialCommunityIcons, Ionicons, FontAwesome, AntDesign} from '@expo/vector-icons';
 import useAuth from '../Hooks/useAuth';
-import { useFocusEffect, useNavigation} from '@react-navigation/native';
+import { useNavigation} from '@react-navigation/native';
 import FastImage from 'react-native-fast-image'
-import { updateDoc, doc, addDoc, setDoc, collection, serverTimestamp, arrayUnion, arrayRemove, deleteDoc, query, where, getDocs, getDoc, onSnapshot } from 'firebase/firestore';
+import { updateDoc, doc, addDoc, setDoc, collection, serverTimestamp, arrayUnion, arrayRemove, deleteDoc, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 import {BACKEND_URL} from "@env"
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
@@ -18,44 +17,31 @@ import Pinchable from 'react-native-pinchable'
 import FollowButtons from './FollowButtons';
 import getDateAndTime from '../lib/getDateAndTime';
 import CommentsModal from './Posts/Comments';
-import { fetchUsernames} from '../firebaseUtils';
+import { fetchUsernames, ableToShareFunction, ableToShareCliqueFunction, fetchFriends} from '../firebaseUtils';
 import LikeButton from './Posts/LikeButton';
 import RepostModal from './Posts/RepostModal';
 import SaveButton from './Posts/SaveButton';
+import handleKeyPress from '../lib/handleKeyPress';
 import { PaginationDot } from './Posts/PaginationDot';
 const PostComponent = ({data, forSale, background, home, loading, lastVisible, actualClique, cliqueIdPfp, 
   cliqueIdName, post, blockedUsers, smallKeywords, largeKeywords, ogUsername, pfp, reportedComments, clique, cliqueId, username, 
   admin, edit, caption, notificationToken}) => {
     const {user} = useAuth();
+    const snapDirection = 'left'
     const flatListRef = useRef(null);
     const navigation = useNavigation();
-    const [requests, setRequests] = useState([]);
     const [ableToShare, setAbleToShare] = useState(true);
     const [repostModal, setRepostModal] = useState(false);
     const [repostItem, setRepostItem] = useState(null);
     const theme = useContext(themeContext)
-    const [snapDirection, setSnapDirection] = useState('left')
-    const [activeIndex, setActiveIndex] = useState(0);
     const [usernames, setUsernames] = useState([]);
     const [tapCount, setTapCount] = useState(0);
     const [focusedPost, setFocusedPost] = useState(null);
     const timerRef = useRef(null);
     const [friends, setFriends] = useState([]);
-    const [focused, setFocused] = useState(false);
     const [actualData, setActualData] = useState([]);
     const [activePostIndex, setActivePostIndex] = useState(0);
     const [commentModal, setCommentModal] = useState(false);
-    useFocusEffect(
-      useCallback(() => {
-        setFocused(true)
-      // This block of code will run when the screen is focused
-
-      // Clean-up function when the component unmounts or the screen loses focus
-        return () => {
-          setFocused(false)
-        };
-      }, [])
-    )
     useEffect(() => {
       if (data) {
         setActualData(data)
@@ -63,24 +49,34 @@ const PostComponent = ({data, forSale, background, home, loading, lastVisible, a
     }, [data])
     useEffect(() => {
       if (focusedPost != null && !cliqueId) {
-        const getData = async() => {
-          const docSnap = await getDoc(doc(db, 'posts', focusedPost.id))
-          if (!docSnap.exists()) {
-            setAbleToShare(false)
+        const fetchPostExistence = async () => {
+          if (focusedPost != null) {
+            try {
+              const exists = await ableToShareFunction(focusedPost.id);
+              setAbleToShare(exists);
+              setCommentModal(true)
+            } 
+            catch (error) {
+              setAbleToShare(false); // Handle error by setting `ableToShare` to false
+            }
           }
-          setCommentModal(true)
-        }
-        getData()
+        };
+        fetchPostExistence();
       }
       else if (focusedPost != null && cliqueId) {
-        const getData = async() => {
-          const docSnap = await getDoc(doc(db, 'groups', cliqueId, 'posts', focusedPost.id))
-          if (!docSnap.exists()) {
-            setAbleToShare(false)
+        const fetchPostExistence = async () => {
+          if (focusedPost != null) {
+            try {
+              const exists = await ableToShareCliqueFunction(cliqueId, focusedPost.id);
+              setAbleToShare(exists);
+              setCommentModal(true)
+            } 
+            catch (error) {
+              setAbleToShare(false); // Handle error by setting `ableToShare` to false
+            }
           }
-          setCommentModal(true)
-        }
-        getData()
+        };
+        fetchPostExistence();
       }
     }, [focusedPost])
     useEffect(() => {
@@ -91,27 +87,25 @@ const PostComponent = ({data, forSale, background, home, loading, lastVisible, a
 
     loadUsernames();
   }, [])
-  useEffect(()=> {
-      let unsub;
-      const fetchCards = async () => {
-        unsub = onSnapshot(query(collection(db, 'profiles', user.uid, 'friends'), where('actualFriend', '==', true)), (snapshot) => {
-          setFriends(snapshot.docs.map((doc)=> ( {
-            id: doc.id,
-          })))
-        })
-      } 
-      fetchCards();
-      return unsub;
-    }, []);
+  useEffect(() => {
+    let unsubscribe;
+    if (user?.uid) {
+      // Call the utility function and pass state setters as callbacks
+      unsubscribe = fetchFriends(user.uid, setFriends);
+    }
+    // Clean up the listener when the component unmounts
+    return () => {
+      if (unsubscribe) {
+        return unsubscribe;
+      }
+    };
+  }, [])
   async function addDoubleHomeLike(item, likedBy) {
     setTapCount(tapCount + 1);
-    //console.log('first')
     if (tapCount === 0) {
       timerRef.current = setTimeout(() => {
         
           setTapCount(0);
-
-        // If no second tap occurs within the timer, treat it as a single tap
         
       }, 200); 
     }  else if (tapCount === 1) {
@@ -173,8 +167,6 @@ const PostComponent = ({data, forSale, background, home, loading, lastVisible, a
     const updatedObject = { ...item };
 
     // Update the array in the copied object
-    
-    //console.log(updatedObject)
       if (item.username == username && !likedBy.includes(user.uid) && !updatedObject.likedBy.includes(user.uid)) {
         await setDoc(doc(db, 'profiles', user.uid, 'likes', item.id), {
       post: item.id,
@@ -451,9 +443,6 @@ const PostComponent = ({data, forSale, background, home, loading, lastVisible, a
     }).then(async() => await deleteDoc(doc(db, 'groups', cliqueId, 'profiles', user.uid, 'saves', item.id)))
 
   }
-  /* const deleteReply = async(item, reply) => {
-    await deleteReplyFunction(item, reply, focusedPost, comments, setComments, tempPosts, setTempPosts);
-  } */
 
   async function addHomeSave(item) {
       await updateDoc(doc(db, 'posts', item.id), {
@@ -517,7 +506,6 @@ const PostComponent = ({data, forSale, background, home, loading, lastVisible, a
     getData();
     //console.log(text)
   }
-  //console.log(usernames)
   return (
       <Text style={styles.standardPostText}>
       {text.slice(0).map((text) => {
@@ -537,30 +525,13 @@ const PostComponent = ({data, forSale, background, home, loading, lastVisible, a
     </Text>
   );
     }
-  async function buyThemeFunction(image, userId) {
-    //console.log(purchased)
-    
-    if (userId == user.uid) {
-    const freeQuerySnapshot = await getDocs(query(collection(db, 'freeThemes'), where('images', 'array-contains', image)));
-    freeQuerySnapshot.forEach((doc) => {
-      if (doc.exists()){
-          navigation.navigate('SpecificTheme', {productId: doc.id, free: true, purchased: false})
-      }
-    });
-      }
-    else {
+  async function buyThemeFunction(image) {
     const freeQuerySnapshot = await getDocs(query(collection(db, 'freeThemes'), where('images', 'array-contains', image)));
     freeQuerySnapshot.forEach((doc) => {
       if (doc.exists()) {
         navigation.navigate('SpecificTheme', {productId: doc.id, free: true, purchased: false})
       }
-      
-      //console.log(doc.id, " => ", doc.data());
     });
-        
-    }
-    
-    
   }
     const renderItems = ({item, index}) => {
     return (
@@ -593,12 +564,6 @@ const PostComponent = ({data, forSale, background, home, loading, lastVisible, a
       }
       setActualData(newData);
   }
-  const handleKeyPress = ({ nativeEvent }) => {
-    if (nativeEvent.key === 'Enter') {
-      // Prevent user from manually inserting new lines
-      return;
-    }
-  };
     const renderItem = (item, index) => {
     if (item.item.likedBy != undefined) {
       if (item.item.post != null && item.item.post.length > 1) {
@@ -659,7 +624,7 @@ const PostComponent = ({data, forSale, background, home, loading, lastVisible, a
             </View>
            <View style={styles.postFooter}>
               <View style={styles.buttonContainer}>
-                <LikeButton videoStyling={false} item={item} user={user} updateTempPostsAddLike={addHomeLike} friends={friends} requests={requests} 
+                <LikeButton videoStyling={false} item={item} user={user} updateTempPostsAddLike={addHomeLike} friends={friends}
                 updateTempPostsRemoveLike={removeHomeLike}/>
           <View style={styles.commentContainer}>
           <TouchableOpacity onPress={!clique ? () => setFocusedPost(item.item) : () => setFocusedPost(item.item)}>
@@ -676,7 +641,7 @@ const PostComponent = ({data, forSale, background, home, loading, lastVisible, a
           updateTempPostsCliqueAddSave={addCliqueSave} updateTempPostsCliqueRemoveSave={removeCliqueSave} 
           updateTempPostsRemoveSave={removeHomeSave}/>
           {item.item.mentions && item.item.mentions.length > 0 ?
-          <TouchableOpacity onPress={() => navigation.navigate('Mention', {mentions: item.item.mentions, friends: friends, requests: requests})}>
+          <TouchableOpacity onPress={() => navigation.navigate('Mention', {mentions: item.item.mentions, friends: friends})}>
             <MaterialCommunityIcons name='at' size={25} style={styles.mention} color={theme.color}/>
           </TouchableOpacity>
           : null}
@@ -743,7 +708,7 @@ const PostComponent = ({data, forSale, background, home, loading, lastVisible, a
           <>
            <View style={styles.postFooter}>
                   <View style={styles.buttonContainer}>
-                    <LikeButton videoStyling={false} item={item} user={user} updateTempPostsAddLike={addHomeLike} friends={friends} requests={requests} 
+                    <LikeButton videoStyling={false} item={item} user={user} updateTempPostsAddLike={addHomeLike} friends={friends} 
                     updateTempPostsRemoveLike={removeHomeLike}/>
           <View style={styles.commentContainer}>
           <TouchableOpacity onPress={() => setFocusedPost(item.item)}>
@@ -761,7 +726,7 @@ const PostComponent = ({data, forSale, background, home, loading, lastVisible, a
           updateTempPostsRemoveSave={removeHomeSave}/>
 
           {item.item.mentions && item.item.mentions.length > 0 ?
-          <TouchableOpacity onPress={() => navigation.navigate('Mention', {mentions: item.item.mentions, friends: friends, requests: requests})}>
+          <TouchableOpacity onPress={() => navigation.navigate('Mention', {mentions: item.item.mentions, friends: friends})}>
             <MaterialCommunityIcons name='at' size={25} style={styles.mention} color={theme.color}/>
           </TouchableOpacity>
           : null}
@@ -826,7 +791,7 @@ const PostComponent = ({data, forSale, background, home, loading, lastVisible, a
    }
           </View> 
           <Text style={styles.standardPostText}>{item.item.caption}</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('Post', {post: item.item.post.id, requests: requests, name: user.uid, groupId: null, video: false})} activeOpacity={1} style={styles.repostContainer}>
+          <TouchableOpacity onPress={() => navigation.navigate('Post', {post: item.item.post.id, name: user.uid, groupId: null, video: false})} activeOpacity={1} style={styles.repostContainer}>
             <View style={ styles.postHeader}>
             {item.item.post.pfp ? <FastImage source={{uri: item.item.post.pfp, priority: 'normal'}} style={{height: 33, width: 33, borderRadius: 8}}/> : 
           <FastImage source={require('../assets/defaultpfp.jpg')} style={{height: 33, width: 33, borderRadius: 8}}/>
@@ -842,7 +807,7 @@ const PostComponent = ({data, forSale, background, home, loading, lastVisible, a
           <>
            <View style={[styles.postFooter, {zIndex: -1}]}>
                   <View style={styles.buttonContainer}>
-                    <LikeButton videoStyling={false} item={item} user={user} updateTempPostsAddLike={addHomeLike} friends={friends} requests={requests} 
+                    <LikeButton videoStyling={false} item={item} user={user} updateTempPostsAddLike={addHomeLike} friends={friends} 
                     updateTempPostsRemoveLike={removeHomeLike}/>
           <View style={styles.commentContainer}>
           <TouchableOpacity onPress={() => setFocusedPost(item.item)}>
@@ -854,7 +819,7 @@ const PostComponent = ({data, forSale, background, home, loading, lastVisible, a
           updateTempPostsCliqueAddSave={addCliqueSave} updateTempPostsCliqueRemoveSave={removeCliqueSave} 
           updateTempPostsRemoveSave={removeHomeSave}/>
           {item.item.mentions && item.item.mentions.length > 0 ?
-          <TouchableOpacity onPress={() => navigation.navigate('Mention', {mentions: item.item.mentions, friends: friends, requests: requests})}>
+          <TouchableOpacity onPress={() => navigation.navigate('Mention', {mentions: item.item.mentions, friends: friends})}>
             <MaterialCommunityIcons name='at' size={25} style={styles.mention} color={theme.color}/>
           </TouchableOpacity>
           : null}
@@ -903,11 +868,11 @@ const PostComponent = ({data, forSale, background, home, loading, lastVisible, a
           ref={flatListRef}
           renderItem={renderItem}
           loop={false}
-          onSnapToItem={(index) => {setActiveIndex(index); setActivePostIndex(0);
+          onSnapToItem={(index) => { setActivePostIndex(0);
             }}
           style={{minHeight: '70%'}}
           
-            /> : <View style={{flex: 1, alignItems: 'center', justifyContent: 'center'}}>
+            /> : <View style={styles.noPostContainer}>
               <Text style={styles.noPostText}>No Posts Yet!</Text>
               <View style={{margin: '5%'}}>
                 <NextButton text={"Be the first to create a post!"} textStyle={{fontSize: 15.36}} onPress={cliqueId ? () => navigation.navigate('NewPost', {group: true, cliqueId: cliqueId, actualGroup: actualClique, postArray: [], blockedUsers: blockedUsers, admin: admin, username: ogUsername}) : 
@@ -1124,5 +1089,10 @@ const styles = StyleSheet.create({
     loadingContainer: {
       height: 25, 
       marginTop: '2.5%'
+    },
+    noPostContainer: {
+      flex: 1, 
+      alignItems: 'center', 
+      justifyContent: 'center'
     }
 })

@@ -1,22 +1,18 @@
-import { StyleSheet, Text, View, Image, ActivityIndicator, TouchableOpacity, Alert, Modal, Dimensions} from 'react-native'
+import { StyleSheet, Text, View, ActivityIndicator, TouchableOpacity, Modal, Dimensions} from 'react-native'
 import React, {useState, useEffect, useContext} from 'react'
-import RegisterHeader from '../Components/RegisterHeader';
 import { useNavigation } from '@react-navigation/native';
 import NextButton from '../Components/NextButton';
-import { collection, doc, getDoc, getFirestore, setDoc, getDocs, deleteDoc, updateDoc, onSnapshot, query, where, addDoc, serverTimestamp, arrayUnion, increment} from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, updateDoc, onSnapshot, query} from 'firebase/firestore';
 import useAuth from '../Hooks/useAuth';
-import { Provider, Menu, Divider } from 'react-native-paper';
-import {Entypo} from '@expo/vector-icons';
+import { Provider, Divider } from 'react-native-paper';
 import FastImage from 'react-native-fast-image';
 import ThemeHeader from '../Components/ThemeHeader';
 import {BACKEND_URL} from '@env';
-import RadioButtonGroup, { RadioButtonItem } from "expo-radio-button"
 import {MaterialCommunityIcons} from '@expo/vector-icons';
-import { useFonts, Montserrat_500Medium, Montserrat_600SemiBold, Montserrat_700Bold } from '@expo-google-fonts/montserrat';
 import themeContext from '../lib/themeContext';
 import { db } from '../firebase'
 const SpecificTheme = ({route}) => {
-    const {id, groupId, groupTheme, free, groupName, purchased, productId, my, myId} = route.params;
+    const {id, groupId, free, purchased, productId, my, myId} = route.params;
     //console.log(id)
     const navigation = useNavigation();
     const [price, setPrice] = useState(0);
@@ -34,42 +30,13 @@ const SpecificTheme = ({route}) => {
     const [themeLoading, setThemeLoading] = useState(false);
     const [themeId, setThemeId] = useState('');
     const [loading, setLoading] = useState(true);
-    const [groupsJoined, setGroupsJoined] = useState([]);
-    const [cliqueIds, setCliqueIds] = useState('');
     const [appliedThemeModal, setAppliedThemeModal] = useState(false);
     const [userName, setUserName] = useState(null);
     const [postDoneApplying, setPostDoneApplying] = useState(false);
   const [profileDoneApplying, setProfileDoneApplying] = useState(false);
-  const [bothDoneApplying, setBothDoneApplying] = useState(false);
-    const [visible, setVisible] = useState(false)
-    const closeMenu = () => setVisible(false);
-    const openMenu = () => setVisible(true);
+  const [bothDoneApplying, setBothDoneApplying] = useState(false)
     const [userId, setUserId] = useState(null);
     const {user} = useAuth()
-    
-    //console.log(id)
-    //console.log(groupId)
-    useEffect(() => {
-      let unsub;
-      const getData = () => {
-        unsub = onSnapshot(doc(db, 'profiles', user.uid), (doc) => {
-          setGroupsJoined(doc.data().groupsJoined)
-        })
-      }
-      getData()
-      return unsub;
-    }, [])
-    /* let unsub;
-      const fetchCards = async () => {
-        unsub = onSnapshot(query(collection(db, 'friends'), where('users', 'array-contains', user.uid)), (snapshot) => {
-          setMessages(snapshot.docs.map((doc)=> ( {
-          id: doc.id
-          })))
-        })
-      } 
-      fetchCards();
-      return unsub;
-      setPurchasedThemes(prevState => [...prevState, {productId: doc.data().productId}]) */
     useEffect(() => {
       let unsub1;
       let unsub2;
@@ -91,9 +58,6 @@ const SpecificTheme = ({route}) => {
       getPurchasedThemes()
       return unsub1, unsub2;
     }, [])
-    //console.log(id)
-    //console.log(purchased)
-   // console.log(my)
     useEffect(() => {
       new Promise(resolve => {
             async function fetchData() {
@@ -200,8 +164,6 @@ const SpecificTheme = ({route}) => {
         setLoading(false)
       }, 200))
     }, [route.params?.free])
-    //console.log(name)
-    console.log(loading)
     useEffect(() => {
         if (metadata != undefined) {
             if (metadata.userId) {
@@ -314,20 +276,6 @@ const SpecificTheme = ({route}) => {
           
         })
   }
-  //console.log(userId)
-  //console.log(loading)
-  const [fontsLoaded, fontError] = useFonts({
-    // your other fonts here
-    Montserrat_500Medium,
-    Montserrat_600SemiBold,
-    Montserrat_700Bold
-  });
-
-  if (!fontsLoaded || fontError) {
-    // Handle loading errors
-    return null;
-  }
-  //console.log(theme)
   return (
     <Provider>
     <View style={[styles.container, {backgroundColor: modeTheme.backgroundColor}]}>

@@ -25,21 +25,11 @@ const EditScreen = ({route}) => {
     const [editedLastName, setEditedLastName] = useState(lastName);
     const [allowToEditLastName, setAllowToEditLastName] = useState(lastName.length == 0 ? false : true);
     const [allowToEditBio, setAllowToEditBio] = useState(bio.length == 0 ? false : true);
-    const [editedPfp, setEditedPfp] = useState();
-    const [editedPrivacy, setEditedPrivacy] = useState('');
     const [alertFirstName, setAlertFirstName] = useState(false);
-    const [age, setAge] = useState();
     const [loading, setLoading] = useState(false);
     const navigation = useNavigation();
     const {user} = useAuth();
-    const storage = getStorage();
-    /* useEffect(() => {
-            const getData = async() => {
-                const docSnap = (await getDoc(doc(db, 'groups', id))).data().description
-                setDescription(docSnap)
-            }
-            getData();
-    }, [id]) */
+
   const linkFirstnameAlert = () => {
         Alert.alert('Cannot save first name', 'First name cannot contain link', [
       {

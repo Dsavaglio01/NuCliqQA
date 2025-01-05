@@ -2,7 +2,7 @@ import { StyleSheet, Text, View, FlatList, TouchableOpacity, Keyboard, ActivityI
 import React, {useState, useEffect, useMemo, useCallback, useContext} from 'react'
 import SearchInput from '../Components/SearchInput'
 import { useNavigation } from '@react-navigation/native'
-import { collection, getDoc, getDocs, onSnapshot, query, where, addDoc, limit, updateDoc, orderBy, startAfter, doc, serverTimestamp, deleteDoc, startAt, endAt } from 'firebase/firestore'
+import { collection, getDoc, getDocs, onSnapshot, query, where, addDoc, limit, updateDoc, orderBy, doc, serverTimestamp, deleteDoc, startAt, endAt } from 'firebase/firestore'
 import { Menu, Provider, Divider} from 'react-native-paper'
 import {MaterialCommunityIcons, Ionicons} from '@expo/vector-icons';
 import useAuth from '../Hooks/useAuth'
@@ -16,25 +16,24 @@ import themeContext from '../lib/themeContext'
 import { db } from '../firebase'
 import ThemeComponent from '../Components/Themes/ThemeComponent'
 import FooterComponent from '../Components/Themes/FooterComponent'
+import { fetchPurchasedThemes, fetchMorePurchasedThemes, fetchMyThemes, fetchMoreMyThemes, fetchFreeThemes, fetchThemeSearches,
+  fetchMoreFreeThemes } from '../firebaseUtils'
 const All = ({route}) => {
   const {name, groupId, goToMy, registers, goToPurchased} = route.params;
   const [searching, setSearching] = useState(false);
-  const [get, setGet] = useState(false);
   const [my, setMy] = useState(false);
   const [recentSearches, setRecentSearches] = useState(false);
   const {user} = useAuth()
   const [filtered, setFiltered] = useState([]);
   const [free, setFree] = useState(true);
+  const [lastVisible, setLastVisible] = useState(null);
   const [specificSearch, setSpecificSearch] = useState('');
-  const [lastVisible, setLastVisible] = useState();
   const [reportedThemes, setReportedThemes] = useState([]);
   const [isFirstTime, setIsFirstTime] = useState(false);
-  const [purchasedDone, setPurchasedDone] = useState(false);
   const [moreResultButton, setMoreResultButton] = useState(false);
   const [moreResults, setMoreResults] = useState(false);
   const [myLastVisible, setMyLastVisible] = useState([]);
   const [purchasedLastVisible, setPurchasedLastVisible] = useState([]);
-  const [tempPosts, setTempPosts] = useState([]);
   const [freeTempPosts, setFreeTempPosts] = useState([]);
   const [purchased, setPurchased] = useState(false);
   const [myThemes, setMyThemes] = useState(null);
@@ -45,7 +44,6 @@ const All = ({route}) => {
   const [themeSearches, setThemeSearches] = useState([]);
   const [filteredGroup, setFilteredGroup] = useState(null);
   const navigation = useNavigation();
-  const [getSearches, setGetSearches] = useState([]);
   const [freeSearches, setFreeSearches] = useState([]);
   const [mySearches, setMySearches] = useState([]);
   const [purchasedSearch, setPurchasedSearch] = useState([]);
@@ -65,7 +63,6 @@ const All = ({route}) => {
     if (route.params?.goToMy) {
       new Promise (resolve => {
       setMy(true);
-      setGet(false);
       setFree(false);
       setPurchased(false);
       resolve()
@@ -74,7 +71,6 @@ const All = ({route}) => {
     else if (route.params?.goToPurchased) {
       new Promise (resolve => {
       setMy(false);
-      setGet(false);
       setFree(false);
       setPurchased(true);
       resolve()
@@ -100,6 +96,26 @@ const All = ({route}) => {
     return unsub;
     }, [onSnapshot])
     useEffect(() => {
+    let unsubscribe;
+    if (user.uid && purchased && sortIncreasingDate) {
+      unsubscribe = fetchPurchasedThemes(user.uid, 'timestamp', 'desc', setPurchasedThemes, setPurchasedLastVisible);
+    }
+    else if (user.uid && purchased && sortDecreasingDate) {
+      unsubscribe = fetchPurchasedThemes(user.uid, 'timestamp', 'asc', setPurchasedThemes, setPurchasedLastVisible);
+    }
+    else if (user.uid && purchased && sortDecreasingPrice) {
+      unsubscribe = fetchPurchasedThemes(user.uid, 'price', 'asc', setPurchasedThemes, setPurchasedLastVisible);
+    }
+    else if (user.uid && purchased && sortIncreasingPrice) {
+      unsubscribe = fetchPurchasedThemes(user.uid, 'price', 'desc', setPurchasedThemes, setPurchasedLastVisible);
+    }
+    return () => {
+      if (unsubscribe) {
+        return unsubscribe;
+      }
+    };
+  }, [user?.uid, purchased, sortIncreasingDate, sortDecreasingDate, sortIncreasingPrice, sortDecreasingPrice]);
+    useEffect(() => {
       if (specificSearch.length > 0) {
       setMoreResultButton(false)
       setMoreResults(false)
@@ -121,527 +137,152 @@ const All = ({route}) => {
     }
    }, [themeSearches])
   useEffect(() => {
-    setPurchasedThemes([]);
-    //console.log(groupId)
-    
-      let unsub;
-    const getThemes = async() => {
-      new Promise(resolve => {
-      unsub = onSnapshot(query(collection(db, 'profiles', user.uid, 'purchased'), orderBy('timestamp', 'desc'), limit(10)), (snapshot) => {
-       // new Promise(resolve => )
-        setPurchasedThemes(snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-          transparent: false
-        })))
-        setPurchasedLastVisible(snapshot.docs[snapshot.docs.length - 1])
-      })
-      resolve()
-    }).finally(() => setPurchasedDone(true))
-    }
-    getThemes();
-    return unsub;
-    
-    
-  }, [])
-  useEffect(() => {
       if (route.params?.firstTime) {
         setIsFirstTime(false)
       }
     }, [route.params?.firstTime])
   useMemo(() => {
+    const getSearches = async() => {
     if (specificSearch.length > 0 && get) {
       setThemeSearches([])
-      const getData = async() => {
-        const q = query(collection(db, "products"), orderBy('stripe_metadata_keywords'), startAt(specificSearch), endAt(specificSearch + '\uf8ff'));
-
-        const querySnapshot = await getDocs(q);
-        querySnapshot.forEach((doc) => {
-          // doc.data() is never undefined for query doc snapshots
-          setThemeSearches(prevState => [...prevState, {id: doc.id, ...doc.data()}])
-        });
-      }
-      getData();
+      const {themeSearches} = await fetchThemeSearches('products', specificSearch, user.uid);
+      setThemeSearches(themeSearches)
     } 
     if (specificSearch.length > 0 && free) {
       setThemeSearches([])
-      const getData = async() => {
-        const q = query(collection(db, "freeThemes"), where('searchKeywords', 'array-contains', specificSearch.toLowerCase()), limit(10));
-
-        const querySnapshot = await getDocs(q);
-        querySnapshot.forEach((doc) => {
-          // doc.data() is never undefined for query doc snapshots
-          setThemeSearches(prevState => [...prevState, {id: doc.id, ...doc.data()}])
-        });
-      }
-      getData();
+      const {themeSearches} = await fetchThemeSearches('freeThemes', specificSearch, user.uid);
+      setThemeSearches(themeSearches)
     } 
     if (specificSearch.length > 0 && my) {
-      setThemeSearches([])
-      const getData = async() => {
-        const q = query(collection(db, "profiles", user.uid, 'myThemes'), where('searchKeywords', 'array-contains', specificSearch.toLowerCase()), limit(10));
-
-        const querySnapshot = await getDocs(q);
-        querySnapshot.forEach((doc) => {
-          // doc.data() is never undefined for query doc snapshots
-          setThemeSearches(prevState => [...prevState, {id: doc.id, ...doc.data()}])
-        });
-      }
-      getData();
+      setThemeSearches([]);
+      const {themeSearches} = await fetchThemeSearches('myThemes', specificSearch, user.uid);
+      setThemeSearches(themeSearches)
     } 
     if (specificSearch.length > 0 && purchased) {
-      setThemeSearches([])
-      const getData = async() => {
-        const q = query(collection(db, "profiles", user.uid, 'purchased'), where('searchKeywords', 'array-contains', specificSearch.toLowerCase()), limit(10));
-
-        const querySnapshot = await getDocs(q);
-        querySnapshot.forEach((doc) => {
-          // doc.data() is never undefined for query doc snapshots
-          setThemeSearches(prevState => [...prevState, {id: doc.id, ...doc.data()}])
-        });
-      }
-      getData();
+     setThemeSearches([]);
+      const {themeSearches} = await fetchThemeSearches('purchased', specificSearch, user.uid);
+      setThemeSearches(themeSearches)
     } 
+  }
+  getSearches()
   }, [specificSearch, get, free, my, purchased])
-  function fetchPurchasedData() {
-    if (purchasedLastVisible != undefined && mostPopular) {
-    let newData = [];
-    let unsub;
-
-      const fetchCards = async () => {
-  
-        unsub = onSnapshot(query(collection(db, 'profiles', user.uid, 'purchased'), orderBy('timestamp', 'desc'), startAfter(purchasedLastVisible), limit(10)), (snapshot) => {
-          snapshot.docs.map((doc) => {
-            if (!purchasedThemes.some((doc2 => doc2.id == doc.id))) {
-              newData.push({
-              id: doc.id,
-              transparent: false,
-              ...doc.data()
-            })
-            }
-          })
-          
-          //console.log(newData)
-          if (newData.length > 0 ) {
-          setPurchasedThemes([...purchasedThemes, ...newData])
-          //console.log(posts.map((item) => (item.id)))
-          setPurchasedLastVisible(snapshot.docs[snapshot.docs.length-1])
-          }
-        })
-      }
-      fetchCards();
-      return unsub;
+  useMemo(() => {
+    if (user.uid && my && mostPopular) {
+      const { tempPosts, lastMyVisible } = fetchMyThemes(user.uid, 'bought_count', 'desc');
+      setMyThemes(tempPosts);
+      setMyLastVisible(lastMyVisible);
     }
-    else if (purchasedLastVisible != undefined && sortDecreasingDate) {
-      let newData = [];
-    let unsub;
-
-      const fetchCards = async () => {
-  
-        unsub = onSnapshot(query(collection(db, 'profiles', user.uid, 'purchased'), orderBy('timestamp', 'asc'), startAfter(purchasedLastVisible), limit(10)), (snapshot) => {
-          snapshot.docs.map((doc) => {
-            if (!purchasedThemes.some((doc2 => doc2.id == doc.id))) {
-              newData.push({
-              id: doc.id,
-              transparent: false,
-              ...doc.data()
-            })
-            }
-          })
-          
-          //console.log(newData)
-          if (newData.length > 0 ) {
-          setPurchasedThemes([...purchasedThemes, ...newData])
-          //console.log(posts.map((item) => (item.id)))
-          setPurchasedLastVisible(snapshot.docs[snapshot.docs.length-1])
-          }
-        })
-      }
-      fetchCards();
-      return unsub;
+    else if (user.uid && my && sortIncreasingDate) {
+      const { tempPosts, lastMyVisible } = fetchMyThemes(user.uid, 'timestamp', 'desc');
+      setMyThemes(tempPosts);
+      setMyLastVisible(lastMyVisible);
     }
-    else if (purchasedLastVisible != undefined && sortDecreasingPrice) {
-      let newData = [];
-    let unsub;
-
-      const fetchCards = async () => {
-  
-        unsub = onSnapshot(query(collection(db, 'profiles', user.uid, 'purchased'), orderBy('price', 'asc'), startAfter(purchasedLastVisible), limit(10)), (snapshot) => {
-          snapshot.docs.map((doc) => {
-            if (!purchasedThemes.some((doc2 => doc2.id == doc.id))) {
-              newData.push({
-              id: doc.id,
-              transparent: false,
-              ...doc.data()
-            })
-            }
-          })
-          
-          //console.log(newData)
-          if (newData.length > 0 ) {
-          setPurchasedThemes([...purchasedThemes, ...newData])
-          //console.log(posts.map((item) => (item.id)))
-          setPurchasedLastVisible(snapshot.docs[snapshot.docs.length-1])
-          }
-        })
-      }
-      fetchCards();
-      return unsub;
+    else if (user.uid && my && sortDecreasingDate) {
+      const { tempPosts, lastMyVisible } = fetchMyThemes(user.uid, 'timestamp', 'asc');
+      setMyThemes(tempPosts);
+      setMyLastVisible(lastMyVisible);
     }
-    else if (purchasedLastVisible != undefined && sortIncreasingDate) {
-      let newData = [];
-    let unsub;
-
-      const fetchCards = async () => {
-  
-        unsub = onSnapshot(query(collection(db, 'profiles', user.uid, 'purchased'), orderBy('timestamp', 'desc'), startAfter(purchasedLastVisible), limit(10)), (snapshot) => {
-          snapshot.docs.map((doc) => {
-            if (!purchasedThemes.some((doc2 => doc2.id == doc.id))) {
-              newData.push({
-              id: doc.id,
-              transparent: false,
-              ...doc.data()
-            })
-            }
-          })
-          
-          //console.log(newData)
-          if (newData.length > 0 ) {
-          setPurchasedThemes([...purchasedThemes, ...newData])
-          //console.log(posts.map((item) => (item.id)))
-          setPurchasedLastVisible(snapshot.docs[snapshot.docs.length-1])
-          }
-        })
-      }
-      fetchCards();
-      return unsub;
+    else if (user.uid && my && sortDecreasingPrice) {
+      const { tempPosts, lastMyVisible } = fetchMyThemes(user.uid, 'price', 'asc');
+      setMyThemes(tempPosts);
+      setMyLastVisible(lastMyVisible);
     }
-    else if (purchasedLastVisible != undefined && sortIncreasingPrice) {
-      let newData = [];
-    let unsub;
-
-      const fetchCards = async () => {
-  
-        unsub = onSnapshot(query(collection(db, 'profiles', user.uid, 'purchased'), orderBy('price', 'desc'), startAfter(purchasedLastVisible), limit(10)), (snapshot) => {
-          snapshot.docs.map((doc) => {
-            if (!purchasedThemes.some((doc2 => doc2.id == doc.id))) {
-              newData.push({
-              id: doc.id,
-              transparent: false,
-              ...doc.data()
-            })
-            }
-          })
-          
-          //console.log(newData)
-          if (newData.length > 0 ) {
-          setPurchasedThemes([...purchasedThemes, ...newData])
-          //console.log(posts.map((item) => (item.id)))
-          setPurchasedLastVisible(snapshot.docs[snapshot.docs.length-1])
-          }
-        })
-      }
-      fetchCards();
-      return unsub;
+    else if (user.uid && my && sortIncreasingPrice) {
+      const { tempPosts, lastMyVisible } = fetchMyThemes(user.uid, 'price', 'desc');
+      setMyThemes(tempPosts);
+      setMyLastVisible(lastMyVisible);
+    }
+  }, [my, user?.uid, mostPopular, sortIncreasingDate, sortDecreasingDate, sortIncreasingPrice, sortDecreasingPrice])
+  function fetchMyData () {
+    if (myLastVisible != undefined && mostPopular) {
+      const { tempPosts, lastMyVisible } = fetchMoreMyThemes(user.uid, 'bought_count', 'desc', myLastVisible);
+      setMyThemes([...myThemes, ...tempPosts]);
+      setMyLastVisible(lastMyVisible);
+    }
+    else if (myLastVisible != undefined && sortIncreasingDate) {
+      const { tempPosts, lastMyVisible } = fetchMoreMyThemes(user.uid, 'timestamp', 'desc', myLastVisible);
+      setMyThemes([...myThemes, ...tempPosts]);
+      setMyLastVisible(lastMyVisible);
+    }
+    else if (myLastVisible != undefined && sortDecreasingDate) {
+      const { tempPosts, lastMyVisible } = fetchMoreMyThemes(user.uid, 'timestamp', 'asc', myLastVisible);
+      setMyThemes([...myThemes, ...tempPosts]);
+      setMyLastVisible(lastMyVisible);
+    }
+    else if (myLastVisible != undefined && sortDecreasingPrice) {
+      const { tempPosts, lastMyVisible } = fetchMoreMyThemes(user.uid, 'price', 'asc', myLastVisible);
+      setMyThemes([...myThemes, ...tempPosts]);
+      setMyLastVisible(lastMyVisible);
+    }
+    else if (myLastVisible != undefined && sortIncreasingPrice) {
+      const { tempPosts, lastMyVisible } = fetchMoreMyThemes(user.uid, 'price', 'desc', myLastVisible);
+      setMyThemes([...myThemes, ...tempPosts]);
+      setMyLastVisible(lastMyVisible);
     }
     
   }
-  //console.log(loading)
+  async function fetchPurchasedData() {
+    if (purchasedLastVisible != undefined && mostPopular) {
+      const { tempPosts, lastPurchasedVisible } = fetchMorePurchasedThemes(user.uid, 'bought_count', 'desc', purchasedLastVisible);
+      setPurchasedThemes([...purchasedThemes, ...tempPosts]);
+      setPurchasedLastVisible(lastPurchasedVisible);
+    }
+    else if (purchasedLastVisible != undefined && sortDecreasingDate) {
+      const { tempPosts, lastPurchasedVisible } = fetchMorePurchasedThemes(user.uid, 'timestamp', 'asc', purchasedLastVisible);
+      setPurchasedThemes([...purchasedThemes, ...tempPosts]);
+      setPurchasedLastVisible(lastPurchasedVisible);
+    }
+    else if (purchasedLastVisible != undefined && sortDecreasingPrice) {
+      const { tempPosts, lastPurchasedVisible } = fetchMorePurchasedThemes(user.uid, 'price', 'asc', purchasedLastVisible);
+      setPurchasedThemes([...purchasedThemes, ...tempPosts]);
+      setPurchasedLastVisible(lastPurchasedVisible);
+    }
+    else if (purchasedLastVisible != undefined && sortIncreasingDate) {
+      const { tempPosts, lastPurchasedVisible } = fetchMorePurchasedThemes(user.uid, 'timestamp', 'desc', purchasedLastVisible);
+      setPurchasedThemes([...purchasedThemes, ...tempPosts]);
+      setPurchasedLastVisible(lastPurchasedVisible);
+    }
+    else if (purchasedLastVisible != undefined && sortIncreasingPrice) {
+      const { tempPosts, lastPurchasedVisible } = fetchMorePurchasedThemes(user.uid, 'price', 'desc', purchasedLastVisible);
+      setPurchasedThemes([...purchasedThemes, ...tempPosts]);
+      setPurchasedLastVisible(lastPurchasedVisible);
+    }
+    
+  }
+  useMemo(() => {
+    if (user.uid && free && mostPopular) {
+      const { tempPosts, lastFreeVisible } = fetchFreeThemes(user.uid, 'bought_count', 'desc');
+      setFreeTempPosts(tempPosts);
+      setLastVisible(lastFreeVisible);
+    }
+    else if (user.uid && free && sortIncreasingDate) {
+      const { tempPosts, lastFreeVisible } = fetchFreeThemes(user.uid, 'timestamp', 'desc');
+      setFreeTempPosts(tempPosts);
+      setLastVisible(lastFreeVisible);
+    }
+    else if (user.uid && free && sortDecreasingDate) {
+      const { tempPosts, lastFreeVisible } = fetchFreeThemes(user.uid, 'timestamp', 'asc');
+      setFreeTempPosts(tempPosts);
+      setLastVisible(lastFreeVisible);
+    }
+  }, [mostPopular, free, user?.uid, sortIncreasingDate, sortDecreasingDate])
   function fetchMoreFreeData () {
-    if (mostPopular) {
-      //console.log('seocng')
-        let newData = [];
-      const fetchCards = async () => {
-        const q = query(collection(db, 'freeThemes'), orderBy('bought_count', 'desc'), startAfter(lastVisible), limit(10));
-            const querySnapshot = await getDocs(q);
-            querySnapshot.forEach((doc) => {
-                newData.push({
-                    id: doc.id,
-                    transparent: false,
-                    ...doc.data()
-                  })
-                
-                if (newData.length > 0) {
-                //setLoading(true)
-                new Promise(resolve => {
-        setFreeTempPosts([...freeTempPosts, ...newData])
-                setLastVisible(querySnapshot.docs[querySnapshot.docs.length-1])
-          resolve(); // Resolve the Promise after setCompleteMessages is done
-      }) 
-                
-              }
-            });
-      }
-      fetchCards();
+    if (mostPopular && lastVisible != undefined) {
+      const { tempPosts, lastFreeVisible } = fetchMoreFreeThemes(user.uid, 'bought_count', 'desc', lastVisible);
+      setFreeTempPosts([...freeTempPosts, ...tempPosts])
+      setLastVisible(lastFreeVisible);
     }
-    else if (sortIncreasingDate) {
-      let newData = [];
-      const fetchCards = async () => {
-        const q = query(collection(db, 'freeThemes'), orderBy('timestamp', 'desc'), startAfter(lastVisible), limit(10));
-            const querySnapshot = await getDocs(q);
-            querySnapshot.forEach((doc) => {
-                newData.push({
-                    id: doc.id,
-                    transparent: false,
-                    ...doc.data()
-                  })
-      
-              if (newData.length > 0) {
-                
-                setFreeTempPosts([...freeTempPosts, ...newData])
-                setLastVisible(querySnapshot.docs[querySnapshot.docs.length-1])
-              }
-            });
-      }
-      fetchCards();
+    else if (sortIncreasingDate && lastVisible != undefined) {
+      const { tempPosts, lastFreeVisible } = fetchMoreFreeThemes(user.uid, 'timestamp', 'desc', lastVisible);
+      setFreeTempPosts([...freeTempPosts, ...tempPosts])
+      setLastVisible(lastFreeVisible);
     }
-    else if (sortDecreasingDate) {
-      let newData = [];
-      const fetchCards = async () => {
-        const q = query(collection(db, 'freeThemes'), orderBy('timestamp', 'asc'), startAfter(lastVisible), limit(10));
-            const querySnapshot = await getDocs(q);
-            querySnapshot.forEach((doc) => {
-                newData.push({
-                    id: doc.id,
-                    transparent: false,
-                    ...doc.data()
-                  })
-      
-              if (newData.length > 0) {
-                
-                setFreeTempPosts([...freeTempPosts, ...newData])
-                setLastVisible(querySnapshot.docs[querySnapshot.docs.length-1])
-              }
-            });
-      }
-      fetchCards();
+    else if (sortDecreasingDate && lastVisible != undefined) {
+      const { tempPosts, lastFreeVisible } = fetchMoreFreeThemes(user.uid, 'timestamp', 'asc', lastVisible);
+      setFreeTempPosts([...freeTempPosts, ...tempPosts])
+      setLastVisible(lastFreeVisible);
     }
   }
-  function fetchMyData () {
-    if (myLastVisible != undefined && mostPopular) {
-      //console.log('first')
-    let newData = [];
-    let unsub;
-
-      const fetchCards = async () => {
-        newData = [];
-        unsub = onSnapshot(query(collection(db, 'profiles', user.uid, 'myThemes'), orderBy('timestamp', 'desc'), startAfter(myLastVisible), limit(10)), (snapshot) => {
-          snapshot.docs.map((doc) => {
-            if (!myThemes.some(doc2 => doc2.id === doc.id))
-              newData.push({
-              id: doc.id,
-              transparent: false,
-              ...doc.data()
-            })
-            
-          })
-          //console.log(newData)
-          if (newData.length > 0) {
-                
-                setMyThemes([...myThemes, ...newData])
-                setMyLastVisible(snapshot.docs[snapshot.docs.length-1])
-              }
-        })
-      }
-      fetchCards();
-      return unsub;
-    }
-    else if (myLastVisible != undefined && sortDecreasingDate) {
-      //console.log('first')
-    let newData = [];
-    let unsub;
-
-      const fetchCards = async () => {
-  
-        unsub = onSnapshot(query(collection(db, 'profiles', user.uid, 'myThemes'), orderBy('timestamp', 'asc'), startAfter(myLastVisible), limit(10)), (snapshot) => {
-          snapshot.docs.map((doc) => {
-            if (!myThemes.some(doc2 => doc2.id === doc.id))
-              newData.push({
-              id: doc.id,
-              transparent: false,
-              ...doc.data()
-            })
-            
-          })
-          //console.log(newData)
-          if (newData.length > 0) {
-                
-                setMyThemes([...myThemes, ...newData])
-                setMyLastVisible(snapshot.docs[snapshot.docs.length-1])
-              }
-        })
-      }
-      fetchCards();
-      return unsub;
-    }
-    else if (myLastVisible != undefined && sortIncreasingDate) {
-      //console.log('first')
-    let newData = [];
-    let unsub;
-
-      const fetchCards = async () => {
-  
-        unsub = onSnapshot(query(collection(db, 'profiles', user.uid, 'myThemes'), orderBy('timestamp', 'desc'), startAfter(myLastVisible), limit(10)), (snapshot) => {
-          snapshot.docs.map((doc) => {
-            if (!myThemes.some(doc2 => doc2.id === doc.id))
-              newData.push({
-              id: doc.id,
-              transparent: false,
-              ...doc.data()
-            })
-            
-          })
-          //console.log(newData)
-          if (newData.length > 0) {
-
-                
-                setMyThemes([...myThemes, ...newData])
-                setMyLastVisible(snapshot.docs[snapshot.docs.length-1])
-              }
-        })
-      }
-      fetchCards();
-      return unsub;
-    }
-  }
-
-  function fetchMoreData () {
-    if (mostPopular) {
-        let newData = [];
-      const fetchCards = async () => {
-        const q = query(collection(db, 'products'), orderBy('stripe_metadata_bought_count', 'desc'), startAfter(lastVisible), limit(10));
-            const querySnapshot = await getDocs(q);
-            querySnapshot.forEach((doc) => {
-                newData.push({
-                    id: doc.id,
-                    transparent: false,
-                    ...doc.data()
-                  })
-              if (newData.length > 0) {
-                setLoading(true)
-                new Promise(resolve => {
-        setTempPosts([...tempPosts, ...newData])
-                setLastVisible(querySnapshot.docs[querySnapshot.docs.length-1])
-          resolve(); // Resolve the Promise after setCompleteMessages is done
-      }).finally(() => setLoading(false)); 
-                
-              }
-            });
-      }
-      fetchCards();
-      
-    }
-    else if (sortIncreasingDate) {
-      let newData = [];
-      const fetchCards = async () => {
-        const q = query(collection(db, 'products'), orderBy('stripe_metadata_timestamp', 'desc'), startAfter(lastVisible), limit(10));
-            const querySnapshot = await getDocs(q);
-            querySnapshot.forEach((doc) => {
-                newData.push({
-                    id: doc.id,
-                    transparent: false,
-                    ...doc.data()
-                  })
-              if (newData.length > 0) {
-                setLoading(true)
-                
-                setTempPosts([...tempPosts, ...newData])
-                setLastVisible(querySnapshot.docs[querySnapshot.docs.length-1])
-              }
-            });
-      }
-      fetchCards();
-      setTimeout(() => {
-        setLoading(false)
-      }, 1000);
-    }
-    else if (sortDecreasingDate) {
-      let newData = [];
-      const fetchCards = async () => {
-        const q = query(collection(db, 'products'), orderBy('stripe_metadata_timestamp', 'asc'), startAfter(lastVisible), limit(10));
-            const querySnapshot = await getDocs(q);
-            querySnapshot.forEach((doc) => {
-                newData.push({
-                    id: doc.id,
-                    transparent: false,
-                    ...doc.data()
-                  })
-              if (newData.length > 0) {
-                setLoading(true)
-                
-                setTempPosts([...tempPosts, ...newData])
-                setLastVisible(querySnapshot.docs[querySnapshot.docs.length-1])
-              }
-            });
-      }
-      fetchCards();
-      setTimeout(() => {
-        setLoading(false)
-      }, 1000);
-    }
-    else if (sortDecreasingPrice) {
-      let newData = [];
-      const fetchCards = async () => {
-        const q = query(collection(db, 'products'), orderBy('stripe_metadata_price', 'asc'), startAfter(lastVisible), limit(10));
-            const querySnapshot = await getDocs(q);
-            querySnapshot.forEach((doc) => {
-                newData.push({
-                    id: doc.id,
-                    transparent: false,
-                    ...doc.data()
-                  })
-              if (newData.length > 0) {
-                setLoading(true)
-                
-                setTempPosts([...tempPosts, ...newData])
-                setLastVisible(querySnapshot.docs[querySnapshot.docs.length-1])
-              }
-            });
-      }
-      fetchCards();
-      setTimeout(() => {
-        setLoading(false)
-      }, 1000);
-    }
-    else if (sortIncreasingPrice) {
-      let newData = [];
-      const fetchCards = async () => {
-        const q = query(collection(db, 'products'), orderBy('stripe_metadata_price', 'desc'), startAfter(lastVisible), limit(10));
-            const querySnapshot = await getDocs(q);
-            querySnapshot.forEach((doc) => {
-                newData.push({
-                    id: doc.id,
-                    transparent: false,
-                    ...doc.data()
-                  })
-              if (newData.length > 0) {
-                setLoading(true)
-                
-                setTempPosts([...tempPosts, ...newData])
-                setLastVisible(querySnapshot.docs[querySnapshot.docs.length-1])
-              }
-            });
-      }
-      fetchCards();
-      setTimeout(() => {
-        setLoading(false)
-      }, 1000);
-    }
-  }
-  useEffect(() => {
-
-      let unsub;
-      const fetchSearches = async() => {
-        unsub = onSnapshot(query(collection(db, 'profiles', user.uid, 'recentSearches'), where('getTheme', '==', true), orderBy('timestamp', 'desc'), limit(3)), (snapshot) => {
-          setGetSearches(snapshot.docs.map((doc) => ({
-            id: doc.id,
-            searchId: doc.data().element.id
-          })))
-        })
-      }
-      fetchSearches();
-      return unsub;
-  }, [])
   useEffect(() => {
 
       let unsub;
@@ -705,27 +346,6 @@ const All = ({route}) => {
     
   }, [purchasedSearch, purchased])
   useEffect(() => {
-    if (getSearches.length > 0 && get) {
-      setTempSearches([])
-      getSearches.map(async(item) => {
-        //console.log('first')
-        const docSnap = await getDoc(doc(db, 'products', item.searchId))
-        if (docSnap.exists()) {
-          setTempSearches(prevState => [...prevState, {id: docSnap.id, searchId: item.id, ...docSnap.data()}])
-        }
-         /* const docSnap = await getDocs(collection(db, 'profiles', user.uid, 'myThemes'), where('images', 'array-contains', item.id))
-         console.log(docSnap.docs.length)
-         docSnap.forEach((e) => {
-            if (e.exists()) {
-          setTempSearches(prevState => [...prevState, {id: e.id, ...e.data()}])
-         }
-         }) */
-        
-      })
-    }
-    
-  }, [getSearches, get])
-  useEffect(() => {
     if (freeSearches.length > 0 && free) {
       setTempSearches([])
       freeSearches.map(async(item) => {
@@ -735,327 +355,11 @@ const All = ({route}) => {
         if (docSnap.exists()) {
           setTempSearches(prevState => [...prevState, {id: docSnap.id, searchId: item.id, ...docSnap.data()}])
         }
-         /* const docSnap = await getDocs(collection(db, 'profiles', user.uid, 'myThemes'), where('images', 'array-contains', item.id))
-         console.log(docSnap.docs.length)
-         docSnap.forEach((e) => {
-            if (e.exists()) {
-          setTempSearches(prevState => [...prevState, {id: e.id, ...e.data()}])
-         }
-         }) */
         
       })
     }
     
   }, [freeSearches, free])
-  
-  useEffect(() => {
-      let unsub;
-    const getThemes = async() => {
-      new Promise(resolve => {
-      unsub = onSnapshot(query(collection(db, 'profiles', user.uid, 'myThemes'), orderBy('timestamp', 'desc'), limit(10)), (snapshot) => {
-        setMyThemes(snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-          transparent: false
-        })))
-        setMyLastVisible(snapshot.docs[snapshot.docs.length - 1])
-      })
-      resolve()
-    }).finally(() => setLoading(false))
-    }
-    getThemes();
-    return unsub;
-      
-  }, [my])
-  //console.log(myThemes.length)
-  useEffect(() => {
-    if (sortIncreasingDate && my) {
-      setLoading(true)
-      let unsub;
-    const getThemes = async() => {
-      new Promise(resolve => {
-      unsub = onSnapshot(query(collection(db, 'profiles', user.uid, 'myThemes'), orderBy('timestamp', 'desc')), (snapshot) => {
-        setMyThemes(snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-          transparent: false,
-        })))
-        setMyLastVisible(snapshot.docs[snapshot.docs.length - 1])
-      })
-      resolve()
-    }).finally(() => setLoading(false))
-    }
-    getThemes();
-    return unsub;
-    }
-  }, [sortIncreasingDate, my])
-  useEffect(() => {
-    if (sortIncreasingDate && purchased) {
-      setLoading(true)
-      let unsub;
-    const getThemes = async() => {
-      new Promise(resolve => {
-      unsub = onSnapshot(query(collection(db, 'profiles', user.uid, 'purchased'), orderBy('timestamp', 'desc')), (snapshot) => {
-        setPurchasedThemes(snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-          transparent: false
-        })))
-        setPurchasedLastVisible(snapshot.docs[snapshot.docs.length - 1])
-      })
-      resolve()
-      }).finally(() => setLoading(false))
-    }
-    getThemes();
-    return unsub;
-    }
-  }, [sortIncreasingDate, purchased])
-  useEffect(() => {
-    if (sortDecreasingDate && get) {
-    //console.log(themes.length)
-    setTempPosts([])
-    setLoading(true)
-    const getThemes = async() => {
-      const querySnapshot = await getDocs(query(collection(db, 'products'), orderBy('stripe_metadata_timestamp', 'asc'), limit(10)));
-        querySnapshot.forEach((doc) => {
-          setTempPosts(prevState => [...prevState, {id: doc.id, transparent: false, ...doc.data()}])
-        });
-        setLastVisible(querySnapshot.docs[querySnapshot.docs.length-1])
-    }
-    getThemes();
-    setTimeout(() => {
-      setLoading(false)
-    }, 1000);
-    }
-  }, [sortDecreasingDate, get])
-  useEffect(() => {
-    if (sortDecreasingDate && free) {
-    //console.log(themes.length)
-    setLoading(true)
-    setFreeTempPosts([]);
-    const getThemes = async() => {
-      const querySnapshot = await getDocs(query(collection(db, 'freeThemes'), orderBy('timestamp', 'asc'), limit(10)));
-      new Promise(resolve => {
-        querySnapshot.forEach((doc) => {
-          setFreeTempPosts(prevState => [...prevState, {id: doc.id, transparent: false, ...doc.data()}])
-        });
-        setLastVisible(querySnapshot.docs[querySnapshot.docs.length-1])
-        resolve()
-      }).finally(() => setLoading(false))
-    }
-    getThemes();
-    }
-  }, [sortDecreasingDate, free])
-  useEffect(() => {
-    if (mostPopular && free) {
-      setFreeTempPosts([]);
-    setLoading(true)
-    const getThemes = async() => {
-      const querySnapshot = await getDocs(query(collection(db, 'freeThemes'), orderBy('bought_count', 'desc'), limit(10)));
-      new Promise(resolve => {
-        querySnapshot.forEach((doc) => {
-          setFreeTempPosts(prevState => [...prevState, {id: doc.id, transparent: false, ...doc.data()}])
-        });
-        setLastVisible(querySnapshot.docs[querySnapshot.docs.length-1])
-          resolve(); // Resolve the Promise after setCompleteMessages is done
-      }).finally(() => setLoading(false)); 
-        
-    }
-    getThemes();
-    }
-  }, [mostPopular, free])
-  useEffect(() => {
-    if (sortIncreasingDate && get) {
-      setTempPosts([])
-    setLoading(true)
-    const getThemes = async() => {
-      const querySnapshot = await getDocs(query(collection(db, 'products'), orderBy('stripe_metadata_timestamp', 'desc'), limit(10)));
-        querySnapshot.forEach((doc) => {
-          setTempPosts(prevState => [...prevState, {id: doc.id, transparent: false, ...doc.data()}])
-        });
-        setLastVisible(querySnapshot.docs[querySnapshot.docs.length-1])
-    }
-    getThemes();
-    setTimeout(() => {
-      setLoading(false)
-    }, 1000);
-    }
-  }, [sortIncreasingDate, get])
-  useEffect(() => {
-    if (sortIncreasingDate && free) {
-      setFreeTempPosts([]);
-      setLoading(true)
-    const getThemes = async() => {
-      const querySnapshot = await getDocs(query(collection(db, 'freeThemes'), orderBy('timestamp', 'desc'), limit(10)));
-      new Promise(resolve => {
-        querySnapshot.forEach((doc) => {
-          setFreeTempPosts(prevState => [...prevState, {id: doc.id, transparent: false, ...doc.data()}])
-        });
-        setLastVisible(querySnapshot.docs[querySnapshot.docs.length-1])
-        resolve()
-      }).finally(() => setLoading(false))
-    }
-    getThemes();
-    }
-  }, [sortIncreasingDate, free])
-  useEffect(() => {
-    if (sortDecreasingDate && my) {
-      setLoading(true)
-      let unsub;
-    const getThemes = async() => {
-      new Promise(resolve => {
-      unsub = onSnapshot(query(collection(db, 'profiles', user.uid, 'myThemes'), orderBy('timestamp', 'asc')), (snapshot) => {
-        setMyThemes(snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-          transparent: false
-        })))
-        setMyLastVisible(snapshot.docs[snapshot.docs.length - 1])
-      })
-      resolve()
-    }).finally(() => setLoading(false))
-    }
-    getThemes();
-    setTimeout(() => {
-      setLoading(false)
-    }, 2000);
-    return unsub;
-    }
-  }, [sortDecreasingDate, my])
-  useEffect(() => {
-    if (sortDecreasingDate && purchased) {
-      setLoading(true)
-      let unsub;
-    const getThemes = async() => {
-      new Promise(resolve => {
-      unsub = onSnapshot(query(collection(db, 'profiles', user.uid, 'purchased'), orderBy('timestamp', 'asc')), (snapshot) => {
-        setPurchasedThemes(snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-          transparent: false
-        })))
-        setPurchasedLastVisible(snapshot.docs[snapshot.docs.length - 1])
-      })
-      resolve()
-    }).finally(() => setLoading(false))
-    }
-    getThemes();
-    return unsub;
-    }
-  }, [sortDecreasingDate, purchased])
-  useEffect(() => {
-    if (sortIncreasingPrice && my) {
-      setLoading(true)
-      let unsub;
-
-    const getThemes = async() => {
-      new Promise(resolve => {
-      unsub = onSnapshot(query(collection(db, 'profiles', user.uid, 'myThemes'), orderBy('price')), (snapshot) => {
-        setMyThemes(snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-          transparent: false
-        })))
-        setMyLastVisible(snapshot.docs[snapshot.docs.length - 1])
-      })
-      resolve()
-    }).finally(() => setLoading(false))
-    }
-    getThemes();
-    return unsub;
-    }
-  }, [sortIncreasingPrice, my])
-  useEffect(() => {
-    if (sortIncreasingPrice && purchased) {
-      setLoading(true)
-      let unsub;
-    const getThemes = async() => {
-      new Promise(resolve => {
-      unsub = onSnapshot(query(collection(db, 'profiles', user.uid, 'purchased'), orderBy('price', 'desc')), (snapshot) => {
-        setPurchasedThemes(snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data()
-        })))
-        setPurchasedLastVisible(snapshot.docs[snapshot.docs.length - 1])
-      })
-    }).finally(() => setLoading(false))
-    }
-    getThemes();
-    return unsub;
-    }
-  }, [sortIncreasingPrice, purchased])
-  useEffect(() => {
-    if (mostPopular && purchased) {
-      let unsub;
-    const getThemes = async() => {
-      unsub = onSnapshot(query(collection(db, 'profiles', user.uid, 'purchased'), orderBy('bought_count')), (snapshot) => {
-        setPurchased(snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data()
-        })))
-        setPurchasedLastVisible(snapshot.docs[snapshot.docs.length - 1])
-      })
-    }
-    getThemes();
-    setTimeout(() => {
-      setLoading(false)
-    }, 2000);
-    return unsub;
-    }
-  }, [mostPopular, purchased])
-  useEffect(() => {
-    if (sortIncreasingPrice && get) {
-      setTempPosts([])
-      setLoading(true)
-    const getThemes = async() => {
-      const querySnapshot = await getDocs(query(collection(db, 'products'), orderBy('stripe_metadata_price', 'desc'), limit(10)));
-        querySnapshot.forEach((doc) => {
-          setTempPosts(prevState => [...prevState, {id: doc.id, transparent: false, ...doc.data()}])
-        });
-        setLastVisible(querySnapshot.docs[querySnapshot.docs.length-1])
-    }
-    getThemes();
-    setTimeout(() => {
-      setLoading(false)
-    }, 1000);
-    }
-  }, [sortIncreasingPrice, get])
-  useEffect(() => {
-    if (mostPopular && get) {
-      setTempPosts([])
-    const getThemes = async() => {
-      const querySnapshot = await getDocs(query(collection(db, 'products'), orderBy('stripe_metadata_bought_count', 'desc'), limit(10)));
-      
-        new Promise(resolve => {
-        querySnapshot.forEach((doc) => {
-          setTempPosts(prevState => [...prevState, {id: doc.id, transparent: false, ...doc.data()}])
-        });
-        setLastVisible(querySnapshot.docs[querySnapshot.docs.length-1])
-          resolve(); // Resolve the Promise after setCompleteMessages is done
-      }).finally(() => setLoading(false)); 
-    }
-    getThemes();
-    }
-  }, [mostPopular, get])
-  //console.log(mostPopular)
-  useEffect(() => {
-    if (sortDecreasingPrice && get) {
-      setTempPosts([])
-      setLoading(true)
-    const getThemes = async() => {
-      const querySnapshot = await getDocs(query(collection(db, 'products'), orderBy('stripe_metadata_price', 'asc'), limit(10)));
-        querySnapshot.forEach((doc) => {
-          setTempPosts(prevState => [...prevState, {id: doc.id, transparent: false, ...doc.data()}])
-        });
-        setLastVisible(querySnapshot.docs[querySnapshot.docs.length-1])
-    }
-    getThemes();
-    setTimeout(() => {
-      setLoading(false)
-    }, 1000);
-    }
-  }, [sortDecreasingPrice, get])
-  //console.log(freeThemes.length)
   useEffect(() => {
     const getData = async() => {
       const isFirstTimeValue = await AsyncStorage.getItem('isFirstTime');
@@ -1069,83 +373,9 @@ const All = ({route}) => {
     getData();
     
   }, [])
-  useEffect(() => {
-    if (sortDecreasingPrice && my) {
-      setLoading(true)
-      let unsub;
-    const getThemes = async() => {
-      new Promise(resolve => {
-      unsub = onSnapshot(query(collection(db, 'profiles', user.uid, 'myThemes'), orderBy('price', 'desc')), (snapshot) => {
-        setMyThemes(snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-          transparent: false
-        })))
-        setMyLastVisible(snapshot.docs[snapshot.docs.length - 1])
-      })
-      resolve()
-    }).finally(() => setLoading(false))
-    }
-    getThemes();
-    return unsub;
-    }
-  }, [sortDecreasingPrice, my])
-  useEffect(() => {
-    if (sortDecreasingPrice && purchased) {
-      setLoading(true)
-      let unsub;
-    const getThemes = async() => {
-      new Promise(resolve => {
-      unsub = onSnapshot(query(collection(db, 'profiles', user.uid, 'purchased'), orderBy('price', 'asc')), (snapshot) => {
-        setPurchasedThemes(snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data()
-        })))
-        setPurchasedLastVisible(snapshot.docs[snapshot.docs.length - 1])
-      })
-    }).finally(() => setLoading(false))
-    }
-    getThemes();
-    return unsub;
-    }
-  }, [sortDecreasingPrice, purchased])
-  //console.log(themes.length)
-  //console.log(user.uid)
   async function addToRecentSearches(item){
     var element = item
-    if (get) {
-      if (tempSearches.filter(e => e.id == item.id).length > 0) {
-      //console.log('bruh')
-      tempSearches.map(async(e) => {
-        if (e.id == e.id) {
-          //setTempId(element.id)
-          await updateDoc(doc(db, 'profiles', user.uid, 'recentSearches', e.id), {
-            group: false,
-            event: false,
-            element,
-            user: false,
-            ai: false,
-            getTheme: true,
-            friend: false,
-            timestamp: serverTimestamp()
-          })
-        }
-      })
-    } 
-    else {
-        addDoc(collection(db, 'profiles', user.uid, 'recentSearches'), {
-        group: false,
-        event: false,
-        element,
-        user: false,
-        ai: false,
-        friend: false,
-        getTheme: true,
-        timestamp: serverTimestamp()
-      })
-    }
-    }
-    else if (free) {
+    if (free) {
       if (tempSearches.filter(e => e.id == item.id).length > 0) {
       //console.log('bruh')
       tempSearches.map(async(e) => {
@@ -1245,10 +475,7 @@ const All = ({route}) => {
   }
   const handleScroll = _.debounce((event) => {
     // Your logic for fetching more data
-    if (get) {
-      fetchMoreData()
-    }
-    else if (free) {
+    if (free) {
       setLoading(true)
       fetchMoreFreeData()
       setTimeout(() => {
@@ -1274,9 +501,9 @@ const All = ({route}) => {
   const renderThemes = ({item}) => {
     //console.log(item)
     return (
-        <TouchableOpacity style={[styles.categoriesContainer, {width: '100%', backgroundColor: "#121212"}]} onPress={() => {setFilteredGroup([item]); addToRecentSearches(item); setSearching(false)}}>
+        <TouchableOpacity style={styles.categoriesContainer} onPress={() => {setFilteredGroup([item]); addToRecentSearches(item); setSearching(false)}}>
             <FastImage source={{uri: item.images[0]}} style={{height: 40, width: 40, borderRadius: 8}}/>
-            <Text numberOfLines={1} style={[styles.categories, {color: theme.color}]}>{item.name}</Text>
+            <Text numberOfLines={1} style={styles.categories}>{item.name}</Text>
             <MaterialCommunityIcons name='arrow-top-left' size={30} style={{alignSelf: 'center', marginLeft: 'auto'}} color={"#9edaff"}/>
         </TouchableOpacity>
     )
@@ -1288,9 +515,9 @@ const All = ({route}) => {
   }
   const renderRecentThemes = ({item}) => {
     return (
-      <TouchableOpacity style={[styles.categoriesContainer, {width: '100%', backgroundColor: "#121212"}]} onPress={() => recentSearchFunction(item)}>
+      <TouchableOpacity style={styles.categoriesContainer} onPress={() => recentSearchFunction(item)}>
         <FastImage source={{uri: item.images[0]}} style={{height: 40, width: 40, borderRadius: 8}}/>
-            <Text numberOfLines={1} style={[styles.categories, {color: theme.color}]}>{item.name}</Text>
+            <Text numberOfLines={1} style={styles.categories}>{item.name}</Text>
             <TouchableOpacity onPress={() => removeSearch(item)} style={{alignSelf: 'center', marginLeft: "auto"}}>
                 <MaterialCommunityIcons name='close' size={30} color={theme.color} />
             </TouchableOpacity>
@@ -1300,15 +527,9 @@ const All = ({route}) => {
    async function removeSearch(item) {
     console.log(item)
       await deleteDoc(doc(db, 'profiles', user.uid, 'recentSearches', item.searchId)).then(() => setTempSearches(tempSearches.filter((e) => e.id !== item.id)))
-      
-
-    //
-    //console.log(item.id)
   }
   //console.log(loading)
   const renderSpecific = (item) => {
-    //console.log(item)
-    //console.log(item.item.images[0])
     return (
       <TouchableOpacity style={[[styles.themeContainer, {borderColor: theme.color}], {height: 230}]} onPress={item[0].metadata != undefined || item[0].bought != undefined && !groupId && !free ? () => navigation.navigate('SpecificTheme', {id: item[0].id, groupTheme: null, free: false, username: item[0].username}) 
       : groupId && !free ? ()  => navigation.navigate('SpecificTheme', {id: item[0].id, groupId: groupId, groupTheme: item[0].images[0], groupName: name,
@@ -1325,7 +546,7 @@ const All = ({route}) => {
     <Provider>
     <View style={styles.container}>
       <View style={{backgroundColor: "#121212"}}>
-        <ThemeHeader video={false} text={searching ? 'Search Themes' : name != null ? `${name} Themes` : get ? 'Get Themes' : goToMy || my ?  'My Themes' : goToPurchased ||  purchased ? 'Collected Themes' : 'Get Themes'}
+        <ThemeHeader video={false} text={searching ? 'Search Themes' : name != null ? `${name} Themes` : goToMy || my ?  'My Themes' : goToPurchased ||  purchased ? 'Collected Themes' : 'Get Themes'}
         backButton={goToMy || name != null ? true: false}/>
       </View>
      <Divider borderBottomWidth={0.4} style={{borderColor: theme.color}}/>
@@ -1335,7 +556,7 @@ const All = ({route}) => {
           <View style={{marginLeft: 0, marginBottom: '5%'}}>
             <TouchableOpacity activeOpacity={1} style={{ marginTop: '-2.5%', zIndex: 0}}>
                   <View style={{flexDirection: 'row'}}>
-                  <SearchInput autoFocus={true} value={specificSearch} icon={'magnify'} placeholder={get ? 'Search Themes to Buy' : free ? 'Search Themes to Get' : my ? 'Search My Themes' : purchased ? 'Search Collected Themes' 
+                  <SearchInput autoFocus={true} value={specificSearch} icon={'magnify'} placeholder={free ? 'Search Themes to Get' : my ? 'Search My Themes' : purchased ? 'Search Collected Themes' 
                   : null} onFocus={() => {setRecentSearches(true); setSearching(true)}} iconStyle={styles.postIcon}
                   containerStyle={{borderWidth: 1, borderColor: theme.color, width: '85%'}} onSubmitEditing={() => {setRecentSearches(false) }} text={searching ? true : false} onChangeText={setSpecificSearch} 
                   onPress={() => {setSpecificSearch(''); setRecentSearches(true); setSearching(true)}}/>
@@ -1359,7 +580,7 @@ const All = ({route}) => {
                   {
                     recentSearches && searching ?
                     <RecentSearches data={tempSearches.filter((obj, index, self) => index === self.findIndex((o) => o.searchId === obj.searchId)).reverse()} 
-                    get={get} free={free} my={my} purchased={purchased} extraStyling={{width: '100%'}}
+                      free={free} my={my} purchased={purchased} extraStyling={{width: '100%'}}
                     renderSearches={renderRecentThemes}/> : null
                   }
                   </>
@@ -1380,7 +601,7 @@ const All = ({route}) => {
                   {
                     recentSearches && searching ?
                     <RecentSearches data={tempSearches.filter((obj, index, self) => index === self.findIndex((o) => o.searchId === obj.searchId)).reverse()} 
-                    get={get} free={free} my={my} purchased={purchased} extraStyling={{width: '100%'}}
+                      free={free} my={my} purchased={purchased} extraStyling={{width: '100%'}}
                     renderSearches={renderRecentThemes}/> : null
                   }
                   </View>
@@ -1395,9 +616,9 @@ const All = ({route}) => {
       <>
       <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'}}>
       <View style={styles.titleContainer}>
-          <TouchableOpacity style={[styles.logInButton, {backgroundColor: "#9edaff", borderColor: "#9edaff"}]} onPress={() => navigation.navigate('CreateTheme', {avatar: false})}>
+          <TouchableOpacity style={styles.logInButton} onPress={() => navigation.navigate('CreateTheme', {avatar: false})}>
             <MaterialCommunityIcons name='plus' size={20} color={"#121212"} style={{alignSelf: 'center', paddingLeft: 10}}/>
-            <Text style={[styles.alreadyText, {color: "#121212"}]}>{"Create Theme"}</Text>
+            <Text style={styles.alreadyText}>{"Create Theme"}</Text>
         </TouchableOpacity>
          
       </View>
@@ -1432,44 +653,24 @@ const All = ({route}) => {
           </View>
 
       <View style={{flexDirection: 'row', marginTop: '2.5%', justifyContent: 'space-between'}}>
-        <TouchableOpacity style={free && !filteredGroup ? [styles.buttons, {backgroundColor: theme.color, borderColor: theme.color}] : [styles.buttons, {borderColor: theme.color, backgroundColor: "#121212",}]} onPress={() => {setFree(true); setMy(false); setPurchased(false);  setFilteredGroup(null); setGet(false); setTempSearches([]); setSpecificSearch(''); setFiltered([])}}>
-          <Text style={free  && !filteredGroup ? [styles.buttonText, {color: "#121212"}] : [styles.buttonText, {color: theme.color}]}>Get Themes</Text>
+        <TouchableOpacity style={free && !filteredGroup ? styles.selectedButtons : styles.notSelectedButtons} onPress={() => {setFree(true); setMy(false); setPurchased(false);  setFilteredGroup(null); setTempSearches([]); setSpecificSearch(''); setFiltered([])}}>
+          <Text style={free  && !filteredGroup ? styles.selectedButtonText : styles.notSelectedButtonText}>Get Themes</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={my && !filteredGroup ? [styles.buttons, {backgroundColor: theme.color, borderColor: theme.color}] : [styles.buttons, {borderColor: theme.color, backgroundColor: "#121212",}]} onPress={() => {setFree(false); setMy(true); setPurchased(false);  setFilteredGroup(null); setGet(false); setTempSearches([]); setSpecificSearch(''); setFiltered([])}}>
-          <Text style={my  && !filteredGroup ? [styles.buttonText, {color: "#121212"}] : [styles.buttonText, {color: theme.color}]}>My Themes</Text>
+        <TouchableOpacity style={my && !filteredGroup ? styles.selectedButtons : styles.notSelectedButtons} onPress={() => {setFree(false); setMy(true); setPurchased(false);  setFilteredGroup(null); setTempSearches([]); setSpecificSearch(''); setFiltered([])}}>
+          <Text style={my  && !filteredGroup ? styles.selectedButtonText : styles.notSelectedButtonText}>My Themes</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={purchased && !filteredGroup ? [styles.buttons, {backgroundColor: theme.color, borderColor: theme.color}] : [styles.buttons, {borderColor: theme.color, backgroundColor: "#121212",}]} onPress={() => {setPurchased(true); setMy(false); setFree(false); setFilteredGroup(null); setGet(false); setTempSearches([]); setSpecificSearch(''); setFiltered([])}}>
-          <Text style={purchased && !filteredGroup ? [styles.buttonText, {color: "#121212"}] : [styles.buttonText, {color: theme.color}]}>Collected</Text>
+        <TouchableOpacity style={purchased && !filteredGroup ? styles.selectedButtons : styles.notSelectedButtons} onPress={() => {setPurchased(true); setMy(false); setFree(false); setFilteredGroup(null); setTempSearches([]); setSpecificSearch(''); setFiltered([])}}>
+          <Text style={purchased && !filteredGroup ? styles.selectedButtonText : styles.notSelectedButtonText}>Collected</Text>
         </TouchableOpacity>
         
       </View>
       <View style={styles.main}>
         {filteredGroup != null ? 
             renderSpecific(filteredGroup)
-          : 
-          get == true && name == null && tempPosts.length > 0 ? <FlatList 
-            data={tempPosts}
-            renderItem={<ThemeComponent free={free} get={get} purchased={purchased} my={my} user={user}
-            item={item} groupId={groupId} name={name}/>}
-            numColumns={2}
-            keyExtractor={(item) => item.id}
-            style={{ height: '130%'}}
-            ListFooterComponent={
-            loading ? (
-              <View style={{ alignItems: 'center', paddingBottom: 140}}> 
-                <ActivityIndicator color={"#9edaff"} />
-              </View>
-            ) : (
-              <View style={{ paddingBottom: 140 }} /> 
-            )
-          }
-            onScroll={handleScroll}
-          /> :
-          free && freeTempPosts.length > 0
-          ? 
+          : free && freeTempPosts.length > 0 ? 
           <FlatList 
           data={freeTempPosts}
-            renderItem={<ThemeComponent free={free} get={get} purchased={purchased} my={my} user={user}
+            renderItem={<ThemeComponent free={free} purchased={purchased} my={my} user={user}
             item={item} groupId={groupId} name={name}/>}
             numColumns={2}
             keyExtractor={(item) => item.id}
@@ -1482,7 +683,7 @@ const All = ({route}) => {
           : my && myThemes.length > 0 ? 
           <FlatList 
               data={myThemes}
-            renderItem={<ThemeComponent free={free} get={get} purchased={purchased} my={my} user={user}
+            renderItem={<ThemeComponent free={free} purchased={purchased} my={my} user={user}
             item={item} groupId={groupId} name={name}/>}
             numColumns={2}
             keyExtractor={(item) => item.id.toString()}
@@ -1495,7 +696,7 @@ const All = ({route}) => {
           <>
           <FlatList 
               data={purchasedThemes}
-            renderItem={<ThemeComponent free={free} get={get} purchased={purchased} my={my} user={user}
+            renderItem={<ThemeComponent free={free} purchased={purchased} my={my} user={user}
             item={item} groupId={groupId} name={name}/>}
             numColumns={2}
             ListFooterComponent={<FooterComponent loading={loading} />
@@ -1509,8 +710,8 @@ const All = ({route}) => {
           : loading ? <View style={{alignItems: 'center', flex: 1, backgroundColor: "#121212", justifyContent: 'flex-end'}}>
             <ActivityIndicator color={"#9edaff"}/> 
           </View> : <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
-            {purchased ? <Text style={[styles.noThemesText, {color: theme.color}]}>Sorry you have no Purchased Themes!</Text> : my ? <Text style={[styles.noThemesText, {color: theme.color}]}>Sorry you have no themes created right now!</Text> :
-            free ? <Text style={[styles.noThemesText, {color: theme.color}]}>Sorry no Themes to Get Right Now!</Text> : <Text style={[styles.noThemesText, {color: theme.color}]}>Sorry no Themes to Get Right Now!</Text>}
+            {purchased ? <Text style={styles.noThemesText}>Sorry you have no Purchased Themes!</Text> : my ? <Text style={styles.noThemesText}>Sorry you have no themes created right now!</Text> :
+            free ? <Text style={styles.noThemesText}>Sorry no Themes to Get Right Now!</Text> : <Text style={styles.noThemesText}>Sorry no Themes to Get Right Now!</Text>}
             
           </View>}
       </View>
@@ -1526,150 +727,101 @@ const All = ({route}) => {
 export default All
 
 const styles = StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: "#121212"
-    },
-    mainContainer: {
-      marginLeft: '5%', 
-      marginRight: '5%'
-    },
-    main: {
-      //marginHorizontal: '5%',
-      marginLeft: -10,
-      marginRight: -10,
-      flexDirection: 'row',
-      //flex: 1,
-      marginTop: '5%',
-      //backgroundColor: "red"
-      height: '75%'
-    },
-    header: {
-        fontSize: 24,
-        textAlign: 'center',
-        fontFamily: 'Montserrat_400Regular',
-        color: "#005278",
-        padding: 10,
-        paddingLeft: 0,
-        marginTop: 8,
-        alignSelf: 'center',
-        //width: '70%'
-    },
+  container: {
+    flex: 1,
+    backgroundColor: "#121212"
+  },
+  mainContainer: {
+    marginLeft: '5%', 
+    marginRight: '5%'
+  },
+  main: {
+    marginLeft: -10,
+    marginRight: -10,
+    flexDirection: 'row',
+    marginTop: '5%',
+    height: '75%'
+  },
   categories: {
     fontSize: 15.36,
     fontFamily: 'Montserrat_500Medium',
     width: '80%',
-    padding: 10
-  },
-  recentCategoriesContainer: {
-    backgroundColor: "#d4d4d4",
-    flexDirection: 'row',
-    width: '100%',
-    marginTop: '5%',
-    justifyContent: 'space-between'
-  },
-  recentCategories: {
-    fontSize: 15.36,
-    padding: 5,
-    //backgroundColor: "#d4d4d4",
-    fontFamily: 'Montserrat_700Bold',
-    //width: '95%',
-    //marginTop: '5%'
+    padding: 10,
+    color: "#fafafa"
   },
   categoriesContainer: {
     borderRadius: 5,
     flexDirection: 'row',
-    //marginRight: '5%',
     marginTop: 5,
     padding: 5,
     alignItems: 'center',
-    //justifyContent: 'space-between',
-    width: '95%',
+    width: '100%',
+    backgroundColor: "#121212"
   },
   titleContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    //width: '90%',
     marginTop: '2.5%',
     alignItems: 'center',
-    
   },
   noThemesText: {
-      fontSize: 24,
-      fontFamily: 'Montserrat_500Medium',
-      padding: 10,
-      textAlign: 'center'
-  },
-  logInButton: {
-        borderRadius: 10,
-        borderWidth: 2,
-        borderColor: '#005278',
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        backgroundColor: '#005278'
-    },
-    alreadyText: {
-        fontSize: 15.36,
-        padding: 12,
-        fontFamily: 'Montserrat_500Medium',
-        color: "#fafafa",
-        //paddingLeft: 35,
-        paddingLeft: 5,
-        paddingRight: 15,
-        textAlign: 'center'
-    },
-    buttons: {
-      borderRadius: 5,
-      borderWidth: 1,
-      alignItems: 'center',
-      justifyContent: 'center'
-    },
-    buttonText: {
-      fontSize: 15.36,
-      padding: 10,
-      fontFamily: 'Montserrat_600SemiBold',
-    },
-    overlay: {
-      position: 'absolute',
-      width: '107%', // Adjust the overlay width as needed
-      height: '105%', // Adjust the overlay height as needed
-      ...StyleSheet.absoluteFillObject,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    },
-    closeText: {
-      fontSize: 12.29,
-      padding: 2.5,
-      color: "#fafafa",
-      fontFamily: 'Montserrat_700Bold',
-    },
-    applyContainer: {
-      marginTop: '10%',
-      borderRadius: 8,
-      width: '80%',
-      alignItems: 'center'
-    },
-    applyText: {
-      fontSize: Dimensions.get('screen').height / 54.9,
-      fontFamily: 'Montserrat_500Medium',
-      padding: 7.5
-    },
-  useThemeText: {
-    fontSize: 15.36,
-    padding: 10,
-    fontFamily: 'Montserrat_700Bold',
-  },
-  questionText: {
-    fontSize: 15.36,
+    fontSize: 24,
     fontFamily: 'Montserrat_500Medium',
     padding: 10,
-
+    textAlign: 'center',
+    color: "#fafafa"
   },
-  overlay: {
-      ...StyleSheet.absoluteFillObject,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    },
-    closeChatIcon : {
+  logInButton: {
+    borderRadius: 10,
+    borderWidth: 2,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    backgroundColor: "#9edaff", 
+    borderColor: "#9edaff"
+  },
+  alreadyText: {
+    fontSize: 15.36,
+    padding: 12,
+    fontFamily: 'Montserrat_500Medium',
+    color: "#121212",
+    paddingLeft: 5,
+    paddingRight: 15,
+    textAlign: 'center'
+  },
+  selectedButtons: {
+    borderRadius: 5,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fafafa', 
+    borderColor: '#fafafa'
+  },
+  notSelectedButtons: {
+    borderRadius: 5,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#121212', 
+    borderColor: '#fafafa'
+  },
+  selectedButtonText: {
+    fontSize: 15.36,
+    padding: 10,
+    fontFamily: 'Montserrat_600SemiBold',
+    color: "#121212"
+  },
+  notSelectedButtonText: {
+    fontSize: 15.36,
+    padding: 10,
+    fontFamily: 'Montserrat_600SemiBold',
+    color: "#fafafa"
+  },  
+  closeChatIcon : {
     marginLeft: '5%'
   },
-  postIcon: {position: 'absolute', left: 260, top: 8.5},
+  postIcon: {
+    position: 'absolute', 
+    left: 260, 
+    top: 8.5
+  }
 })

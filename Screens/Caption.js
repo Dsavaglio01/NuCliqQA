@@ -1,51 +1,35 @@
-import { StyleSheet, Text, View, Image, Modal, TouchableOpacity, ScrollView, Dimensions, KeyboardAvoidingView,
-  Platform, Alert,
-  ActivityIndicator,
+import { StyleSheet, Text, View, Image, Modal, TouchableOpacity, ScrollView, Dimensions, Alert, ActivityIndicator, 
   TextInput,} from 'react-native'
 import React, {useEffect, useState, useRef, useContext} from 'react'
 import { ref, getDownloadURL, getStorage, deleteObject, uploadBytesResumable} from 'firebase/storage';
-import { addDoc, collection, serverTimestamp, getDoc, doc, getFirestore, where, getDocs, query, updateDoc, setDoc, deleteDoc} from 'firebase/firestore';
-import RegisterHeader from '../Components/RegisterHeader';
+import { serverTimestamp, getDoc, doc, updateDoc, setDoc} from 'firebase/firestore';
 import { useNavigation } from '@react-navigation/native';
 import {MaterialCommunityIcons} from '@expo/vector-icons';
 import InputBox from '../Components/InputBox';
 import MainButton from '../Components/MainButton';
-import Checkbox from 'expo-checkbox';
 import RadioButtonGroup, {RadioButtonItem} from 'expo-radio-button';
 import useAuth from '../Hooks/useAuth';
 import NextButton from '../Components/NextButton';
 import axios from 'axios';
-import Header from '../Components/Header';
-import NewPostHeader from '../Components/NewPostHeader';
 import Carousel, {Pagination} from 'react-native-snap-carousel';
-
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
-import { Divider, Menu, Provider } from 'react-native-paper';
+import { Divider, Provider } from 'react-native-paper';
 import FastImage from 'react-native-fast-image';
 import {BACKEND_URL, MODERATION_API_USER, MODERATION_API_SECRET, TEXT_MODERATION_URL, IMAGE_MODERATION_URL} from "@env"
 import ThemeHeader from '../Components/ThemeHeader';
 import { useFonts, Montserrat_500Medium } from '@expo-google-fonts/montserrat';
 import themeContext from '../lib/themeContext';
-import {francAll, franc} from 'franc'
 import { db } from '../firebase'
+import ProfileContext from '../lib/profileContext';
+import { useMultiDownloadImage } from '../Hooks/useMultiDownloadImage';
 const Caption = ({route}) => {
-    const {post, postArray, group, mentions, groupPfp, actualGroup, groupName, groupId, text, value, edit, editCaption, editId, blockedUsers, admin, userName} = route.params;
-    console.log(postArray, edit, editCaption, editId)
-    //console.log(group)
-    //console.log(groupId)
-    //console.log(postArray)
-    //console.log(mentions)
-    //console.log(actualGroup)x
+    const {post, postArray, group, mentions, groupPfp, actualGroup, groupName, groupId, text, value, edit, editCaption, editId, blockedUsers, admin} = route.params;
     const storage = getStorage();
-    const video = useRef(null);
     const carouselRef = useRef(null);
     const [moodModal, setMoodModal] = useState(false);
     const [loading, setLoading] = useState(false);
-    const [link, setLink] = useState();
-    const [privacy, setPrivacy] = useState(false);
     const [finished, setFinished] = useState(false);
     const [textInputValue, setTextInputValue] = useState('');
-    const [newPost, setNewPost] = useState();
     const navigation = useNavigation();
     const [mood, setMood] = useState('');
     const [uploading, setUploading] = useState(false);
@@ -53,39 +37,14 @@ const Caption = ({route}) => {
     const [caption, setCaption] = useState('');
     const theme = useContext(themeContext)
     const {user} = useAuth()
-    const openSizeMenu = () => setSizeVisible(true)
-    const [alertIsVisible, setAlertIsVisible] = useState(false);
-    const closeSizeMenu = () => setSizeVisible(false)
-    const [sizeVisible, setSizeVisible] = useState(false)
-    const [firstName, setFirstName] = useState('');
-    const [lastName, setLastName] = useState('');
-    const [username, setUsername] = useState('');
-    const [pfp, setPfp] = useState('');
-    const [backButton, setBackButton] = useState(true);
-    const [background, setBackground] = useState('');
     const [activeIndex, setActiveIndex] = useState(0);
     const [newPostArray, setNewPostArray] = useState([]);
-    // const [hashtagId, setHashTagId] = useState([]);
-    const [forSale, setForSale] = useState(false);
-    const [imageArray, setImageArray] = useState([]);
     const [finalMentions, setFinalMentions] = useState([]);
-    const [finalPostArray, setFinalPostArray] = useState([]);
-    const [notificationToken, setNotificationToken] = useState('');
+    const profile = useContext(ProfileContext);
+     const {addImage, addVideo} = useMultiDownloadImage();
     useEffect(() => {
       if (route.params?.editCaption) {
         setCaption(editCaption)
-        /* if (route.params?.editCaption.match(/#[^\s]+/g)) {
-          const getData = async() => {
-            const q = query(collection(db, 'hashtags'), where("postId", "==", editId));
-            const querySnapshot = await getDocs(q);
-              querySnapshot.forEach((doc) => {
-                // doc.data() is never undefined for query doc snapshots
-                setHashTagId(prevState => [...prevState, doc.id])
-              });
-            //await getDocs(collection(db, 'hashtags'))
-          }
-          getData()
-        } */
       }
     }, [route.params?.editCaption])
     useEffect(() => {
@@ -102,25 +61,6 @@ const Caption = ({route}) => {
         setActualPostArray(postArray)
       }
     }, [route.params?.postArray])
-    useEffect(() => {
-    const getProfileDetails = async() => {
-    const docSnap = await getDoc(doc(db, 'profiles', user.uid)); 
-      
-    if (docSnap.exists()) {
-      const profileSnap = (await getDoc(doc(db, 'profiles', user.uid))).data()
-      setFirstName(profileSnap.firstName);
-      setLastName(profileSnap.lastName);
-      setUsername(profileSnap.userName);
-      setPfp(profileSnap.pfp);
-      setPrivacy(profileSnap.private);
-      setBackground(profileSnap.postBackground);
-      setNotificationToken(profileSnap.notificationToken)
-      setForSale(profileSnap.forSale)
-    } 
-  }
-  
-  getProfileDetails();
-  }, [])
 
   const updateCurrentUser = () => {
     setLoading(true)
@@ -130,16 +70,11 @@ const Caption = ({route}) => {
     else {
       uploadText(actualPostArray[0])
     }
-    
-    setBackButton(false)
-    /*  */
 
   }
-  //console.log(groupId)
   const updateEdit = async() => {
     setLoading(true)
     setUploading(true)
-    setBackButton(false)
     if (actualPostArray[0].text) {
       data = new FormData();
     data.append('text', actualPostArray[0].value);
@@ -299,28 +234,6 @@ const Caption = ({route}) => {
     }
               
   }
-  function uploadPostRecommend (id, post) {
-      fetch(`${BACKEND_URL}/api/createRecommendPost`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        postId: id, caption: text, likedBy: [], comments: 0, shares: 0, usersSeen: [],
-        savedBy: [], username: username, post: post,
-      }),
-      })
-    .then(response => response.json())
-    .then(responseData => {
-      // Handle the response from the server
-      console.log(responseData);
-    })
-    .catch(error => {
-      // Handle any errors that occur during the request
-      console.error(error);
-    })
-    //console.log(post)
-  }
   
   const handleKeyPress = ({ nativeEvent }) => {
     if (nativeEvent.key === 'Enter') {
@@ -338,10 +251,6 @@ const Caption = ({route}) => {
     setActualPostArray(actualPostArray.map((item, index) => index === 0 ? { ...item, value: newValue } : item));
     //setActualPostArray([{ value: newValue }]); // Update the text in the data array
   };
-  const handleActualTextSize = (newValue) => {
-    setActualPostArray(actualPostArray.map((item, index) => index === 0 ? { ...item, textSize: newValue } : item));
-    //setActualPostArray([{ value: newValue }]); // Update the text in the data array
-  };
   const scheduleMentionNotification = async(id, username, notificationToken) => {
     let notis = (await getDoc(doc(db, 'profiles', id))).data().allowNotifications
     let banned = (await getDoc(doc(db, 'profiles', id))).data().banned
@@ -350,7 +259,6 @@ const Caption = ({route}) => {
      if (groupId) {
       console.log('third')
       if (notis && cliqNotis.includes(user.uid)) {
-      //console.log(notificationToken)
       fetch(`${BACKEND_URL}/api/mentionCliqNotification`, {
       method: 'POST',
       headers: {
@@ -487,52 +395,15 @@ const Caption = ({route}) => {
 })
     }
     const uploadImages = () => {
-      //console.log('first')
       setUploading(true);
         actualPostArray.map(async(item) => {
           if (item.image) {
-            const response = await fetch(item.post)
-        //console.log(response)
-        const blob = await response.blob();
-        //console.log(blob)
-        const filename = `posts/${user.uid}post${Date.now()}${item.id}.jpg`
-
-        var storageRef = ref(storage, filename)
-        try {
-            await storageRef;
-        } catch (error) {
-            console.log(error)
-        }
-        await uploadBytesResumable(storageRef, blob).then(() => getLink(filename, item))
+            addImage()
           }
           else {
-            const response = await fetch(item.post)
-        //console.log(response)
-        const blob = await response.blob();
-        //console.log(blob)
-        const filename = `posts/${user.uid}post${Date.now()}.mp4`
-
-        var storageRef = ref(storage, filename)
-        try {
-            await storageRef;
-        } catch (error) {
-            console.log(error)
-        }
-        await uploadBytesResumable(storageRef, blob).then(() => getVideoLink(filename, item))
-            //uploadVideo(item)
-            //uploadText(item)
+            addVideo()
           }
         })
-        //setUploading(false)
-    }
-    const getLink = (post, item) => {
-  
-        const starsRef = ref(storage, post);
-        getDownloadURL(starsRef).then((url) => CheckMultiplePfp(url, starsRef, item)).catch((e) => console.error(e))
-    }
-    const getVideoLink = (post, item) => {
-      const starsRef = ref(storage, post);
-        getDownloadURL(starsRef).then((url) => checkVideo(url, starsRef, item)).catch((e) => console.error(e))
     }
     const checkVideo = (url, reference, item) => {
       fetch(`${BACKEND_URL}/api/videoModeration`, {
@@ -685,20 +556,6 @@ const Caption = ({route}) => {
       console.error(error);
     })
     }
-    //console.log(newPostArray)
-    const areObjectsEqual = (obj1, obj2, property) => {
-      return obj1[property] === obj2[property];
-    };
-      const hasCommonItem = (array1, array2, property) => {
-      for (let i = 0; i < array1.length; i++) {
-        for (let j = 0; j < array2.length; j++) {
-          if (areObjectsEqual(array1[i], array2[j], property)) {
-            return true; // Found a common item
-          }
-        }
-      }
-      return false; // No common item found
-    };
    
 
     useEffect(() => {
@@ -716,8 +573,8 @@ const Caption = ({route}) => {
       headers: {
         'Content-Type': 'application/json', // Set content type as needed
       },
-      body: JSON.stringify({ data: {caption: caption, blockedUsers: blockedUsers, newPostArray: newPostArray, forSale: forSale, value: value, finalMentions: finalMentions, pfp: pfp, notificationToken: notificationToken,
-        background: background, user: user.uid, username: username, value: privacy}}), // Send data as needed
+      body: JSON.stringify({ data: {caption: caption, blockedUsers: blockedUsers, newPostArray: newPostArray, forSale: profile.forSale, value: value, finalMentions: finalMentions, pfp: profile.pfp, notificationToken: profile.notificationToken,
+        background: profile.postBackground, user: user.uid, username: profile.username, value: profile.private}}), // Send data as needed
     })
     const data = await response.json();
     //console.log(data)
@@ -741,14 +598,14 @@ const Caption = ({route}) => {
                                   report: false,
                                   requestUser: user.uid,
                                   requestNotificationToken: item.notificationToken,
-                                  likedBy: username,
+                                  likedBy: profile.username,
                                   timestamp: serverTimestamp()
                                     }).then(async() => 
       await setDoc(doc(db, 'profiles', item.id, 'mentions', data.docRefId), {
       id: data.docRefId,
       video: true,
       timestamp: serverTimestamp()
-    })).then(() => scheduleMentionNotification(item.id, username, item.notificationToken))})
+    })).then(() => scheduleMentionNotification(item.id, profile.username, item.notificationToken))})
   }
   else if (finalMentions.length > 0) {
     setFinished(true)
@@ -769,13 +626,13 @@ const Caption = ({route}) => {
                                   report: false,
                                   requestUser: user.uid,
                                   requestNotificationToken: item.notificationToken,
-                                  likedBy: username,
+                                  likedBy: profile.username,
                                   timestamp: serverTimestamp()
                                     }).then(async() => 
       await setDoc(doc(db, 'profiles', item.id, 'mentions', data.docRefId), {
       id: data.docRefId,
       timestamp: serverTimestamp()
-    })).then(() => scheduleMentionNotification(item.id, username, item.notificationToken))})
+    })).then(() => scheduleMentionNotification(item.id, profile.username, item.notificationToken))})
   }
   else {
     setFinished(true)
@@ -789,11 +646,6 @@ const Caption = ({route}) => {
   catch (error) {
     console.error('Error:', error);
   }
-    
-
-    
-
-    
    
        }
       
@@ -802,8 +654,6 @@ const Caption = ({route}) => {
 
       }
     }, [newPostArray])
-    //console.log(finished)
-    //{screen: 'All', params: { registers: true, group: null, groupId: null, name: null, goToMy: false}})) 
     function containsNumberGreaterThan(array, threshold) {
       return array.some(function(element) {
         return element > threshold;
@@ -912,9 +762,9 @@ const Caption = ({route}) => {
                         data.append('api_user', `${MODERATION_API_USER}`);
                         data.append('api_secret', `${MODERATION_API_SECRET}`);
                         axios({
-                        url: `${TEXT_MODERATION_URL}`,
-                        method:'post',
-                        data: data,
+                          url: `${TEXT_MODERATION_URL}`,
+                          method:'post',
+                          data: data,
                         })
                         .then(async function (response) {
                           if (response.data) {
@@ -1213,29 +1063,11 @@ const Caption = ({route}) => {
           <Text style={{textAlign: 'right', padding: 10, paddingRight: 15, paddingBottom: 5, color: theme.color}}>{caption.length}/200</Text></> : null}
 
           {edit && actualPostArray != null && actualPostArray[0].text ? <View style={{flexDirection: 'row', justifyContent: 'space-between', marginHorizontal: '10%'}}>
-        
-        {/* <Menu 
-            visible={sizeVisible}
-            onDismiss={closeSizeMenu}
-            contentStyle={{backgroundColor: theme.backgroundColor, borderWidth: 1, borderColor: "#71797E"}}
-            anchor={<MaterialCommunityIcons name='format-size' size={30} onPress={openSizeMenu}/>}>
-            <Menu.Item onPress={() => handleActualTextSize(15.36)} title="Small" titleStyle={{color: "#000"}}/>
-            <Divider />
-            <Menu.Item onPress={() => handleActualTextSize(19.20)} title="Medium" titleStyle={{color: "#000"}}/>
-            <Divider />
-            <Menu.Item onPress={() => handleActualTextSize(24)} title="Large" titleStyle={{color: "#000"}}/>
-          </Menu> */}
-        {/* <TouchableOpacity style={{alignSelf: 'center', justifyContent: 'flex-end', flex: 1}} onPress={() => {handleActualTextSize(postArray[0].textSize)}}>
-          <Text style={{fontSize: 19.20, fontWeight: '600', color: "#9edaff"}}>Clear</Text>
-        </TouchableOpacity> */}
       </View> : null}
       {!edit ? 
       <View style={{flexDirection: 'column'}}>
-      {/* <TouchableOpacity style={{marginLeft: '5%', marginBottom: 5}} onPress={() => setMoodModal(true)}>
-        <Text style={{fontFamily: 'Montserrat_500Medium', fontSize: 15.36, color: theme.color}}>{mood.length > 0 ? mood : 'Add Mood'}</Text>
-      </TouchableOpacity> */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginLeft: 20, width: '90%'}}>
-          <TouchableOpacity onPress={!edit && !uploading ? () => navigation.navigate('MentionPreview', {groupName: groupName, userName: username, actualGroup: actualGroup, groupPfp: groupPfp, blockedUsers: blockedUsers, admin: admin, postArray: actualPostArray, group: group, groupId: groupId, value: value, edit: false, oGmentions: finalMentions}): null}>
+          <TouchableOpacity onPress={!edit && !uploading ? () => navigation.navigate('MentionPreview', {groupName: groupName, userName: profile.username, actualGroup: actualGroup, groupPfp: groupPfp, blockedUsers: blockedUsers, admin: admin, postArray: actualPostArray, group: group, groupId: groupId, value: value, edit: false, oGmentions: finalMentions}): null}>
             {!finalMentions && !edit || finalMentions.length == 0 && !edit ? <Text style={{fontFamily: 'Montserrat_500Medium', fontSize: 15.36, color: theme.color}}>T@g</Text> : 
             <View style={{flexDirection: 'row'}} >
             {finalMentions.map((item, index) => {

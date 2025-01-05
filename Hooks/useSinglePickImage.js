@@ -6,12 +6,19 @@ import useAuth from './useAuth';
 import axios from 'axios';
 import {IMAGE_MODERATION_URL, MODERATION_API_SECRET, MODERATION_API_USER} from '@env';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL, deleteObject} from 'firebase/storage';
-import { updateCliquePfp, updatePfp } from '../firebaseUtils';
-export const useSinglePickImage = ({profilePfp, cliquePfp, name, group}) => {
+import { addImageToMessage, updateCliquePfp, updatePfp } from '../firebaseUtils';
+import {BACKEND_URL} from '@env'
+import createSearchKeywords from '../lib/searchKeywords';
+import { useNavigation } from '@react-navigation/native';
+import { schedulePushImageNotification } from '../notificationFunctions';
+export const useSinglePickImage = ({profilePfp, cliquePfp, name, group, firstName, lastName, userName, age, groupName, groupSecurity, category,
+  description, id, messagePfp, channelPfpImage, pfpRegisterImage, groupBanner, person, friendId}) => {
     const [imageLoading, setImageLoading] = useState(false);
     const {user} = useAuth();
+    const [image, setImage] = useState(null);
     const [imageBackground, setImageBackground] = useState(null);
     const storage = getStorage();
+    const navigation = useNavigation();
     const uploadImage = async(image) => {
         setImageLoading(true);
         const response = await fetch(image)
@@ -127,6 +134,32 @@ export const useSinglePickImage = ({profilePfp, cliquePfp, name, group}) => {
                   setImageLoading(false)
                 }
               }
+              else if (pfpRegisterImage) {
+                navigation.navigate('Referral', {firstName: firstName, lastName: lastName, userName: userName, age: age, pfp: url})
+              }
+              else if (groupBanner) {
+                const searchKeywords = createSearchKeywords(groupName.toLowerCase().trim(), 5, 3, 30)
+                  try {
+                  const response = await fetch(`${BACKEND_URL}/api/uploadCliq`, {
+                    method: 'POST', // Use appropriate HTTP method (GET, POST, etc.)
+                    headers: {
+                      'Content-Type': 'application/json', // Set content type as needed
+                    },
+                    body: JSON.stringify({ data: {name: groupName, banner: url, groupSecurity: groupSecurity, category: category, description: description,
+                    searchKeywords: searchKeywords, user: user.uid, groupId: id}}), // Send data as needed
+                  })
+                  const data = await response.json();
+                    if (data.result.done) {
+                      navigation.navigate('MyGroups')
+                    }
+                } catch (error) {
+                  console.error('Error:', error);
+                }
+              }
+              else if (messagePfp) {
+                await addImageToMessage(friendId, url, person, user, firstName, lastName)
+                schedulePushImageNotification(person.id, firstName, lastName, person.notificationToken, friendId)
+              }
             }  
             })
             .catch(function (error) {
@@ -150,6 +183,7 @@ export const useSinglePickImage = ({profilePfp, cliquePfp, name, group}) => {
                 compressionMethod: "auto",
                 quality: 0.8
               })
+              setImage(result)
               uploadImage(result)
                       
             })
@@ -159,6 +193,6 @@ export const useSinglePickImage = ({profilePfp, cliquePfp, name, group}) => {
             }
         }) 
     }
-    return {imageBackground, imageLoading, pickImage}
+    return {imageBackground, image, imageLoading, pickImage}
       
     };

@@ -1,42 +1,31 @@
-import { StyleSheet, Text, View, FlatList, Image, TextInput } from 'react-native'
+import { StyleSheet, Text, View, FlatList } from 'react-native'
 import React, {useState, useEffect} from 'react'
 import RegisterHeader from '../Components/RegisterHeader'
 import { useNavigation } from '@react-navigation/native'
-import SearchInput from '../Components/SearchInput'
-import { onSnapshot, query, collection, getFirestore, getDocs, doc, getDoc, addDoc, serverTimestamp, updateDoc, arrayUnion, setDoc } from 'firebase/firestore'
-import SearchDropDown from '../Components/DropdownSearch'
+import { onSnapshot, query, collection, doc, getDoc, addDoc, serverTimestamp, updateDoc, arrayUnion } from 'firebase/firestore'
 import { TouchableOpacity } from 'react-native-gesture-handler'
-import MainButton from '../Components/MainButton'
 import Skip from '../Components/Skip'
 import SearchBar from '../Components/SearchBar'
 import {MaterialCommunityIcons} from '@expo/vector-icons'
 import NextButton from '../Components/NextButton'
 import FastImage from 'react-native-fast-image'
 import useAuth from '../Hooks/useAuth'
-import { getStorage, uploadBytesResumable, ref, getDownloadURL } from 'firebase/storage'
-import { useFonts, Montserrat_500Medium, Montserrat_700Bold } from '@expo-google-fonts/montserrat'
 import { db } from '../firebase'
 const ChannelInvite = ({route}) => {
-  const {id, name, group, security, pfp, privateInvite, channelId} = route.params;
+  const {id, name, security, pfp, privateInvite, channelId} = route.params;
   const navigation = useNavigation();
-  const [username, setUsername] = useState('');
   const [searching, setSearching] = useState(false)
-  const [uploading, setUploading] = useState(false);
   const [searches, setSearches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filtered, setFiltered] = useState();
   const [filteredGroup, setFilteredGroup] = useState([]);
-  const [friends, setFriends] = useState([]);
   const [friendsInfo, setFriendsInfo] = useState([]);
   const {user} = useAuth()
-  const storage = getStorage()
   const [groupName, setGroupName] = useState('');
   const [groupPfp, setGroupPfp] = useState('');
   const [inviteSent, setInviteSent] = useState(false);
   const [actuallySending, setActuallySending] = useState(false);
   const [inviteArray, setInviteArray] = useState([]);
-  //console.log(id)
-  //console.log(group)
   useEffect(()=> {
     let unsub;
       const getData = async() => {
@@ -62,9 +51,6 @@ const ChannelInvite = ({route}) => {
     }, []);
     //console.log(friends.length)
     useEffect(() => {
-      const getUserData = async() => {
-        setUsername((await getDoc(doc(db, 'profiles', user.uid))).data().userName)
-      }
       const getGroupData = async() => {
         setGroupName((await getDoc(doc(db, 'groups', id))).data().name)
         setGroupPfp((await getDoc(doc(db, 'groups', id))).data().pfp)
@@ -72,8 +58,6 @@ const ChannelInvite = ({route}) => {
       getUserData()
       getGroupData()
     }, [])
-    //console.log(friends)
-    //console.log(friendsInfo)
   const renderChecked = (id) => {
       //console.log(id)
       let list = friendsInfo
@@ -162,52 +146,8 @@ const ChannelInvite = ({route}) => {
       })).then(() => navigation.navigate('GroupChannels', {id: id, person: user.uid, pfp: groupPfp, name: groupName, newPost: docRef.id}))
       
     }
-  
-  const checkPfp = async(url, reference) => {
-        if (actuallySending) {
-          addPostToChatter(url)
-        }
-        else {
-          const docRef = await addDoc(collection(db, 'groups', id, 'channels'), {
-      lastMessage: null,
-      lastMessageTimestamp: null,
-      members: [user.uid],
-      name: name,
-      admins: [user.uid],
-       official: false,
-      pfp: pfp,
-      member_count: 1,
-      security: security,
-      timestamp: serverTimestamp(),
-      allowNotifications: arrayUnion(user.uid),
-      requests: []
-    })
-    Promise.all(inviteArray.map(async(item) => {
-      addDoc(collection(db, 'groups', id, 'notifications', item.id, 'notifications'), {
-        like: false,
-        comment: false,
-        friend: item.id,
-        item: null,
-        request: true,
-        acceptRequest: false,
-        postId: docRef.id,
-        theme: false,
-        report: false,
-        requestUser: user.uid,
-        requestNotificationToken: item.notificationToken,
-        likedBy: [],
-        timestamp: serverTimestamp()
-      }).then(() => addDoc(collection(db, 'groups', id, 'notifications', item.id, 'checkNotifications'), {
-        userId: user.uid
-      }))
-    })).then(async() => await updateDoc(doc(db, 'profiles', user.uid, 'channels', id), {
-        channelsJoined: arrayUnion(docRef.id)
-      })).then(() => navigation.navigate('GroupChannels', {id: id, person: user.uid, pfp: groupPfp, name: groupName, newPost: docRef.id}))
-        }
-      }
     }
-    //console.log(inviteArray)
-  async function addPostToChatter(url) {
+  async function addPostToChatter() {
     //console.log(url)if (pr)
     if (!privateInvite) {
         const docRef = await addDoc(collection(db, 'groups', id, 'channels'), {
@@ -270,17 +210,6 @@ const ChannelInvite = ({route}) => {
     }
     
   }
-  const [fontsLoaded, fontError] = useFonts({
-    // your other fonts here
-    Montserrat_500Medium,
-    Montserrat_700Bold
-  });
-
-  if (!fontsLoaded || fontError) {
-    // Handle loading errors
-    return null;
-  }
-  //console.log(inviteArray)
   return (
     <View style={styles.container}>
         <View style={{marginTop: '5%'}}>

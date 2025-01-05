@@ -1,30 +1,21 @@
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, FlatList, Modal, ImageBackground, Keyboard, Alert, Touchable, Button, ActivityIndicator} from 'react-native'
-import React, { useState, Fragment, useEffect, useLayoutEffect, useMemo, useContext } from 'react'
-import {MaterialCommunityIcons, Entypo} from '@expo/vector-icons';
+import { StyleSheet, Text, View, TouchableOpacity, FlatList, Keyboard, Alert, ActivityIndicator} from 'react-native'
+import React, { useState, useEffect, useMemo, useContext } from 'react'
+import {MaterialCommunityIcons} from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native'
-import { query, onSnapshot, collection, updateDoc, doc, arrayUnion, deleteDoc, documentId, getDoc, where, startAt, endAt, startAfter, limit, arrayRemove, addDoc, serverTimestamp, setDoc, getFirestore, orderBy, getDocs, increment} from 'firebase/firestore'
+import { query, onSnapshot, collection, updateDoc, doc, arrayUnion, deleteDoc, documentId, getDoc, where, startAfter, limit, arrayRemove, addDoc, serverTimestamp, setDoc, orderBy, getDocs, increment} from 'firebase/firestore'
 import useAuth from '../Hooks/useAuth'
-import { getDownloadURL, ref } from 'firebase/storage';
-import { storage } from '../firebase';
 import SearchInput from '../Components/SearchInput'
-import { Provider, Menu, Divider } from 'react-native-paper'
+import { Provider, Divider } from 'react-native-paper'
 import MainButton from '../Components/MainButton'
-import SearchBar from '../Components/SearchBar';
-import MainLogo from '../Components/MainLogo';
 import FastImage from 'react-native-fast-image';
 import RequestedIcon from '../Components/RequestedIcon';
 import ThemeHeader from '../Components/ThemeHeader';
-import {BACKEND_URL} from "@env"
-import { useFonts, Montserrat_500Medium, Montserrat_700Bold } from '@expo-google-fonts/montserrat';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import NextButton from '../Components/NextButton';
 import RecentSearches from '../Components/RecentSearches';
 import _ from 'lodash'
-import { AppState } from 'react-native';
 import themeContext from '../lib/themeContext';
 import { db } from '../firebase'
 const GroupScreen = ({route}) => {
-  const {post, firstTime} = route.params;
   const [groups, setGroups] = useState([]);
   const theme = useContext(themeContext)
   const [filteredGroup, setFilteredGroup] = useState([]);
@@ -32,17 +23,11 @@ const GroupScreen = ({route}) => {
   const [completeFilteredGroup, setCompleteFilteredGroup] = useState([]);
   const [shouldgetdata, setShouldgetData] = useState(true);
   const [groupSearches, setGroupSearches] = useState([]);
-  const [tempId, setTempId] = useState();
   const [recentSearches, setRecentSearches] = useState(false);
   const [moreResults, setMoreResults] = useState(false);
   const [moreResultButton, setMoreResultButton] = useState(false);
   const [tempPosts, setTempPosts] = useState([])
-  const [isForeground, setIsForeground] = useState(true);
   const [completeGroups, setCompleteGroups] = useState([]);
-  const [recommendedGroups, setRecommendedGroups] = useState([]);
-  const [lastRecommendedGroup, setLastRecommendedGroup] = useState(null);
-  const [getRecommendedGroups, setGetRecommendedGroups] = useState(false);
-  const [visible, setVisible] = useState(false);
   const [specificSearch, setSpecificSearch] = useState('');
   const [lastVisible, setLastVisible] = useState();
   const [searching, setSearching] = useState(false)
@@ -53,30 +38,25 @@ const GroupScreen = ({route}) => {
   const [filtered, setFiltered] = useState();
   const [bannedFrom, setBannedFrom] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [url, setUrl] = useState();
   const [chosenClique, setChosenClique] = useState(null);
   const [groupsJoined, setGroupsJoined] = useState([]);
   const [requests, setRequests] = useState([]);
   const {user} = useAuth()
   const [done, setDone] = useState(false)
-  const [saved, setSaved] = useState([]);
-  const [all, setAll] = useState(true);
   const [following, setFollowing] = useState(false);
   const [explore, setExplore] = useState(true);
-  const openMenu = () => setVisible(true)
-  const closeMenu = () => setVisible(false)
     const removeCurrentUser = async(item) => {
-            await updateDoc(doc(db, 'profiles', user.uid), {
-          adminGroups: arrayRemove(item)
-        }).then(async() => await (await getDocs(collection(db, 'profiles'))).forEach(async(document) => {
-          await deleteDoc(doc(db, 'profiles', user.uid, 'channels', item))
-            if (document.data().groupsJoined.includes(item)) {
-                 await updateDoc(doc(db, 'profiles', document.id), {
-                    groupsJoined: arrayRemove(item)
-                })
-            }
-            
-        }))
+      await updateDoc(doc(db, 'profiles', user.uid), {
+      adminGroups: arrayRemove(item)
+    }).then(async() => (await getDocs(collection(db, 'profiles'))).forEach(async(document) => {
+      await deleteDoc(doc(db, 'profiles', user.uid, 'channels', item))
+        if (document.data().groupsJoined.includes(item)) {
+              await updateDoc(doc(db, 'profiles', document.id), {
+                groupsJoined: arrayRemove(item)
+            })
+        }
+        
+    }))
     }
   useEffect(() => {
     if (route.params?.firstTime) {
@@ -134,26 +114,6 @@ const GroupScreen = ({route}) => {
       getData();
     } 
   }, [specificSearch])
-  function cliqueRecommend(item) {
-    fetch(`${BACKEND_URL}/api/cliqueRecommend`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        cliqueId: item, userId: user.uid
-      }),
-      })
-    .then(response => response.json())
-    .then(responseData => {
-      // Handle the response from the server
-      console.log(responseData);
-    })
-    .catch(error => {
-      // Handle any errors that occur during the request
-      console.error(error);
-    })
-  }
   useEffect(() => {
     let unsub;
     const getProfileDetails = async() => {
@@ -169,49 +129,6 @@ const GroupScreen = ({route}) => {
   getProfileDetails();
   return unsub;
   }, [onSnapshot])
-  //console.log(`Groups: ${groups.length}`)
-  //console.log(`Temp posts: ${tempPosts.length}`)
-    /* useEffect(()=> {
-      if (getRecommendedGroups) {
-        if (explore) {
-          let unsub;
-          const fetchCards = async () => {
-            const q = query(collection(db, 'groups'), where(documentId(), 'in', recommendedGroups), where('paused', '==', false));
-            const querySnapshot = await getDocs(q);
-            querySnapshot.forEach((doc) => {
-              if (!groups.some(obj => obj.id == doc.id)) {
-                setGroups(prevState => [...prevState, {id: doc.id, transparent: false, ...doc.data()}])
-              }
-            });
-          }
-          
-          
-          fetchCards();
-          return unsub;
-        }
-        else if (following) {
-
-          let unsub;
-          const fetchCards = async () => {
-            const q = query(collection(db, 'groups'), where(documentId(), 'in', recommendedGroups), where('paused', '==', false));
-            const querySnapshot = await getDocs(q);
-            querySnapshot.forEach((doc) => {
-              if (groupsJoined.includes(doc.id) && !groups.some(obj => obj.id == doc.id)) {
-                setGroups(prevState => [...prevState, {id: doc.id, transparent: false, ...doc.data()}])
-              }
-                
-            });
-            
-          } 
-          fetchCards();
-          setTimeout(() => {
-            setLoading(false)
-          }, 1000);
-          return unsub;
-        } 
-      }
-      
-    }, [getRecommendedGroups, explore, following, recommendedGroups]); */
     useEffect(() => {
       if (explore && bannedFrom != null && completeGroups.length == 0) {
 
@@ -406,7 +323,7 @@ const GroupScreen = ({route}) => {
                   channelsJoined: arrayUnion(item.id)
                 })).then(async() => await updateDoc(doc(db, "profiles", user.uid), {
             groupsJoined: arrayUnion(item.id)  
-        })).then(() => cliqueRecommend(item.id)).catch((e) => console.log(e))
+        })).catch((e) => console.log(e))
     }
       
   }
@@ -465,15 +382,9 @@ const GroupScreen = ({route}) => {
     
     }
   
-    //console.log(docSnap)
-    /*  */
-  //console.log(searches)
-  
-  //console.log(lastVisible)
+
   function fetchMoreData () {
-    if (recommendedGroups.length < 30) {
-      //')
-      if (lastVisible != undefined && explore) {
+    if (lastVisible != undefined && explore) {
     setDone(false)
     let newData = [];
     let fetchedCount = 0;
@@ -558,75 +469,12 @@ const GroupScreen = ({route}) => {
       return unsub;
     }
     
-    }
-    else {
-      setLoading(true)
-      setDone(false)
-    const getRecommendations = async() => {
-      await fetch(`${BACKEND_URL}/api/getMoreRecommendedCliques`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({userId: user.uid, recommId: lastRecommendedGroup})
-          })
-        .then(response => response.json())
-        .then(responseData => {
-          if (responseData.recomms) {
-            //console.log(responseData.recomms)
-            responseData.recomms.map((e) => {
-              setRecommendedGroups(prevState => [...prevState, e.id])
-              setLastRecommendedGroup(responseData.recommId)
-            })
-            //setRecommendedPosts(responseData.recomms)
-          }
-          //console.log(responseData)
-          // Handle the response from the server
-          
-        })
-        .catch(error => {
-          // Handle any errors that occur during the request
-          console.error(error);
-        })
-    }
-    setTimeout(() => {
-      setLoading(false)
-    }, 1000);
-    getRecommendations()
-    }
-    
   }
   const handleSearchCallback = (dataToSend) => {
     setSearching(dataToSend)
     setFiltered([]);
     setSpecificSearch('')
   }
-  useEffect(() => {
-    if(completeGroups.length > 0) {
-      completeGroups.map((item) => {
-        //console.log(item)
-        fetch(`${BACKEND_URL}/api/recommendCliquesView`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            userId: user.uid, cliqueId: item.id
-          }),
-          })
-        .then(response => response.json())
-        .then(responseData => {
-          // Handle the response from the server
-          //console.log(responseData);
-        })
-        .catch(error => {
-          // Handle any errors that occur during the request
-          console.error(error);
-        })
-      })
-    }
-  }, [completeGroups])
-  //console.log(completeGroups.length)
   useEffect(() => {
     if (filteredGroup.length > 0) {
       const getData = async() => {
@@ -636,16 +484,6 @@ const GroupScreen = ({route}) => {
       getData()
      }
   }, [filteredGroup])
-  const [fontsLoaded, fontError] = useFonts({
-    // your other fonts here
-    Montserrat_500Medium,
-    Montserrat_700Bold
-  });
-
-  if (!fontsLoaded || fontError) {
-    // Handle loading errors
-    return null;
-  }
   function itemAllToTransparent(item) {
     if (completeFilteredGroup.length > 0) {
       const updatedThemes = [...completeFilteredGroup];
@@ -711,9 +549,9 @@ const GroupScreen = ({route}) => {
   const renderCliqueEvents = ({item, index}) => {
     //console.log(item)
     return (
-        <TouchableOpacity style={[styles.categoriesContainer, {backgroundColor: theme.backgroundColor}]} onPress={() => {setFilteredGroup([item]); addToRecentSearches(item); setSearching(false)}}>
+        <TouchableOpacity style={styles.categoriesContainer} onPress={() => {setFilteredGroup([item]); addToRecentSearches(item); setSearching(false)}}>
             <FastImage source={item.banner ? {uri: item.banner} : require('../assets/defaultpfp.jpg')} style={{height: 40, width: 40, borderRadius: 8}}/>
-            <Text numberOfLines={1} style={[styles.categories, {color: theme.color}]}>{item.name}</Text>
+            <Text numberOfLines={1} style={styles.categories}>{item.name}</Text>
             <MaterialCommunityIcons name='arrow-top-left' size={30} style={{alignSelf: 'center', marginLeft: 'auto'}} color={theme.theme != 'light' ? "#9EDAFF" : "#005278"}/>
         </TouchableOpacity>
     )
@@ -721,9 +559,9 @@ const GroupScreen = ({route}) => {
   const renderCliqueSearches = ({item}) => {
     //console.log(item)
     return (
-        <TouchableOpacity style={[styles.categoriesContainer, {backgroundColor: theme.backgroundColor}]} onPress={() => {setFilteredGroup([item]); setSearching(false)}}>
+        <TouchableOpacity style={styles.categoriesContainer} onPress={() => {setFilteredGroup([item]); setSearching(false)}}>
             <FastImage source={item.banner ? {uri: item.banner} : require('../assets/defaultpfp.jpg')} style={{height: 40, width: 40, borderRadius: 8}}/>
-            <Text numberOfLines={1} style={[styles.categories, {color: theme.color}]}>{item.name}</Text>
+            <Text numberOfLines={1} style={styles.categories}>{item.name}</Text>
             <TouchableOpacity onPress={() => removeSearch(item)} style={{alignSelf: 'center', marginLeft: "auto"}}>
                 <MaterialCommunityIcons name='close' size={30} color={theme.color}  />
             </TouchableOpacity>
@@ -738,36 +576,36 @@ const GroupScreen = ({route}) => {
     if (item.members != undefined) {
       return (
         <>
-    <View style={[styles.posting, {borderColor: theme.color}]}>
+    <View style={styles.posting}>
       <TouchableOpacity style={{alignItems: 'flex-start', flexDirection: 'row',
       }} activeOpacity={1} onPress={item.groupSecurity !== 'private' || groupsJoined.includes(item.id) ? () => navigation.navigate('GroupHome', {name: item.id, newPost: false, postId: null}) : item.groupSecurity == 'private' ? () =>  Alert.alert('Private Cliq', 'Must join Cliq in order to view') : null}>
         <FastImage source={item.banner ? {uri: item.banner} : require('../assets/defaultpfp.jpg')} style={{height: 50, width: 50, borderRadius: 10, marginTop: 5}}/>
         <View style={{flexDirection: 'column', marginLeft: 5}}>
         <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
           <View style={{width: '40%'}}>
-        <Text style={[styles.nameText, { color: theme.color}]} numberOfLines={1}>{item.name}</Text>
-        {item.members.length == 1 ? <Text style={[styles.type, {color: theme.color}]}>{item.members.length} Member</Text> 
-            : <Text style={[styles.type, {color: theme.color}]}>{item.members.length > 999 && item.members.length < 1000000 ? `${item.members.length / 1000}k` : item.members.length > 999999 ? `${item.members.length / 1000000}m` : item.members.length} Members</Text>}
+        <Text style={styles.nameText} numberOfLines={1}>{item.name}</Text>
+        {item.members.length == 1 ? <Text style={styles.type}>{item.members.length} Member</Text> 
+            : <Text style={styles.type}>{item.members.length > 999 && item.members.length < 1000000 ? `${item.members.length / 1000}k` : item.members.length > 999999 ? `${item.members.length / 1000000}m` : item.members.length} Members</Text>}
         </View>
         <View style={{alignItems: 'flex-end'}}>
              {item.groupSecurity == 'private' && requests.filter(e => e.id === item.id).length > 0 ?
-             <View style={[styles.joinContainer, {padding: 5, backgroundColor: theme.backgroundColor}]}>
+             <View style={styles.requestedJoinContainer}>
               <RequestedIcon color={theme.theme != 'light' ? "#9EDAFF" : "#005278"}/> 
               </View>
                :
             user ? !groupsJoined.includes(item.id) ? <TouchableOpacity style={[styles.joinContainer, {backgroundColor: "#005278"}]} onPress={() => {updateGroup(item)}}>
-                  <Text style={[styles.joinText, {color: theme.color}]}>Join</Text>
+                  <Text style={styles.joinText}>Join</Text>
                   
               </TouchableOpacity> :  
               <TouchableOpacity style={[styles.joinContainer, {backgroundColor: "#005278"}]} onPress={() => removeGroup(item)}>
-                  <Text style={[styles.joinText, {color: theme.color}]}>Joined</Text>
+                  <Text style={styles.joinText}>Joined</Text>
                  
               </TouchableOpacity> : null}
              
             </View>
             
             </View>
-       <Text numberOfLines={3} style={[styles.nameText, {width: '90%', color: theme.color, fontSize: 15.36, marginLeft: 0, paddingLeft: 10, paddingTop: 0, marginTop: 0}]}>{item.description}</Text>
+       <Text numberOfLines={3} style={styles.descriptionText}>{item.description}</Text>
        </View>
       </TouchableOpacity>
       {/* <View style={{flexDirection: 'row', justifyContent: 'space-between', marginLeft: '1%'}}>
@@ -781,28 +619,28 @@ const GroupScreen = ({route}) => {
       {item.transparent ? 
         <View style={styles.overlay}>
           <TouchableOpacity style={{flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center'}} onPress={() => {itemAllNotToTransparent(item); setChosenClique(null)}}>
-            <Text style={[styles.closeText]}>Close</Text>
+            <Text style={styles.closeText}>Close</Text>
             <MaterialCommunityIcons name='close' size={30} color={'#fafafa'}/>
           </TouchableOpacity>
           <View style={{alignItems: 'center'}}>
              {item.groupSecurity == 'private' && requests.filter(e => e.id === item.id).length > 0 ?
-             <View style={[styles.joinContainer, {padding: 5, backgroundColor: theme.backgroundColor}]}>
+             <View style={styles.requestedJoinContainer}>
               <RequestedIcon color={theme.theme != 'light' ? "#9EDAFF" : "#005278"}/> 
               </View>
                :
-            user ? !groupsJoined.includes(item.id) ? <TouchableOpacity style={[styles.joinContainer, {backgroundColor: theme.backgroundColor}]} onPress={() => {updateGroup(item)}}>
-                  <Text style={[styles.joinText, {color: theme.color}]}>Join</Text>
+            user ? !groupsJoined.includes(item.id) ? <TouchableOpacity style={styles.joinContainer} onPress={() => {updateGroup(item)}}>
+                  <Text style={styles.joinText}>Join</Text>
                   <MaterialCommunityIcons name='account-plus' size={20} style={{alignSelf: 'center', padding: 5, paddingRight: 15}} color={theme.color}/>
               </TouchableOpacity> :  
-              <TouchableOpacity style={[styles.joinContainer, {backgroundColor: theme.backgroundColor}]} onPress={() => removeGroup(item)}>
-                  <Text style={[styles.joinText, {color: theme.color}]}>Joined</Text>
+              <TouchableOpacity style={styles.joinContainer} onPress={() => removeGroup(item)}>
+                  <Text style={styles.joinText}>Joined</Text>
                   <MaterialCommunityIcons name='check' size={20} style={{alignSelf: 'center', padding: 5, paddingRight: 15}} color={theme.color}/>
               </TouchableOpacity> : null}
-              <TouchableOpacity style={[styles.joinContainer, {backgroundColor: theme.backgroundColor}]} onPress={item.groupSecurity == 'private' ? () =>  Alert.alert('Private Cliq', 'Must join Cliq in order to share') : () => navigation.navigate('Chat', {sending: true, message: true, payloadGroup: {name: item.name, pfp: item.banner, id: item.id, group: item.id}})}>
-                <Text style={[styles.joinText, {color: theme.color}]}>Share Cliq</Text>
+              <TouchableOpacity style={styles.joinContainer} onPress={item.groupSecurity == 'private' ? () =>  Alert.alert('Private Cliq', 'Must join Cliq in order to share') : () => navigation.navigate('Chat', {sending: true, message: true, payloadGroup: {name: item.name, pfp: item.banner, id: item.id, group: item.id}})}>
+                <Text style={styles.joinText}>Share Cliq</Text>
               </TouchableOpacity>
-              {/* <TouchableOpacity style={[styles.joinContainer, {backgroundColor: theme.backgroundColor}]} onPress={() => navigation.navigate('ReportPage', {id: item.id, theme: false, comment: null, cliqueId: item.id, post: false, cliq: true, comments: false, message: false, cliqueMessage: false, reportedUser: item.id})}>
-                <Text style={[styles.joinText, {color: theme.color}]}>Report Cliq</Text>
+              {/* <TouchableOpacity style={styles.joinContainer} onPress={() => navigation.navigate('ReportPage', {id: item.id, theme: false, comment: null, cliqueId: item.id, post: false, cliq: true, comments: false, message: false, cliqueMessage: false, reportedUser: item.id})}>
+                <Text style={styles.joinText}>Report Cliq</Text>
               </TouchableOpacity> */}
              
             </View>
@@ -815,8 +653,6 @@ const GroupScreen = ({route}) => {
     }
     
   }
-  //console.log(filteredGroup)
-  //console.log(groupsJoined[0])
   
   const handleMeetCallback = (dataToSend) => {
     setExplore(dataToSend)
@@ -843,32 +679,10 @@ const GroupScreen = ({route}) => {
         setLoading(false)
       }, 1000);
   }, 500);
-  //console.log(following)
-  //console.log(completeGroups.length)
+
   return (
     <Provider>
-    <View style={[styles.container, {backgroundColor: theme.backgroundColor}]}>
-      <Modal visible={isFirstTime} transparent animationType='slide' onRequestClose={() => {setIsFirstTime(!isFirstTime); }}>
-          <View style={[styles.modalContainer, styles.overlay, {alignItems: 'center', justifyContent: 'center'}]}>
-            <View style={[styles.modalView, {height: 245, width: '90%', borderRadius: 20, backgroundColor: theme.backgroundColor}]}>
-                <TouchableOpacity style={{flexDirection: 'row', alignItems: 'center', marginLeft: 'auto', marginRight: '-9%', marginVertical: 5}} onPress={() => {skipWalkthrough()}}>
-                  <Text style={{fontFamily: 'Montserrat_400Regular', fontSize: 15.36, color: theme.color}}>Skip</Text>
-                  {/* <MaterialCommunityIcons name='close' size={20} style={{alignSelf: 'center'}}/> */}
-              </TouchableOpacity>
-              <Text style={{fontFamily: 'Montserrat_700Bold', fontSize: 19.20, marginLeft: '-5%', paddingBottom: 10, paddingTop: 0, color: theme.theme != 'light' ? "#9EDAFF" : "#005278"}}>Cliqs (Groups)</Text>
-              <Divider style={{borderWidth: 0.5, width: '110%', marginLeft: '-5%', borderColor: theme.color}}/>
-              <Text style={{fontFamily: 'Montserrat_500Medium', fontSize: 15.36, paddingVertical: 10, marginLeft: '-5%', color: theme.theme != 'light' ? "#9EDAFF" : "#005278"}}>Welcome, this is the Cliq page of NuCliq where you can see join groups that share the same interests you have, post in the Cliq, and participate in the Cliq's chat!</Text>
-              <View style={{flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'flex-end'}}>
-              {/* <View style={{ marginTop: '2.5%'}}>
-                 <MainButton text={"BACK"} onPress={() => {setIsFirstTime(true); navigation.navigate('Home', {screen: 'Home', params: {newPost: false, post: null, firstTime: true}})}}/>
-              </View>              */}
-              <View style={{marginLeft: '2.5%', marginTop: '2.5%'}}>
-                <NextButton text={"NEXT"} onPress={() => {setIsFirstTime(false); navigation.navigate('New Post', {screen: 'NewPost', params: {group: null, groupId: null, postArray: []}})}}/>
-              </View>
-            </View>
-            </View>
-          </View>
-        </Modal>
+    <View style={styles.container}>
           <View style={{backgroundColor: theme.backgroundColor}}>
                   <ThemeHeader adminCliques={() => navigation.navigate('MyGroups')} text={"Cliqs For You"} actuallyExplore={explore ? true: false} actuallyJoined={following ? true: false} groupsJoined={groupsJoined} filteredGroup={handleFilteredGroupCallback}
                   clique={true} searching={handleSearchCallback} actuallyFilteredGroup={filteredGroup} following={handleFollowingCallback} explore={handleMeetCallback}/>
@@ -881,7 +695,7 @@ const GroupScreen = ({route}) => {
                   <SearchInput autoFocus={true} value={specificSearch} icon={'magnify'} placeholder={'Search'} onFocus={() => {setRecentSearches(true); setSearching(true)}} iconStyle={styles.homeIcon}
                   containerStyle={{borderWidth: 1, borderColor: theme.color, width: '85%'}} onSubmitEditing={() => {setRecentSearches(false)}} text={searching ? true : false} onChangeText={setSpecificSearch} 
                   onPress={() => {setRecentSearches(true); setSearching(true)}}/>
-                  <MaterialCommunityIcons name='close' size={40} color={theme.color} style={styles.closeHomeIcon} onPress={() => {setRecentSearches(false); setSearching(false); Keyboard.dismiss(); setFiltered([]); setSpecificSearch('')}}/>
+                  <MaterialCommunityIcons name='close' size={40} color={theme.color} style={{marginLeft: '1%'}} onPress={() => {setRecentSearches(false); setSearching(false); Keyboard.dismiss(); setFiltered([]); setSpecificSearch('')}}/>
                   </View>
                   <View>
                   {searching && filtered.length == 0 && specificSearch.length > 0 ?
@@ -952,7 +766,7 @@ const GroupScreen = ({route}) => {
               </View> : <View style={{paddingBottom: 10}}/>
           }
           /> : !searching && !loading ? <View style={{justifyContent: 'center', alignItems: 'center', flex: 1, marginBottom: '30%'}}>
-              <Text style={[styles.noGroupsText, {color: theme.color}]}>No More Cliqs</Text>
+              <Text style={styles.noGroupsText}>No More Cliqs</Text>
               <MainButton text={"Make a Cliq"} onPress={() => navigation.navigate('GroupName')}/>
             </View> : null}
           </View>
@@ -964,147 +778,126 @@ const GroupScreen = ({route}) => {
 export default GroupScreen
 
 const styles = StyleSheet.create({
-    container: {
-        //marginLeft: '10%',
-        //marginRight: '10%',
-    // justifyContent: 'center',
+  container: {
     flex: 1,
-  },
-  postHeader: {
-    flexDirection: 'row',
-      alignItems: 'center',
-      margin: '2.5%',
-      //width: '90%',
-      justifyContent: 'space-between'
+    backgroundColor: "#121212"
   },
   posting: {
-    //height: 200,
     width: '90%',
     marginLeft: '5%',
     borderWidth: 1,
     padding: 10,
+    borderColor: "#fafafa",
     paddingBottom: 5,
     borderRadius: 10,
-      marginBottom: 20,
-      overflow: 'hidden'
-      
+    marginBottom: 20,
+    overflow: 'hidden'
   },
+  requestedJoinContainer: {
+    marginTop: 10,
+    borderRadius: 8,
+    width: '65%',
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    padding: 5, 
+    backgroundColor: "#121212"
+    },
   joinContainer: {
-      marginTop: 10,
-      borderRadius: 8,
-      width: '65%',
-      alignItems: 'center',
-      flexDirection: 'row',
-      justifyContent: 'center'
-    },
-    joinText: {
-      fontSize: 12.29,
-      fontFamily: 'Montserrat_500Medium',
-      padding: 5,
-      paddingRight: 0
-    },
+    marginTop: 10,
+    borderRadius: 8,
+    width: '65%',
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    backgroundColor: "#121212"
+  },
+  blueJoinContainer: {
+    marginTop: 10,
+    borderRadius: 8,
+    width: '65%',
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    backgroundColor: "#121212",
+    backgroundColor: "#005278"
+  },
+  joinText: {
+    fontSize: 12.29,
+    fontFamily: 'Montserrat_500Medium',
+    padding: 5,
+    paddingRight: 0,
+    color: "#fafafa"
+  },
   noGroupsText: {
     fontSize: 24,
     fontFamily: 'Montserrat_500Medium',
     padding: 10,
-    paddingBottom: 30
+    paddingBottom: 30,
+    color: "#fafafa"
   },
-  postingContainer: {
-      width: '100%',
-      backgroundColor: "#005278",
-      //marginLeft: '-5%',
-      height: 500,
-      shadowColor: "#000000",
-      elevation: 20,
-      shadowOffset: {width: 1, height: 3},
-      shadowOpacity: 0.5,
-      shadowRadius: 1,
-      justifyContent: 'center',
-    },
   nameText: {
-      marginHorizontal: '5%',
-      marginVertical: '2.5%',
-      fontSize: 19.20,
-      fontFamily: 'Montserrat_500Medium',
-      textAlign: 'left',
-    },
-    addContainer: {
-      flexDirection: 'row',
-      //backgroundColor: "#C3E5E7",
-      borderRadius: 30,
-      alignSelf: 'flex-start',
-      position: 'absolute',
-      top: 10,
-      left: 200
-    },
-  
-  overlay: {
-      position: 'absolute',
-      width: '107%', // Adjust the overlay width as needed
-      height: '105%', // Adjust the overlay height as needed
-      ...StyleSheet.absoluteFillObject,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    },
-    closeText: {
-      fontSize: 12.29,
-      padding: 2.5,
-      color: "#fafafa",
-      fontFamily: 'Montserrat_700Bold',
-    },
-    modalContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        //marginTop: 22
-    },
-  modalView: {
-    width: '100%',
-    height: '100%',
-    //margin: 20,
-    //backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 35,
-    //paddingRight: 0,
-    paddingTop: 5,
-    paddingBottom: 25,
-    //alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
+    marginHorizontal: '5%',
+    marginVertical: '2.5%',
+    fontSize: 19.20,
+    fontFamily: 'Montserrat_500Medium',
+    textAlign: 'left',
+    color: "#fafafa"
+  },
+  descriptionText: {
+    marginHorizontal: '5%',
+    marginVertical: '2.5%',
+    fontFamily: 'Montserrat_500Medium',
+    textAlign: 'left',
+    color: "#fafafa",
+    width: '90%', 
+    fontSize: 15.36, 
+    marginLeft: 0, 
+    paddingLeft: 10, 
+    paddingTop: 0, 
+    marginTop: 0
+  },
+  closeText: {
+    fontSize: 12.29,
+    padding: 2.5,
+    color: "#fafafa",
+    fontFamily: 'Montserrat_700Bold',
   },
   overlay: {
-      ...StyleSheet.absoluteFillObject,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    },
-    homeContainer: {marginLeft: '5%', marginBottom: '5%'},
-    homeIcon: {position: 'absolute', left: 280, top: 8.5},
-  closeHomeIcon: {marginLeft: '1%'},
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  homeContainer: {
+    marginLeft: '5%', 
+    marginBottom: '5%'
+  },
+  homeIcon: {
+    position: 'absolute', 
+    left: 280, 
+    top: 8.5
+  },
   categoriesContainer: {
     borderRadius: 5,
     flexDirection: 'row',
-    //marginRight: '5%',
     marginTop: 5,
     padding: 5,
     alignItems: 'center',
-    //justifyContent: 'space-between',
+    backgroundColor: "#121212",
     width: '95%',
   },
   categories: {
     fontSize: 15.36,
     padding: 10,
     width: '80%',
+    color: "#fafafa",
     fontFamily: 'Montserrat_500Medium'
   },
-   type: {
+  type: {
     fontSize: 12.29,
     fontFamily: 'Montserrat_500Medium',
     padding: 5,
     paddingLeft: 10,
-    paddingTop: 0
+    paddingTop: 0,
+    color: "#fafafa"
   },
 })
