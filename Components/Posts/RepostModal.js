@@ -62,7 +62,7 @@ const RepostModal = ({repostModal, closeRepostModal, repostItem, handleKeyPress,
               
 
               <View style={styles.loadContainer}>
-                {repostLoading ? <ActivityIndicator color={"9edaff"}/> : 
+                {repostLoading ? <ActivityIndicator color={"#9edaff"}/> : 
                 <NextButton text={"Re-vibe"} onPress={rePostFunction}/> }
               </View>
               </>

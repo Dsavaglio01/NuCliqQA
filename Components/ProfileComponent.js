@@ -9,9 +9,11 @@ import { Divider } from 'react-native-paper'
 import ProfileContext from '../lib/profileContext'
 import useAuth from '../Hooks/useAuth'
 import {BACKEND_URL} from '@expo/vector-icons';
-import { fetchCount, fetchPosts, fetchReposts } from '../firebaseUtils'
+import { buyThemeFunction, fetchCount, fetchMorePosts, fetchMoreReposts, fetchPosts, fetchReposts } from '../firebaseUtils'
 import FollowButtons from './FollowButtons'
 import { useSinglePickImage } from '../Hooks/useSinglePickImage'
+import MiniPost from './MiniPost'
+import { where } from 'firebase/firestore'
 const ProfileComponent = ({preview, previewMade, applying, viewing, previewImage, name, person, ableToMessage, friendId}) => {
     const navigation = useNavigation();
     const {user} = useAuth();
@@ -20,7 +22,7 @@ const ProfileComponent = ({preview, previewMade, applying, viewing, previewImage
     const [posts, setPosts] = useState([]);
     const [reposts, setReposts] = useState([]);
     const [repostSetting, setRepostSetting] = useState(false);
-    const [postSetting, setPostSetting] = useState(false);
+    const [postSetting, setPostSetting] = useState(true);
     const [imageModal, setImageModal] = useState(false);
     const [additionalInfoMode, setAdditionalInfoMode] = useState(false);
     const [numberOfPosts, setNumberOfPosts] = useState(0);
@@ -28,7 +30,16 @@ const ProfileComponent = ({preview, previewMade, applying, viewing, previewImage
     const [friendLoading, setFriendLoading] = useState(false);
     const [loading, setLoading] = useState(false);
     const {imageLoading, pickImage} = useSinglePickImage({profilePfp: true, name: `${user.uid}pfp.jpg`});
-    console.log(profile)
+    const renderPosts = ({item, index}) => {
+      return (
+        <MiniPost item={item} index={index} repost={false} name={name}/>
+      )
+    }
+    const renderReposts = ({item, index}) => {
+      return (
+        <MiniPost item={item} index={index} repost={true} name={name}/>
+      )
+    }
     useEffect(() => {
       if (name) {
         fetchCount(name, 'posts', [where('repost', '==', false)], setNumberOfPosts);
@@ -37,13 +48,14 @@ const ProfileComponent = ({preview, previewMade, applying, viewing, previewImage
     }, [name]);
     useEffect(() => {
       let unsubscribe;
-      if (name == user.uid && postSetting) {
+      if (name == user.uid && postSetting && posts.length == 0) {
+
         // Call the utility function and pass state setters as callbacks
         unsubscribe = fetchPosts(user.uid, setPosts, setLastVisible);
         // Handle loading state
         setLoading(false);
       }
-      else if (name == person.id && postSetting && (!person.blockedUsers.includes(user.uid) && !profile.blockedUsers.includes(person.id))) {
+      else if (person && name == person.id && posts.length == 0 && postSetting && (!person.blockedUsers.includes(user.uid) && !profile.blockedUsers.includes(person.id))) {
         // Call the utility function and pass state setters as callbacks
         unsubscribe = fetchPosts(person.id, setPosts, setLastVisible);
         // Handle loading state
@@ -52,19 +64,19 @@ const ProfileComponent = ({preview, previewMade, applying, viewing, previewImage
       // Clean up the listener when the component unmounts
       return () => {
         if (unsubscribe) {
-            return unsubscribe;
+          return unsubscribe;
         }
       };
     }, [name, postSetting, person, profile.blockedUsers]);
     useEffect(() => {
       let unsubscribe;
-      if (user.uid == name && repostSetting) {
+      if (user.uid == name && repostSetting && reposts.length == 0) {
         // Call the utility function and pass state setters as callbacks
         unsubscribe = fetchReposts(user.uid, setReposts, setLastVisible);
         // Handle loading state
         setLoading(false);
       }
-      else if (name == person.id && repostSetting && (!person.blockedUsers.includes(user.uid) && !profile.blockedUsers.includes(person.id))) {
+      else if (person && name == person.id && reposts.length == 0 && repostSetting && (!person.blockedUsers.includes(user.uid) && !profile.blockedUsers.includes(person.id))) {
         // Call the utility function and pass state setters as callbacks
         unsubscribe = fetchReposts(person.id, setPosts, setLastVisible);
         // Handle loading state
@@ -118,7 +130,7 @@ const ProfileComponent = ({preview, previewMade, applying, viewing, previewImage
       console.error('Error:', error);
     }
         }}
-                ]);
+    ]);
     }
     async function messageFriend() {
       if (ableToMessage.length > 0 && ableToMessage.filter((e) => e.active == true).length > 0) {
@@ -128,72 +140,37 @@ const ProfileComponent = ({preview, previewMade, applying, viewing, previewImage
         Alert.alert('You must both be following each other first (mutual friends) in order to message!')
       }
     }
-    async function buyThemeFunction(image, userId) {
-      if (userId == user.uid) {
-          
-      const freeQuerySnapshot = await getDocs(query(collection(db, 'freeThemes'), where('images', 'array-contains', image)));
-      freeQuerySnapshot.forEach((doc) => {
-        if (doc.exists()){
-            navigation.navigate('SpecificTheme', {productId: doc.id, free: true, purchased: false})
-        }
-      });
-        }
-      else {
-        
-      const freeQuerySnapshot = await getDocs(query(collection(db, 'freeThemes'), where('images', 'array-contains', image)));
-      freeQuerySnapshot.forEach((doc) => {
-        if (doc.exists()) {
-          navigation.navigate('SpecificTheme', {productId: doc.id, free: true, purchased: false})
-        }
-      });
-          
-      }
-      
-      
+    async function buyTheme(image) {
+      await buyThemeFunction(image, navigation)
     }
     function fetchMoreRepostData () {
-    if (lastVisible != undefined) {
-    let unsub;
-
-      const fetchCards = async () => {
-  
-        unsub = onSnapshot(query(collection(db, 'profiles', name, 'posts'), where('repost', '==', true), orderBy('timestamp', 'desc'), startAfter(lastVisible), limit(9)), (snapshot) => {
-          const newData = [];
-          snapshot.docs.map((doc) => {
-            newData.push({
-              id: doc.id,
-              ...doc.data()
-            })
-          })
-          setReposts([...reposts, ...newData])
-          setLastVisible(snapshot.docs[snapshot.docs.length-1])
-        })
+      if (lastVisible != undefined) {
+        let unsubscribe;
+        // Call the utility function and pass state setters as callbacks
+        unsubscribe = fetchMoreReposts(user.uid, setReposts, reposts, setLastVisible, lastVisible)
+        // Handle loading state
+        setLoading(false);
+        // Clean up the listener when the component unmounts
+        return () => {
+          if (unsubscribe) {
+            return unsubscribe;
+          }
+        }
       }
-      fetchCards();
-      return unsub;
     }
-  }
   function fetchMoreData () {
     if (lastVisible != undefined) {
-    
-    let unsub;
-
-      const fetchCards = async () => {
-  
-        unsub = onSnapshot(query(collection(db, 'profiles', name, 'posts'), where('repost', '==', false), orderBy('timestamp', 'desc'), startAfter(lastVisible), limit(9)), (snapshot) => {
-          const newData = [];
-          snapshot.docs.map((doc) => {
-            newData.push({
-              id: doc.id,
-              ...doc.data()
-            })
-          })
-          setPosts([...posts, ...newData])
-          setLastVisible(snapshot.docs[snapshot.docs.length-1])
-        })
+      let unsubscribe;
+      // Call the utility function and pass state setters as callbacks
+      unsubscribe = fetchMorePosts(user.uid, setPosts, posts, setLastVisible, lastVisible)
+      // Handle loading state
+      setLoading(false);
+      // Clean up the listener when the component unmounts
+      return () => {
+        if (unsubscribe) {
+          return unsubscribe;
+        }
       }
-      fetchCards();
-      return unsub;
     }
   }
   return (
@@ -251,20 +228,20 @@ const ProfileComponent = ({preview, previewMade, applying, viewing, previewImage
             </View>
         </Modal>
         {viewing && person.background && person.forSale ? 
-          <TouchableOpacity style={styles.buyThemeContainer} onPress={preview ? null : () => buyThemeFunction(person.background, name)}>
+          <TouchableOpacity style={styles.buyThemeContainer} onPress={preview ? null : () => buyTheme(person.background)}>
             <FontAwesome name='photo' size={22.5} style={{alignSelf: 'center'}}/>
           </TouchableOpacity> : null}
         <FastImage style={styles.profileContainer} source={!loading ? previewImage ? {uri: previewImage} 
         : viewing ? person.background : profile.background ? {uri: viewing ? person.background : profile.background} : require('../assets/Default_theme.jpg') : null} />
-      <View  style={{flexDirection: 'row'}}>
+      <View style={{flexDirection: 'row'}}>
           <View style={{width: '77.5%'}}>
             <View style={styles.usernameContainer}>
-              <Text style={styles.nameAge} numberOfLines={1}>@{viewing ? person.username : profile.username}</Text>
+              <Text style={styles.nameAge} numberOfLines={1}>@{viewing ? person.username : profile.userName}</Text>
               {viewing && person.privacy ? <MaterialCommunityIcons name='lock-outline' size={20} color={"#fff"} style={styles.lock}/> : null}
             </View>
             <Text style={styles.nameAge} numberOfLines={1}>{viewing ? person.firstName : profile.firstName} {viewing ? person.lastName : profile.lastName}</Text>
           </View>
-          <TouchableOpacity style={styles.pfpLoading} activeOpacity={1} onPress={!profile.pfp ? null : viewing ? () => setImageModal(true) : pickImage()} onLongPress={!profile.pfp || viewing ? null : () => setImageModal(true)}>
+          <TouchableOpacity style={styles.pfpLoading} activeOpacity={1} onPress={!profile.pfp ? null : viewing ? () => setImageModal(true) : () => pickImage()} onLongPress={!profile.pfp || viewing ? null : () => setImageModal(true)}>
               {(loading || imageLoading) && person != null && !(person.blockedUsers.includes(user.uid) || profile.blockedUsers.includes(person.id)) ? 
               <ActivityIndicator style={styles.profileCircle} color={"#9EDAFF"} /> : viewing ? person.pfp : profile.pfp ? <FastImage source={{uri: viewing ? person.pfp : profile.pfp}} style={styles.profileCircle} /> 
               : <FastImage source={require('../assets/defaultpfp.jpg')} style={styles.profileCircle} />}
@@ -282,15 +259,15 @@ const ProfileComponent = ({preview, previewMade, applying, viewing, previewImage
              <View style={styles.friendsContainer}>
           {user != null ? name == user.uid ? <TouchableOpacity style={[styles.friendsHeader, {flexDirection: 'row'}]} 
           onPress={preview ? null :() => navigation.navigate('Edit', {firstName: profile.firstName, lastName: profile.lastName, 
-            pfp: profile.pfp, username: profile.username, id: profile.id, bio: profile.bio})}>
+            pfp: profile.pfp, username: profile.userName, id: profile.id, bio: profile.bio})}>
             <Text style={styles.friendsText}>Edit</Text>
           </TouchableOpacity> : user != null && user.uid != name && person != null && !(person.blockedUsers.includes(user.uid) || profile.blockedUsers.includes(person.id)) ? 
           friendLoading ? 
           <View style={styles.secondFriendsHeader}>
           <ActivityIndicator style={{padding: 7}} color={"#121212"}/> 
           </View>
-          : <FollowButtons style={styles.secondFriendsHeader} preview={preview} user={user}/> : null : null}
-          {user != null ? name == user.uid ? <TouchableOpacity style={styles.friendsHeader} onPress={preview ? null :() => navigation.navigate('Settings', {username: profile.username})}>
+          : <FollowButtons style={styles.secondFriendsHeader} friendId={name} preview={preview} user={user}/> : null : null}
+          {user != null ? name == user.uid ? <TouchableOpacity style={styles.friendsHeader} onPress={preview ? null :() => navigation.navigate('Settings', {username: profile.userName})}>
             <Text style={styles.friendsText}>Settings</Text>
           </TouchableOpacity> : ableToMessage.filter((e) => e.active == true).length > 0 && friendId && person != null && (!person.blockedUsers.includes(user.uid) && !profile.blockedUsers.includes(person.id)) 
             ? <TouchableOpacity style={styles.friendsHeader} onPress={preview ? null : () => messageFriend()}>
@@ -316,12 +293,12 @@ const ProfileComponent = ({preview, previewMade, applying, viewing, previewImage
                 <Text style={styles.headerText}>{numberOfReposts > 999 && numberOfReposts < 1000000 ? `${numberOfReposts / 1000}k` : numberOfReposts > 999999 ? `${numberOfReposts / 1000000}m` : numberOfReposts}</Text>
                 <Text style={styles.headerSupplementText}>{numberOfReposts == 1 ? 'Repost' : 'Reposts'}</Text>
               </TouchableOpacity >
-              <TouchableOpacity style={styles.noOfPosts} onPress={(person != null && !profile.blockedUsers.includes(person.id)) || !viewing ? () => navigation.navigate('Friends', {profile: viewing ? name : profile.id, ogUser: name == user.uid ? true : false, username: viewing ? person.username : profile.username}) : null}>
+              <TouchableOpacity style={styles.noOfPosts} onPress={(person != null && !profile.blockedUsers.includes(person.id)) || !viewing ? () => navigation.navigate('Friends', {profile: viewing ? name : profile.id, ogUser: name == user.uid ? true : false, username: viewing ? person.username : profile.userName}) : null}>
                 {!viewing ? <Text style={styles.headerText}>{profile.following.length > 999 && profile.following.length < 1000000 ? `${profile.following.length / 1000}k` : profile.following.length > 999999 ? `${profile.following.length / 1000000}m` : profile.following.length}</Text> :
                 <Text style={styles.headerText}>{person.following.length > 999 && person.following.length < 1000000 ? `${person.following.length / 1000}k` : person.following.length > 999999 ? `${person.following.length / 1000000}m` : person.following.length}</Text>}
                 <Text style={styles.headerSupplementText}>{'Following'}</Text> 
               </TouchableOpacity>
-              <TouchableOpacity style={styles.noOfPosts} onPress={(person != null && !profile.blockedUsers.includes(person.id)) || !viewing ? () => navigation.navigate('ViewingFollowers', {profile: viewing ? name : profile.id, ogUser: name == user.uid ? true : false, username: viewing ? person.username : profile.username}) : null}>
+              <TouchableOpacity style={styles.noOfPosts} onPress={(person != null && !profile.blockedUsers.includes(person.id)) || !viewing ? () => navigation.navigate('ViewingFollowers', {profile: viewing ? name : profile.id, ogUser: name == user.uid ? true : false, username: viewing ? person.username : profile.userName}) : null}>
                 <Text style={styles.headerText}>{profile.followers.length > 999 && profile.followers.length < 1000000 ? `${profile.followers.length / 1000}k` : profile.followers.length > 999999 ? `${profile.followers.length / 1000000}m` : profile.followers.length}</Text>
                 <Text style={styles.headerSupplementText}>{'Followers'}</Text>
               </TouchableOpacity>

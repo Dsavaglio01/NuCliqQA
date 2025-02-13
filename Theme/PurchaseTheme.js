@@ -95,7 +95,7 @@ const PurchaseTheme = ({route}) => {
     if (done) {
       const performFunction = async() => {
         if ((firstName != undefined) && paymentMethodID == null ) {
-      console.log('first')
+      
       await initializePaymentSheet();
     }
     else if ((firstName != undefined) && paymentMethodID != null ) {
@@ -285,7 +285,7 @@ const PurchaseTheme = ({route}) => {
   }
 }
   const retreivePayment = async() => {
-    //console.log('first')
+    //
     if (chargeCVCId != null) {
       fetch(`${BACKEND_URL}/api/retrieveEndpoint`, {
         method: 'POST',

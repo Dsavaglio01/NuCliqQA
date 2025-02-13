@@ -1,77 +1,36 @@
-import { ActivityIndicator, FlatList, Image, Dimensions, Alert, StyleSheet, Text, Keyboard, View, TouchableWithoutFeedback, Touchable } from 'react-native'
-import React, { useContext, useEffect, useState, useMemo } from 'react'
-import { collection, getDoc, getDocs, getFirestore, onSnapshot, query, where, doc, deleteDoc, updateDoc, arrayRemove, limit, startAfter, orderBy } from 'firebase/firestore';
+import { ActivityIndicator, FlatList, Dimensions, Alert, StyleSheet, Text, View } from 'react-native'
+import React, { useContext, useEffect, useState } from 'react'
+import { collection, getDoc, getDocs, onSnapshot, query, where, doc, updateDoc, arrayRemove, limit, startAfter, orderBy } from 'firebase/firestore';
 import useAuth from '../Hooks/useAuth';
 import { TouchableOpacity } from 'react-native-gesture-handler';
 import { useNavigation } from '@react-navigation/native';
-import RegisterHeader from '../Components/RegisterHeader';
 import {MaterialCommunityIcons} from '@expo/vector-icons'
 import NextButton from '../Components/NextButton';
-import RadioButtonGroup, { RadioButtonItem } from "expo-radio-button"
 import ThemeHeader from '../Components/ThemeHeader';
-import PostComponent from '../Components/PostComponent';
-import { Divider, Menu, Provider } from 'react-native-paper';
+import { Divider, Provider } from 'react-native-paper';
 import FastImage from 'react-native-fast-image';
 import MainButton from '../Components/MainButton';
 import Checkbox from 'expo-checkbox'
 import { db } from '../firebase';
 import _ from 'lodash'
-import { useFonts, Montserrat_500Medium, Montserrat_700Bold } from '@expo-google-fonts/montserrat';
-import SearchBar from '../Components/SearchBar';
-import SearchInput from '../Components/SearchInput';
 import themeContext from '../lib/themeContext';
+import ProfileContext from '../lib/profileContext';
 const ContentList = ({route}) => {
-    const {likes, comments, saves, archived, cards, username, blocked, mentions} = route.params;
+    const {likes, comments, saves, archived, cards, blocked, mentions} = route.params;
     const {user} = useAuth()
     const [posts, setPosts] = useState([]);
-    const [pfp, setPfp] = useState(null);
     const [editedCards, setEditedCards] = useState([]);
     const theme = useContext(themeContext)
     const [postDone, setPostDone] = useState(false);
     const [completePosts, setCompletePosts] = useState([]);
     const [current, setCurrent] = useState(false)
-    const [filtered, setFiltered] = useState([]);
-    const [savedPosts, setSavedPosts] = useState([]);
-    const [purchased, setPurchased] = useState(true);
-    const [sold, setSold] = useState(false);
-    const [searchByVisible, setSearchByVisible] = useState(false);
-    const [requests, setRequests] = useState([]);
     const [lastVisible, setLastVisible] = useState();
-    const [done, setDone] = useState(false)
-    const [tempPosts, setTempPosts] = useState([]);
-    const [specificSearch, setSpecificSearch] = useState('');
-    const [searching, setSearching] = useState(false);
-    
     const [loading, setLoading] = useState(true);
     const navigation = useNavigation();
-    const seenPosts = new Set();
-    useEffect(()=> {
-      let unsub;
-      const fetchCards = async () => {
-        //const passes = await getDocs(collection(db, 'users', user.uid, 'passes')).then((snapshot) => snapshot.docs.map((doc) => doc.id));
-        unsub = onSnapshot(query(collection(db, 'profiles', user.uid, 'requests'), where('actualRequest', '==', true)), (snapshot) => {
-          setRequests(snapshot.docs.map((doc)=> ( {
-            id: doc.id,
-            ...doc.data()
-            //info: doc.data().info
-          })))
-        })
-      } 
-      fetchCards();
-      return unsub;
-    }, []);
-    useMemo(() => {
-      if (comments) {
-        const getData = async() => {
-          const docSnap = await getDoc(doc(db, 'profiles', user.uid))
-          setPfp(docSnap.data().pfp)
-        }
-        getData()
-      }
-    }, [comments])
+    const profile = useContext(ProfileContext);
     useEffect(() => {
-        if (mentions) {
-          setPosts([]);
+      if (mentions) {
+      setPosts([]);
       const getLikes = async() => {
         const first = query(collection(db, "profiles", user.uid, 'mentions'), orderBy('timestamp', 'desc'), limit(10));
         const querySnapshot = await getDocs(first);
@@ -125,17 +84,6 @@ const ContentList = ({route}) => {
   };
 
   getLikes();
-          /* setPosts([]);
-          const getLikes = async() => {
-            const first = query(collection(db, "profiles", user.uid, 'comments'), orderBy('timestamp', 'desc'), limit(10));
-            const querySnapshot = await getDocs(first);
-            setLastVisible(querySnapshot.docs[querySnapshot.docs.length - 1])
-            querySnapshot.forEach(async(document) => setPosts(prevState => [...prevState, {id: document.id, ...document.data()}]));
-          }
-          getLikes()
-          setTimeout(() => {
-              setPostDone(true)
-          }, 1000); */
           
         } else if (saves) {
                 setPosts([]);
@@ -386,16 +334,6 @@ const ContentList = ({route}) => {
         }, 1000);
       }
     }
-    const [fontsLoaded, fontError] = useFonts({
-    // your other fonts here
-    Montserrat_500Medium,
-    Montserrat_700Bold
-  });
-
-  if (!fontsLoaded || fontError) {
-    // Handle loading errors
-    return null;
-  }
     const renderBlocked = ({item, index}) => {
       return (
         <View key={index}>
@@ -439,24 +377,24 @@ const ContentList = ({route}) => {
       return (
         !item.repost && item.post[0].image ? 
       <TouchableOpacity style={{borderRadius: 10, margin: '2.5%', width: 155,
-    height: 155 / 1.015625,}} onPress={!item.repost ? () => navigation.navigate('Post', {post: item.id, requests: requests, name: item.userId, groupId: null, video: false}) : () => navigation.navigate('Repost', {post: item.id, requests: requests, name: item.userId, groupId: null})}>
+    height: 155 / 1.015625,}} onPress={!item.repost ? () => navigation.navigate('Post', {post: item.id,  name: item.userId, groupId: null, video: false}) : () => navigation.navigate('Repost', {post: item.id,  name: item.userId, groupId: null})}>
         <FastImage source={{uri: item.post[0].post, priority: 'normal'}} style={styles.image}/>
       </TouchableOpacity> : item.repost && item.post.post[0].image ? 
       <TouchableOpacity style={{borderRadius: 10, margin: '2.5%', width: 155,
-    height: 155 / 1.015625,}} onPress={!item.repost ? () => navigation.navigate('Post', {post: item.id, requests: requests, name: item.userId, groupId: null, video: false}) : () =>navigation.navigate('Repost', {post: item.id, requests: requests, name: item.userId, groupId: null})}>
+    height: 155 / 1.015625,}} onPress={!item.repost ? () => navigation.navigate('Post', {post: item.id,  name: item.userId, groupId: null, video: false}) : () =>navigation.navigate('Repost', {post: item.id,  name: item.userId, groupId: null})}>
         <FastImage source={{uri: item.post.post[0].post, priority: 'normal'}} style={styles.image}/>
       </TouchableOpacity> : !item.repost && item.post[0].video ? <TouchableOpacity style={{borderRadius: 10, margin: '2.5%', width: 155,
-    height: 155 / 1.015625,}} onPress={!item.repost ? () => navigation.navigate('Post', {post: item.id, requests: requests, name: item.userId, groupId: null, video: true}) : () =>navigation.navigate('Repost', {post: item.id, requests: requests, name: item.userId, groupId: null})}>
+    height: 155 / 1.015625,}} onPress={!item.repost ? () => navigation.navigate('Post', {post: item.id,  name: item.userId, groupId: null, video: true}) : () =>navigation.navigate('Repost', {post: item.id,  name: item.userId, groupId: null})}>
         <FastImage source={{uri: item.post[0].thumbnail, priority: 'normal'}} style={styles.image}/>
       </TouchableOpacity> : item.repost && item.post.post[0].video ? <TouchableOpacity style={{borderRadius: 10, margin: '2.5%', width: 155,
-    height: 155 / 1.015625,}} onPress={!item.repost ? () => navigation.navigate('Post', {post: item.id, requests: requests, name: item.userId, groupId: null, video: true}) :() => navigation.navigate('Repost', {post: item.id, requests: requests, name: item.userId, groupId: null})}>
+    height: 155 / 1.015625,}} onPress={!item.repost ? () => navigation.navigate('Post', {post: item.id,  name: item.userId, groupId: null, video: true}) :() => navigation.navigate('Repost', {post: item.id,  name: item.userId, groupId: null})}>
         <FastImage source={{uri: item.post.post[0].thumbnail, priority: 'normal'}} style={styles.image}/>
       </TouchableOpacity> : !item.repost ?
       <TouchableOpacity style={{borderRadius: 10, margin: '2.5%', width: 155,
-    height: 155 / 1.015625, backgroundColor: "#262626"}} onPress={!item.repost ? () => navigation.navigate('Post', {post: item.id, requests: requests, name: item.userId, groupId: null, video: false}) : () => navigation.navigate('Repost', {post: item.id, requests: requests, name: item.userId, groupId: null})}>
+    height: 155 / 1.015625, backgroundColor: "#262626"}} onPress={!item.repost ? () => navigation.navigate('Post', {post: item.id,  name: item.userId, groupId: null, video: false}) : () => navigation.navigate('Repost', {post: item.id,  name: item.userId, groupId: null})}>
         <Text style={[styles.image, {fontSize: item.post[0].textSize, color: theme.color}]}>{item.post[0].value}</Text>
       </TouchableOpacity> : <TouchableOpacity style={{borderRadius: 10, margin: '2.5%', width: 155,
-    height: 155 / 1.015625, backgroundColor: "#262626"}} onPress={!item.repost ? () => navigation.navigate('Post', {post: item.id, requests: requests, name: item.userId, groupId: null, video: false}) : () => navigation.navigate('Repost', {post: item.id, requests: requests, name: item.userId, groupId: null})}>
+    height: 155 / 1.015625, backgroundColor: "#262626"}} onPress={!item.repost ? () => navigation.navigate('Post', {post: item.id,  name: item.userId, groupId: null, video: false}) : () => navigation.navigate('Repost', {post: item.id,  name: item.userId, groupId: null})}>
         <Text style={[styles.image, {fontSize: item.post.post[0].textSize, color: theme.color}]}>{item.post.post[0].value}</Text>
       </TouchableOpacity>
     ) 
@@ -466,24 +404,24 @@ const ContentList = ({route}) => {
       return (
         <View style={{margin: '2.5%', flexDirection: 'row', marginTop: 0, borderBottomWidth: 1, borderBottomColor: "#d3d3d3", paddingBottom: 10}}>
         <View style={{flexDirection: 'row', alignItems: 'center', width: '89%'}}>
-          <FastImage source={pfp ? {uri: pfp} : require('../assets/defaultpfp.jpg')} style={[styles.commentImage, {borderRadius: 8}]}/>
+          <FastImage source={profile.pfp ? {uri: profile.pfp} : require('../assets/defaultpfp.jpg')} style={[styles.commentImage, {borderRadius: 8}]}/>
           <Text numberOfLines={2} style={[styles.addText, {color: theme.color}]}>You {item.reply != undefined ? 'replied' : 'commented'}: {item.comment} </Text>
         </View>
         {!item.repost && item.post[0].image ? 
-      <TouchableOpacity style={{flex: 1, justifyContent: 'center', alignItems: 'center', marginLeft: '-2.5%'}} onPress={!item.repost ? () => navigation.navigate('Post', {post: item.postId, requests: requests, name: item.userId, groupId: null, video: false}) : () => navigation.navigate('Repost', {post: item.postId, requests: requests, name: item.userId, groupId: null})}>
+      <TouchableOpacity style={{flex: 1, justifyContent: 'center', alignItems: 'center', marginLeft: '-2.5%'}} onPress={!item.repost ? () => navigation.navigate('Post', {post: item.postId,  name: item.userId, groupId: null, video: false}) : () => navigation.navigate('Repost', {post: item.postId,  name: item.userId, groupId: null})}>
         <FastImage source={{uri: item.post[0].post, priority: 'normal'}} style={styles.commentImage}/>
       </TouchableOpacity> : item.repost && item.post.post[0].image ? 
-      <TouchableOpacity style={{flex: 1, justifyContent: 'center', alignItems: 'center', marginLeft: '-2.5%'}} onPress={!item.repost ? () => navigation.navigate('Post', {post: item.postId, requests: requests, name: item.userId, groupId: null, video: false}) : () => navigation.navigate('Repost', {post: item.postId, requests: requests, name: item.userId, groupId: null})}>
+      <TouchableOpacity style={{flex: 1, justifyContent: 'center', alignItems: 'center', marginLeft: '-2.5%'}} onPress={!item.repost ? () => navigation.navigate('Post', {post: item.postId,  name: item.userId, groupId: null, video: false}) : () => navigation.navigate('Repost', {post: item.postId,  name: item.userId, groupId: null})}>
         <FastImage source={{uri: item.post.post[0].post, priority: 'normal'}} style={styles.commentImage}/>
       </TouchableOpacity>
-      : !item.repost && item.post[0].video ? <TouchableOpacity style={{marginLeft: 'auto', flex: 1, justifyContent: 'center', alignItems: 'center', marginLeft: '-2.5%'}} onPress={!item.repost ? () => navigation.navigate('Post', {post: item.postId, requests: requests, name: item.userId, groupId: null, video: true}) : () => navigation.navigate('Repost', {post: item.postId, requests: requests, name: item.userId, groupId: null})}>
+      : !item.repost && item.post[0].video ? <TouchableOpacity style={{marginLeft: 'auto', flex: 1, justifyContent: 'center', alignItems: 'center', marginLeft: '-2.5%'}} onPress={!item.repost ? () => navigation.navigate('Post', {post: item.postId,  name: item.userId, groupId: null, video: true}) : () => navigation.navigate('Repost', {post: item.postId,  name: item.userId, groupId: null})}>
         <FastImage source={{uri: item.post[0].thumbnail, priority: 'normal'}} style={styles.commentImage}/>
-      </TouchableOpacity> : item.repost && item.post.post[0].video ? <TouchableOpacity style={{marginLeft: 'auto', flex: 1, justifyContent: 'center', alignItems: 'center', marginLeft: '-2.5%'}} onPress={!item.repost ? () => navigation.navigate('Post', {post: item.postId, requests: requests, name: item.userId, groupId: null, video: true}) : () => navigation.navigate('Repost', {post: item.postId, requests: requests, name: item.userId, groupId: null})}>
+      </TouchableOpacity> : item.repost && item.post.post[0].video ? <TouchableOpacity style={{marginLeft: 'auto', flex: 1, justifyContent: 'center', alignItems: 'center', marginLeft: '-2.5%'}} onPress={!item.repost ? () => navigation.navigate('Post', {post: item.postId,  name: item.userId, groupId: null, video: true}) : () => navigation.navigate('Repost', {post: item.postId,  name: item.userId, groupId: null})}>
         <FastImage source={{uri: item.post.post[0].thumbnail, priority: 'normal'}} style={styles.commentImage}/>
       </TouchableOpacity> : !item.repost ?
-      <TouchableOpacity style={{marginLeft: 'auto', flex: 1, justifyContent: 'center', alignItems: 'center', marginLeft: '-2.5%'}} onPress={!item.repost ? () => navigation.navigate('Post', {post: item.postId, requests: requests, name: item.userId, groupId: null, video: false}) : () => navigation.navigate('Repost', {post: item.postId, requests: requests, name: item.userId, groupId: null})}>
+      <TouchableOpacity style={{marginLeft: 'auto', flex: 1, justifyContent: 'center', alignItems: 'center', marginLeft: '-2.5%'}} onPress={!item.repost ? () => navigation.navigate('Post', {post: item.postId,  name: item.userId, groupId: null, video: false}) : () => navigation.navigate('Repost', {post: item.postId,  name: item.userId, groupId: null})}>
         <Text style={[styles.commentImage, {fontSize: item.post[0].textSize, color: theme.color}]}>{item.post[0].value}</Text>
-      </TouchableOpacity> : <TouchableOpacity style={{marginLeft: 'auto', flex: 1, justifyContent: 'center', alignItems: 'center', marginLeft: '-2.5%'}} onPress={!item.repost ? () => navigation.navigate('Post', {post: item.postId, requests: requests, name: item.userId, groupId: null, video: false}) : () => navigation.navigate('Repost', {post: item.postId, requests: requests, name: item.userId, groupId: null})}>
+      </TouchableOpacity> : <TouchableOpacity style={{marginLeft: 'auto', flex: 1, justifyContent: 'center', alignItems: 'center', marginLeft: '-2.5%'}} onPress={!item.repost ? () => navigation.navigate('Post', {post: item.postId,  name: item.userId, groupId: null, video: false}) : () => navigation.navigate('Repost', {post: item.postId,  name: item.userId, groupId: null})}>
         <Text style={[styles.commentImage, {fontSize: item.post.post[0].textSize, color: theme.color}]}>{item.post.post[0].value}</Text>
       </TouchableOpacity>}
         </View>

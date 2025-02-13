@@ -12,7 +12,7 @@ import createSearchKeywords from '../lib/searchKeywords';
 import { useNavigation } from '@react-navigation/native';
 import { schedulePushImageNotification } from '../notificationFunctions';
 export const useSinglePickImage = ({profilePfp, cliquePfp, name, group, firstName, lastName, userName, age, groupName, groupSecurity, category,
-  description, id, messagePfp, channelPfpImage, pfpRegisterImage, groupBanner, person, friendId}) => {
+  description, id, messagePfp, pfpRegisterImage, groupBanner, person, friendId, theme}) => {
     const [imageLoading, setImageLoading] = useState(false);
     const {user} = useAuth();
     const [image, setImage] = useState(null);
@@ -83,7 +83,7 @@ export const useSinglePickImage = ({profilePfp, cliquePfp, name, group, firstNam
             }
             if (response.data.nudity.hasOwnProperty('erotica')) {
               if (response.data.nudity.erotica >= 0.68) {
-                Alert.alert('Unable to Post', `This Goes Against Our Guidelines`, [
+                Alert.alert('Unable to Sned', `This Goes Against Our Guidelines`, [
                 {
                   text: 'Cancel',
                   onPress: () => console.log('Cancel Pressed'),
@@ -100,11 +100,10 @@ export const useSinglePickImage = ({profilePfp, cliquePfp, name, group, firstNam
                 delete response.data.nudity.erotica
               }
             }
-            if (response.data.drugs || response.data.gore.prob || response.data.recreational_drugs || response.data.medical_drugs || response.data.scam
-            || response.data.weapon_knife || response.data.skull.prob || response.data.weapon || response.data.weapon_firearm > 0.9 
-            || containsNumberGreaterThan(getValuesFromImages(Object.values(response.data.nudity)), 0.95)
-            || containsNumberGreaterThan(Object.values(response.data.offensive), 0.9)) {
-              Alert.alert('Unable to Post', 'This Post Goes Against Our Guidelines', [
+            if (response.data.drugs > 0.9 || response.data.gore.prob > 0.9 || containsNumberGreaterThan(getValuesFromImages(Object.values(response.data.nudity)), 0.95)
+            || containsNumberGreaterThan(Object.values(response.data.offensive), 0.9) || response.data.recreational_drugs > 0.9 || response.data.medical_drugs > 0.9 ||
+            response.data.skull.prob > 0.9 || response.data.weapon > 0.9 || response.data.weapon_firearm > 0.9 || response.data.weapon_knife > 0.9) {
+              Alert.alert('Unable to Send', 'This Post Goes Against Our Guidelines', [
                 {
                   text: 'Cancel',
                   onPress: () => console.log('Cancel Pressed'),
@@ -183,8 +182,14 @@ export const useSinglePickImage = ({profilePfp, cliquePfp, name, group, firstNam
                 compressionMethod: "auto",
                 quality: 0.8
               })
-              setImage(result)
-              uploadImage(result)
+              if (!theme) {
+                setImage(result)
+                uploadImage(result)
+              }
+              else {
+                navigation.navigate('DesignTheme', {source: result})
+              }
+              
                       
             })
             }

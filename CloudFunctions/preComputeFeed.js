@@ -21,7 +21,6 @@ exports.preComputeFeed = functions.firestore.document('profiles/{userId}').onUpd
     const allPosts = [];
     for (const chunk of postChunks) {
       // Query for posts from followed users
-      //const query = query(collection(db, 'posts'), where('userId', 'in', chunk));
       const query = query(firestore.collection('posts').where('userId', 'in', chunk));
       const querySnapshot = await getDocs(query);
       const chunkPosts = querySnapshot.docs.map((doc) => ({

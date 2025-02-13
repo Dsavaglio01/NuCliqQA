@@ -1,17 +1,20 @@
 import { useState } from "react";
 import { Alert } from "react-native";
 import { getStorage, ref, uploadBytesResumable, getDownloadURL, deleteObject } from "firebase/storage";
-import { IMAGE_MODERATION_URL, MODERATION_API_SECRET, MODERATION_API_USER, BACKEND_URL } from "@env";
-import axios from "axios";
+import { IMAGE_MODERATION_URL, MODERATION_API_SECRET, MODERATION_API_USER, BACKEND_URL, TEXT_MODERATION_URL } from "@env";
+import handleContentModeration from "../lib/handelImageModerations";
+import handleVideoContentModeration from "../lib/handleVideoModeration";
 
-export const useMultiDownloadImage = ({ fileName, data, backendURL, dataForURL, actualPostArray, setNewPostArray }) => {
+export const useMultiDownloadImage = ({fileName, user, caption, actualPostArray, setNewPostArray}) => {
+  //console.log(caption)
   const [downloadLoading, setDownloadLoading] = useState(false);
   const storage = getStorage();
-
+  const [url, setUrl] = useState(null);
   // Upload Image to Firebase Storage
-  const addImage = async () => {
+  const addImage = async (data) => {
     try {
       setDownloadLoading(true);
+      const fileName = `posts/${user.uid}post${Date.now()}${data.id}.jpg`
       const response = await fetch(data.post);
       const blob = await response.blob();
       const storageRef = ref(storage, fileName);
@@ -23,15 +26,20 @@ export const useMultiDownloadImage = ({ fileName, data, backendURL, dataForURL, 
       setDownloadLoading(false);
     }
   };
-  const addVideo = async () => {
+  const addVideo = async (data) => {
     try {
     setDownloadLoading(true);
+    const fileName = `videos/${user.uid}video${Date.now()}${data.id}.mp4`
+    const thumbnailName = `thumbnails/${user.uid}/thumbnail${Date.now()}${data.id}.jpg`
     const response = await fetch(data.post);
+    const thumbnailResponse = await fetch(data.thumbnail)
     const blob = await response.blob();
+    const thumbnailBlob = await thumbnailResponse.blob();
     const storageRef = ref(storage, fileName);
-
+    const thumbnailStorageRef = ref(storage, thumbnailName)
     await uploadBytesResumable(storageRef, blob);
-    await getVideoLink(fileName, data);
+    await uploadBytesResumable(thumbnailStorageRef, thumbnailBlob);
+    await getVideoLink(fileName, data, thumbnailName);
     } catch (error) {
     console.error("Error uploading image:", error);
     setDownloadLoading(false);
@@ -39,144 +47,43 @@ export const useMultiDownloadImage = ({ fileName, data, backendURL, dataForURL, 
   };
   // Get Download URL from Firebase
   const getLink = async (post, item) => {
+    console.log(`Item: ${item}`)
     try {
       const starsRef = ref(storage, post);
       const url = await getDownloadURL(starsRef);
-      await checkImageModeration(url, starsRef, item);
+      setUrl(url)
+      await handleContentModeration({url: url, caption: caption, IMAGE_MODERATION_URL: IMAGE_MODERATION_URL, 
+        MODERATION_API_USER: MODERATION_API_USER, MODERATION_API_SECRET: MODERATION_API_SECRET, TEXT_MODERATION_URL: TEXT_MODERATION_URL,
+        actualPostArray: actualPostArray, setNewPostArray: setNewPostArray, reference: starsRef, item: item})
     } catch (error) {
       console.error("Error getting download URL:", error);
       setDownloadLoading(false);
     }
   };
-  const getVideoLink = async (post, item) => {
+  const getVideoLink = async (post, item, thumbnail) => {
     try {
       const starsRef = ref(storage, post);
+      const thumbnailRef = ref(storage, thumbnail)
       const url = await getDownloadURL(starsRef);
-      await checkVideoModeration(url, starsRef, item);
+      const thumbnailUrl = await getDownloadURL(thumbnailRef)
+      await handleVideoContentModeration({url: url, thumbnail: thumbnailUrl, caption: caption, IMAGE_MODERATION_URL: IMAGE_MODERATION_URL, 
+        MODERATION_API_USER: MODERATION_API_USER, MODERATION_API_SECRET: MODERATION_API_SECRET, TEXT_MODERATION_URL: TEXT_MODERATION_URL,
+        actualPostArray: actualPostArray, setNewPostArray: setNewPostArray, reference: starsRef, item: item})
     } catch (error) {
       console.error("Error getting download URL:", error);
       setDownloadLoading(false);
     }
   };
 
-  // Image Moderation Check
-  const checkImageModeration = async (url, reference, item) => {
-    try {
-      const moderationResponse = await axios.get(IMAGE_MODERATION_URL, {
-        params: {
-          url,
-          models: "nudity-2.0,wad,offensive,scam,gore,qr-content",
-          api_user: MODERATION_API_USER,
-          api_secret: MODERATION_API_SECRET,
-        },
-      });
 
-      if (!validateModerationResponse(moderationResponse.data)) {
-        handleModerationFailure(reference);
-        return;
-      }
 
-      // Post Validated Image to Backend
-      await postImageToBackend(item);
-    } catch (error) {
-      console.error("Error in image moderation:", error);
-      setDownloadLoading(false);
-    }
-  };
-  // Video Moderation Check 
-  const checkVideoModeration = async (url, reference, item) => {
-    try {
-      const moderationResponse = fetch(`${BACKEND_URL}/api/videoModeration`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        video: url,
-      }),
-      });
-
-      if (!validateModerationResponse(moderationResponse.data.frames)) {
-        handleModerationFailure(reference);
-        return;
-      }
-
-      // Post Validated Image to Backend
-      await postVideoToBackend(item);
-    } catch (error) {
-      console.error("Error in image moderation:", error);
-      setDownloadLoading(false);
-    }
-  };
-  // Validate Moderation Response
-  const validateModerationResponse = (data) => {
-    const thresholds = {
-      drugs: 0.9,
-      gore: 0.9,
-      offensive: 0.9,
-      scam: 0.9,
-      weapon: 0.9,
-    };
-
-    const failed = Object.entries(data).some(([key, value]) => {
-      if (key in thresholds && value > thresholds[key]) return true;
-      if (key === "nudity" && containsNumberGreaterThan(getValuesFromImages(Object.values(value)), 0.95)) return true;
-      return false;
-    });
-
-    return !failed;
-  };
-
-  // Handle Moderation Failure
-  const handleModerationFailure = async (reference) => {
-    Alert.alert(
-      "Unable to Post",
-      "This Story Goes Against Our Guidelines",
-      [
-        {
-          text: "Cancel",
-          onPress: () => deleteObject(reference).then(() => setDownloadLoading(false)),
-          style: "cancel",
-        },
-        {
-          text: "OK",
-          onPress: () => deleteObject(reference).then(() => setDownloadLoading(false)),
-        },
-      ]
-    );
-  };
-
-  // Post Image to Backend
-  const postImageToBackend = async (item) => {
-    try {
-      const response = await fetch(`${backendURL}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          data: dataForURL,
-        }),
-      });
-
-      const responseData = await response.json();
-
-      if (responseData.done) {
-        setDownloadLoading(false);
-      }
-    } catch (error) {
-      console.error("Error posting image to backend:", error);
-      setDownloadLoading(false);
-    }
-  };
-
-  // Helper Functions
-  const containsNumberGreaterThan = (array, threshold) => array.some((element) => element > threshold);
-
+  
   const getValuesFromImages = (list) => {
     let values = [];
-
     list.forEach((item) => {
       if (typeof item === "number") values.push(item);
-      if (typeof item === "object") {
+      if (typeof item === "object" && Object.keys(item).filter(key => key !== "none")) {
+        console.log(item)
         Object.values(item).forEach((value) => {
           if (typeof value === "number") values.push(value);
           if (typeof value === "object") values = values.concat(getValuesFromImages([value]));

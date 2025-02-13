@@ -1,9 +1,10 @@
 import React, {useCallback} from 'react'
 import {MaterialCommunityIcons} from '@expo/vector-icons';
-import { Dimensions, TouchableOpacity, StyleSheet} from 'react-native';
+import { TouchableOpacity, StyleSheet} from 'react-native';
 function SaveButton({item, user, updateTempPostsAddSave, home, clique, updateTempPostsRemoveSave, updateTempPostsCliqueAddSave,
     updateTempPostsCliqueRemoveSave, videoStyling}) {
     const addHomeSave = useCallback(async() => {
+        console.log(item.item.id)
         await updateTempPostsAddSave(item.item, item.item.savedBy)
         },
         [item, updateTempPostsAddSave]);
@@ -41,5 +42,6 @@ const styles = StyleSheet.create({
       shadowOpacity: .5,
       shadowRadius: 3.84,
       elevation: 5,
+      margin: '5%'
     },
 })

@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View, Modal, Animated, TouchableOpacity, Dimensions, FlatList, TextInput } from 'react-native'
-import React, {useState, useRef, useEffect} from 'react'
+import React, {useState, useRef, useEffect, useContext} from 'react'
 import FastImage from 'react-native-fast-image'
 import {MaterialCommunityIcons, MaterialIcons} from '@expo/vector-icons';
 import getDateAndTime from '../../lib/getDateAndTime';
@@ -9,6 +9,7 @@ import { usePickVideo } from '../../Hooks/usePickVideo';
 import { Divider } from 'react-native-paper';
 import MainButton from '../MainButton';
 import { useDownloadImage } from '../../Hooks/useDownloadImage';
+import ProfileContext from '../../lib/profileContext';
 const storyWidth = Dimensions.get('screen').width
 const StoryModal = ({userStoryModal, closeStoryModal, storyItem, closeUserStoryModal, openUserStoryModal, user}) => {
     const storyRef = useRef(null);
@@ -35,6 +36,7 @@ const StoryModal = ({userStoryModal, closeStoryModal, storyItem, closeUserStoryM
     const [activeStoryIndex, setActiveStoryIndex] = useState(0);
     const [textOpen, setTextOpen] = useState(false);
     const [text, setText] = useState('');
+    const profile = useContext(ProfileContext);
     useEffect(() => {
       if (storyItem) {
         setStory(storyItem)
@@ -149,8 +151,8 @@ const StoryModal = ({userStoryModal, closeStoryModal, storyItem, closeUserStoryM
                   ))}
                 </View>
               <View style={styles.headerContainer}>
-                <FastImage source={pfp ? {uri: pfp } : require('../../assets/defaultpfp.jpg')} style={styles.pfp}/>
-                <Text style={styles.usernameText}>{username}</Text>
+                <FastImage source={profile.pfp ? {uri: profile.pfp } : require('../../assets/defaultpfp.jpg')} style={styles.pfp}/>
+                <Text style={styles.usernameText}>{profile.userName}</Text>
                 {story.map((e, index) => {
                   if (index == activeStoryIndex) {
                     return (
@@ -181,9 +183,16 @@ const StoryModal = ({userStoryModal, closeStoryModal, storyItem, closeUserStoryM
                     });
                   }}
                 /> :
+                <>
                 <View style={styles.noPostsContainer}>
                   <Text style={styles.noPostsText}>No Story Yet!</Text>
-                </View>}
+                </View>
+                <View style={{marginHorizontal: '5%'}}>
+                  <NextButton text={"Add To Story →"} onPress={() => {handleSwitch()}}/>
+                </View>
+                </>
+                
+                }
               </View>
               {story.length > 0 ? story[0].userId == user.uid ? 
               <View style={{marginHorizontal: '5%'}}>

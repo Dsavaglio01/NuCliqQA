@@ -57,7 +57,7 @@ const StoriesArray = ({profile, story, userId, user}) => {
   return (
     <View style={{flexDirection: 'row'}}>
         {ogUserStoryModal || userStoryModal ? 
-        <StoryModal userStoryModal={ogUserStoryModal} closeStoryModal={() => setUserStoryModal(false)} username={profile.username} user={user}
+        <StoryModal userStoryModal={ogUserStoryModal} closeStoryModal={() => setUserStoryModal(false)} username={profile.userName} user={user}
         background={profile.background} forSale={profile.forSale} openUserStoryModal={() => setOgUserStoryModal(true)} 
         closeUserStoryModal={() => setOgUserStoryModal(false)} pfp={profile.pfp} storyItem={storyItem}/> : null}
         <TouchableOpacity style={styles.storyArrayContainer} onPress={() => setUserStoryModal(true)}>

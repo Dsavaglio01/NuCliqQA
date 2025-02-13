@@ -56,7 +56,6 @@
     "expo-file-system": "~15.4.5",
     "expo-gl": "~13.0.1",
     "expo-haptics": "~12.4.0",
-    "expo-image-crop-editor": "^1.7.1",
     "expo-image-manipulator": "~11.3.0",
     "expo-image-picker": "~14.3.2",
     "expo-linking": "~5.0.2",

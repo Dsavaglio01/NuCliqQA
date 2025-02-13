@@ -80,7 +80,7 @@ const Login = () => {
     ]);
     }
     else if (message.includes('auth/user-disabled')) {
-      //console.log('first')
+      //
       Alert.alert('Your Account has Been Disabled/Banned.', 'Please Create a new one', [
       {
         text: 'Cancel',
@@ -362,7 +362,7 @@ const Login = () => {
         await sendSignInLinkToEmail(auth, email, actionCodeSettings)
         setSuccess(true)
       } catch (error) {
-        console.log('first')
+        
         interpretError(error.code)
       }
     } else {

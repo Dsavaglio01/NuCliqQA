@@ -48,21 +48,16 @@ const SuccessTheme = ({route}) => {
     useEffect(() => {
         if (route.params?.edit == true && route.params?.post) {
             const getData = async() => {
-                const background = await getDoc(doc(db, 'profiles', user.uid))
-                    const docSnap = await getDocs(collection(db, 'products'), where('images', 'array-contains', post))
                     const freeDocSnap = await getDocs(collection(db, 'freeThemes'), where('images', 'array-contains', post))
-                    if (docSnap.docs.length > 0) {
-                      setActualThemeId(docSnap.docs[0].id)
-                    }
-                    else if (freeDocSnap.docs.length > 0) {
+                    if (freeDocSnap.docs.length > 0) {
                         setActualThemeId(freeDocSnap.docs[0].id)
                     }
 
-                if (background.data().postBackground == post) {
+                if (profile.postBackground == post) {
                     setPostChecked(true)
                 }
-                if (background.data().background == post) {
-                    //console.log('first')
+                if (profile.background == post) {
+                    //
                     setProfileChecked(true)
                 }
             }
@@ -76,8 +71,37 @@ const SuccessTheme = ({route}) => {
       }
       getNames()
     }, [])
+    function containsNumberGreaterThan(array, threshold) {
+      return array.some(function(element) {
+        return element > threshold;
+      });
+    }
+    const getValuesFromImages = (list) => {
+      let newList = filterByType(list, 'object')
+      let tempList = filterByType(list, 'number')
+      tempList.forEach((obj) => {
+        filterByType(Object.values(obj), 'object').forEach((e) => {
+          newList.push(e)
+        })
+        filterByType(Object.values(obj), 'number').forEach((e) => {
+          if (e.hasOwnProperty('none')) {
+            delete e['none']
+            Object.values(e).forEach((element) => {
+              newList.push(element)
+            })
+          }
+
+        })
+      })
+      return newList
+    }
+    function filterByType(arr, type) {
+      return arr.filter(function(item) {
+        return typeof item !== type;
+      });
+    }
     const checkPfp = async(url, reference) => {
-       //console.log(url)
+       console.log(url)
        await axios.get(`${IMAGE_MODERATION_URL}`, {
             params: {
                 'url': url,
@@ -201,13 +225,30 @@ const SuccessTheme = ({route}) => {
                 } 
         else {
             if (sellChecked && profileChecked && postChecked) {
-                try {
-                const response = await fetch(`${BACKEND_URL}/api/sellprofilepost`, {
+              try {
+                const response = await fetch(`http://10.0.0.225:4000/api/sellprofilepost`, {
                   method: 'POST', // Use appropriate HTTP method (GET, POST, etc.)
                   headers: {
                     'Content-Type': 'application/json', // Set content type as needed
                   },
-                  body: JSON.stringify({ data: {themeName: themeName, price: price, sellChecked: sellChecked, user: user.uid, url: url, keywords: keywords, originalKeywords: originalKeywords}}), // Send data as needed
+                  body: JSON.stringify({ data: {themeName: themeName, price: 0, sellChecked: sellChecked, user: user.uid, url: url, keywords: keywords, originalKeywords: originalKeywords}}), // Send data as needed
+                })
+                const data = await response.json();
+                if (data.done) {
+                  navigation.navigate('All', {name: null, goToMy: true})
+                }
+              } catch (error) {
+                console.error('Error:', error);
+              }
+            }
+            else if (profileChecked && postChecked && !sellChecked) {
+              try {
+                const response = await fetch(`http://10.0.0.225:4000/api/profilepostnotsell`, {
+                  method: 'POST', // Use appropriate HTTP method (GET, POST, etc.)
+                  headers: {
+                    'Content-Type': 'application/json', // Set content type as needed
+                  },
+                  body: JSON.stringify({ data: {themeName: themeName, price: 0, sellChecked: sellChecked, user: user.uid, url: url, keywords: keywords, originalKeywords: originalKeywords}}), // Send data as needed
                 })
                 const data = await response.json();
                   if (data.done) {
@@ -216,35 +257,15 @@ const SuccessTheme = ({route}) => {
               } catch (error) {
                 console.error('Error:', error);
               }
-                    //.then(() => navigation.navigate('All', {name: null, goToMy: true}))
-                }
-                else if (profileChecked && postChecked && !sellChecked) {
-                try {
-                const response = await fetch(`${BACKEND_URL}/api/profilepostnotsell`, {
-                  method: 'POST', // Use appropriate HTTP method (GET, POST, etc.)
-                  headers: {
-                    'Content-Type': 'application/json', // Set content type as needed
-                  },
-                  body: JSON.stringify({ data: {themeName: themeName, price: price, sellChecked: sellChecked, user: user.uid, url: url, keywords: keywords, originalKeywords: originalKeywords}}), // Send data as needed
-                })
-                const data = await response.json();
-                  if (data.done) {
-                    navigation.navigate('All', {name: null, goToMy: true})
-                  }
-              } catch (error) {
-                console.error('Error:', error);
-              }
-                    //.then(() => navigation.navigate('All', {name: null, goToMy: true}))
-
-                }
+            }
                 else if (sellChecked && profileChecked && !postChecked) {
                 try {
-                const response = await fetch(`${BACKEND_URL}/api/sellprofilenotpost`, {
+                const response = await fetch(`http://10.0.0.225:4000/api/sellprofilenotpost`, {
                   method: 'POST', // Use appropriate HTTP method (GET, POST, etc.)
                   headers: {
                     'Content-Type': 'application/json', // Set content type as needed
                   },
-                  body: JSON.stringify({ data: {themeName: themeName, price: price, sellChecked: sellChecked, user: user.uid, url: url, keywords: keywords, originalKeywords: originalKeywords}}), // Send data as needed
+                  body: JSON.stringify({ data: {themeName: themeName, price: 0, sellChecked: sellChecked, user: user.uid, url: url, keywords: keywords, originalKeywords: originalKeywords}}), // Send data as needed
                 })
                 const data = await response.json();
                   if (data.done) {
@@ -258,12 +279,12 @@ const SuccessTheme = ({route}) => {
                 }
                 else if (profileChecked && !postChecked && !sellChecked) {
                 try {
-                const response = await fetch(`${BACKEND_URL}/api/profilenotpostnotsell`, {
+                const response = await fetch(`http://10.0.0.225:4000/api/profilenotpostnotsell`, {
                   method: 'POST', // Use appropriate HTTP method (GET, POST, etc.)
                   headers: {
                     'Content-Type': 'application/json', // Set content type as needed
                   },
-                  body: JSON.stringify({ data: {themeName: themeName, price: price, sellChecked: sellChecked, user: user.uid, url: url, keywords: keywords, originalKeywords: originalKeywords}}), // Send data as needed
+                  body: JSON.stringify({ data: {themeName: themeName, price: 0, sellChecked: sellChecked, user: user.uid, url: url, keywords: keywords, originalKeywords: originalKeywords}}), // Send data as needed
                 })
                 const data = await response.json();
                   if (data.done) {
@@ -277,12 +298,12 @@ const SuccessTheme = ({route}) => {
                 }
                 else if ( sellChecked && postChecked && !profileChecked) {
                 try {
-                const response = await fetch(`${BACKEND_URL}/api/sellpostnotprofile`, {
+                const response = await fetch(`http://10.0.0.225:4000/api/sellpostnotprofile`, {
                   method: 'POST', // Use appropriate HTTP method (GET, POST, etc.)
                   headers: {
                     'Content-Type': 'application/json', // Set content type as needed
                   },
-                  body: JSON.stringify({ data: {themeName: themeName, price: price, sellChecked: sellChecked, user: user.uid, url: url, keywords: keywords, originalKeywords: originalKeywords}}), // Send data as needed
+                  body: JSON.stringify({ data: {themeName: themeName, price: 0, sellChecked: sellChecked, user: user.uid, url: url, keywords: keywords, originalKeywords: originalKeywords}}), // Send data as needed
                 })
                 const data = await response.json();
                   if (data.done) {
@@ -295,12 +316,12 @@ const SuccessTheme = ({route}) => {
                 }
                 else if (postChecked && !profileChecked && !sellChecked) {
                 try {
-                const response = await fetch(`${BACKEND_URL}/api/postnotprofilenotsell`, {
+                const response = await fetch(`http://10.0.0.225:4000/api/postnotprofilenotsell`, {
                   method: 'POST', // Use appropriate HTTP method (GET, POST, etc.)
                   headers: {
                     'Content-Type': 'application/json', // Set content type as needed
                   },
-                  body: JSON.stringify({ data: {themeName: themeName, price: price, sellChecked: sellChecked, user: user.uid, url: url, keywords: keywords, originalKeywords: originalKeywords}}), // Send data as needed
+                  body: JSON.stringify({ data: {themeName: themeName, price: 0, sellChecked: sellChecked, user: user.uid, url: url, keywords: keywords, originalKeywords: originalKeywords}}), // Send data as needed
                 })
                 const data = await response.json();
                   if (data.done) {
@@ -313,12 +334,12 @@ const SuccessTheme = ({route}) => {
           }
                 else if (sellChecked && !profileChecked && !postChecked) {
                 try {
-                const response = await fetch(`${BACKEND_URL}/api/sellnotprofilenotpost`, {
+                const response = await fetch(`http://10.0.0.225:4000/api/sellnotprofilenotpost`, {
                   method: 'POST', // Use appropriate HTTP method (GET, POST, etc.)
                   headers: {
                     'Content-Type': 'application/json', // Set content type as needed
                   },
-                  body: JSON.stringify({ data: {themeName: themeName, price: price, sellChecked: sellChecked, user: user.uid, url: url, keywords: keywords, originalKeywords: originalKeywords}}), // Send data as needed
+                  body: JSON.stringify({ data: {themeName: themeName, price: 0, sellChecked: sellChecked, user: user.uid, url: url, keywords: keywords, originalKeywords: originalKeywords}}), // Send data as needed
                 })
                 const data = await response.json();
                   if (data.done) {
@@ -331,12 +352,12 @@ const SuccessTheme = ({route}) => {
                 }
                 else {
                 try {
-                const response = await fetch(`${BACKEND_URL}/api/notsellnotprofilenotpost`, {
+                const response = await fetch(`http://10.0.0.225:4000/api/notsellnotprofilenotpost`, {
                   method: 'POST', // Use appropriate HTTP method (GET, POST, etc.)
                   headers: {
                     'Content-Type': 'application/json', // Set content type as needed
                   },
-                  body: JSON.stringify({ data: {themeName: themeName, price: price, sellChecked: sellChecked, user: user.uid, url: url, keywords: keywords, originalKeywords: originalKeywords}}), // Send data as needed
+                  body: JSON.stringify({ data: {themeName: themeName, price: 0, sellChecked: sellChecked, user: user.uid, url: url, keywords: keywords, originalKeywords: originalKeywords}}), // Send data as needed
                 })
                 const data = await response.json();
                   if (data.done) {
@@ -428,7 +449,7 @@ const linkKeywordsAlert = () => {
                     else {
                         if (profile.stripeAccountID == null && sellChecked && Number.parseFloat(price) > 0) {
                         setUploading(false)
-                        navigation.navigate('AddCard', {name: name, groupsJoined: profile.groupsJoined, themeName: themeName, price: price, post: post,  keywords: originalKeywords,
+                        navigation.navigate('AddCard', {name: name, groupsJoined: profile.groupsJoined, themeName: themeName, price: 0, post: post,  keywords: originalKeywords,
             searchKeywords: keywords, sellChecked: sellChecked,
                         profileChecked: profileChecked, postChecked: postChecked, notificationToken: profile.notificationToken})
                     } 
@@ -533,13 +554,6 @@ function checkKeywords() {
                 
                 }
                 else {
-                    if (profile.stripeAccountID == null && sellChecked && Number.parseFloat(price) > 0) {
-                      setUploading(false)
-                        navigation.navigate('AddCard', {name: name, groupsJoined: profile.groupsJoined, themeName: themeName, price: price, post: post,  keywords: originalKeywords,
-            searchKeywords: keywords, sellChecked: sellChecked,
-                        profileChecked: profileChecked, postChecked: postChecked, notificationToken: profile.notificationToken})
-                    } 
-                    else {
                     const response = await fetch(post)
                         const blob = await response.blob();
                         const filename = `themes/${name}${themeName}${Date.now()}theme.jpg`
@@ -550,13 +564,12 @@ function checkKeywords() {
                             console.log(error)
                         }
                         await uploadBytesResumable(storageRef, blob).then(() => getLink(filename))
-                }
             }
             }
     })
 }
     async function sendThemeToDB() {
-        
+        console.log('fdksllk')
         setUploading(true)
         setErrorLinkKeywords(false)
         setErrorLinkThemeName(false)

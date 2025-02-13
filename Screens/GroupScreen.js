@@ -99,7 +99,7 @@ const GroupScreen = ({route}) => {
   useEffect(() => {
     //console.log(specificSearch.toLowerCase())
     if (specificSearch.length > 0) {
-      //console.log('first')
+      //
       setCliqueSearches([])
       const getData = async() => {
         const q = query(collection(db, "groups"), where('searchkeywords', 'array-contains', specificSearch.toLowerCase()), limit(10));
@@ -210,7 +210,7 @@ const GroupScreen = ({route}) => {
     }, [tempPosts, done])
     useMemo(() => {
     if (specificSearch.length > 0 && bannedFrom != null) {
-      //console.log('first')
+      //
       setGroupSearches([])
       const getData = async() => {
         const firstQ = query(collection(db, "groups"), where('searchkeywords', 'array-contains', specificSearch.toLowerCase()), limit(10));

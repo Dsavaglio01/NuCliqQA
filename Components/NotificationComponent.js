@@ -9,6 +9,7 @@ import FastImage from 'react-native-fast-image';
 import NextButton from './NextButton';
 import { schedulePushAcceptNotification } from '../notificationFunctions';
 import generateId from '../lib/generateId';
+import { deleteNotificationFunction } from '../firebaseUtils';
 let row = [];
 let prevOpenedRow;
 const NotificationComponent = ({clique, item, index, user, filterCompleteNotifications}) => {
@@ -22,12 +23,12 @@ const NotificationComponent = ({clique, item, index, user, filterCompleteNotific
                 headers: {
                     'Content-Type': 'application/json', // Set content type as needed
                 },
-                body: JSON.stringify({ data: {item: item, newUser: newUser, username: profile.username, 
+                body: JSON.stringify({ data: {item: item, newUser: newUser, username: profile.userName, 
                     smallKeywords: profile.smallKeywords, largeKeywords: profile.largeKeywords, user: user.uid}}), // Send data as needed
                 })
                 const data = await response.json();
                 if (data.done) {
-                    schedulePushAcceptNotification(item.item.requestUser, profile.username, item.info.notificationToken)
+                    schedulePushAcceptNotification(item.item.requestUser, profile.userName, item.info.notificationToken)
                     handleFilter();
                 }
             } catch (error) {
@@ -40,12 +41,11 @@ const NotificationComponent = ({clique, item, index, user, filterCompleteNotific
     async function deleteNotification(item)  {
         if (item.item.request) {
             handleFilter();
-            await deleteDoc(doc(db, 'profiles', user.uid, 'notifications', item.item.id))
-            .then(async() => await deleteDoc(doc(db, 'profiles', user.uid, 'requests', item.item.requestUser))).then(async() => await deleteDoc(doc(db, 'profiles', item.item.requestUser, 'requests', user.uid))) 
+            deleteNotificationFunction(user.uid, item.item.id, item.item.requestUser, true)
         }
         else {
             handleFilter();
-            await deleteDoc(doc(db, 'profiles', user.uid, 'notifications', item.item.id))
+            deleteNotificationFunction(user.uid, item.item.id, null, false)
         }
     }
     const closeRow = (index) => {
@@ -63,7 +63,7 @@ const NotificationComponent = ({clique, item, index, user, filterCompleteNotific
       );
     };
     return (
-        <Swipeable renderRightActions={(progress, dragX) =>
+        <Swipeable renderRightActions={(progress, dragX, onClick) =>
           renderRightActions(progress, dragX, onClick)
         }
         onSwipeableOpen={() => closeRow(index)}
@@ -89,7 +89,7 @@ const NotificationComponent = ({clique, item, index, user, filterCompleteNotific
       </TouchableOpacity> : item.postInfo.post.post[0].video ? <TouchableOpacity style={styles.item} onPress={!item.postInfo.repost ? () => navigation.navigate('Post', {post: item.postInfo.id, name: item.postInfo.userId, groupId: null, video: true}) : () => navigation.navigate('Repost', {post: item.postInfo.id, name: item.postInfo.userId, groupId: null})}>
         <FastImage source={{uri: item.postInfo.post.post[0].thumbnail}} style={styles.borderImage}/>
       </TouchableOpacity> : <TouchableOpacity style={styles.item} onPress={!item.postInfo.repost ? () => navigation.navigate('Post', {post: item.postInfo.id, name: item.postInfo.userId, groupId: null, video: false}) : () => navigation.navigate('Repost', {post: item.postInfo.id, name: item.postInfo.userId, groupId: null})}>
-        <Text style={styles.text}>{item.postInfo.post.post[0].value}</Text>
+        <Text style={styles.text}>{item.postInfo.repost ? item.postInfo.caption : item.postInfo.post.post[0].value}</Text>
       </TouchableOpacity>}
         
         </View> : item.item.request ? 
@@ -150,7 +150,7 @@ const NotificationComponent = ({clique, item, index, user, filterCompleteNotific
             </TouchableOpacity> : item.postInfo.post.post[0].video ? <TouchableOpacity style={styles.item} onPress={!item.postInfo.repost ? () => navigation.navigate('Post', {post: item.postInfo.id, name: item.postInfo.userId, groupId: null, video: true}) : () => navigation.navigate('Repost', {post: item.postInfo.id, name: item.postInfo.userId, groupId: null})}>
         <FastImage source={{uri: item.postInfo.post.post[0].thumbnail}} style={styles.borderImage}/>
       </TouchableOpacity> : <TouchableOpacity style={styles.item} onPress={!item.postInfo.repost ? () => navigation.navigate('Post', {post: item.postInfo.id, name: item.postInfo.userId, groupId: null, video: false}) : () => navigation.navigate('Repost', {post: item.postInfo.id, name: item.postInfo.userId, groupId: null})}>
-        <Text style={styles.text}>{item.postInfo.post.post[0].value}</Text>
+        <Text style={styles.text}>{item.postInfo.repost ? item.postInfo.caption : item.postInfo.post.post[0].value}</Text>
       </TouchableOpacity>}
           </View> : item.item.message ? 
           <View style={styles.messageReport}> 
@@ -185,7 +185,7 @@ const NotificationComponent = ({clique, item, index, user, filterCompleteNotific
       </TouchableOpacity> : item.postInfo.post.post[0].video ? <TouchableOpacity style={styles.item} onPress={!item.postInfo.repost ? () => navigation.navigate('Post', {post: item.postInfo.id, name: item.postInfo.userId, groupId: null, video: true}) : () => navigation.navigate('Repost', {post: item.postInfo.id, name: item.postInfo.userId, groupId: null})}>
         <FastImage source={{uri: item.postInfo.post.post[0].thumbnail}} style={styles.borderImage}/>
       </TouchableOpacity> : <TouchableOpacity style={styles.item} onPress={!item.postInfo.repost ? () => navigation.navigate('Post', {post: item.postInfo.id, name: item.postInfo.userId, groupId: null, video: false}) : () => navigation.navigate('Repost', {post: item.postInfo.id, name: item.postInfo.userId, groupId: null})}>
-        <Text style={styles.text}>{item.postInfo.post.post[0].value}</Text>
+        <Text style={styles.text}>{item.postInfo.repost ? item.postInfo.caption : item.postInfo.post.post[0].value}</Text>
       </TouchableOpacity>}
         </View> : 
         <View style={styles.likeNotificationContainer}>
@@ -206,7 +206,7 @@ const NotificationComponent = ({clique, item, index, user, filterCompleteNotific
       </TouchableOpacity> : item.postInfo.post.post[0].video ? <TouchableOpacity style={styles.item} onPress={!item.postInfo.repost ? () => navigation.navigate('Post', {post: item.postInfo.id, name: item.postInfo.userId, groupId: null, video: true}) : () => navigation.navigate('Repost', {post: item.postInfo.id, name: item.postInfo.userId, groupId: null})}>
         <FastImage source={{uri: item.postInfo.post.post[0].thumbnail}} style={styles.borderImage}/>
       </TouchableOpacity> : <TouchableOpacity style={styles.item} onPress={!item.postInfo.repost ? () => navigation.navigate('Post', {post: item.postInfo.id, name: item.postInfo.userId, groupId: null, video: false}) : () => navigation.navigate('Repost', {post: item.postInfo.id, name: item.postInfo.userId, groupId: null})}>
-        <Text style={styles.text}>{item.postInfo.post.post[0].value}</Text>
+        <Text style={styles.text}>{item.postInfo.repost ? item.postInfo.caption : item.postInfo.post.post[0].value}</Text>
       </TouchableOpacity>}
         </View>
         : item.item.reply ? 
@@ -228,7 +228,7 @@ const NotificationComponent = ({clique, item, index, user, filterCompleteNotific
       </TouchableOpacity> : item.postInfo.post.post[0].video ? <TouchableOpacity style={styles.item} onPress={!item.postInfo.repost ? () => navigation.navigate('Post', {post: item.postInfo.id, name: item.postInfo.userId, groupId: null, video: true}) : () => navigation.navigate('Repost', {post: item.postInfo.id, name: item.postInfo.userId, groupId: null})}>
         <FastImage source={{uri: item.postInfo.post.post[0].thumbnail}} style={styles.borderImage}/>
       </TouchableOpacity> : <TouchableOpacity style={styles.item} onPress={!item.postInfo.repost ? () => navigation.navigate('Post', {post: item.postInfo.id, name: item.postInfo.userId, groupId: null, video: false}) : () => navigation.navigate('Repost', {post: item.postInfo.id, name: item.postInfo.userId, groupId: null})}>
-        <Text style={styles.text}>{item.postInfo.post.post[0].value}</Text>
+        <Text style={styles.text}>{item.postInfo.repost ? item.postInfo.caption : item.postInfo.post.post[0].value}</Text>
       </TouchableOpacity>}
         </View> :
         item.item.theme ? 
@@ -261,7 +261,7 @@ const NotificationComponent = ({clique, item, index, user, filterCompleteNotific
       </TouchableOpacity> : item.postInfo.post.post[0].video ? <TouchableOpacity style={styles.item} onPress={!item.postInfo.repost ? () => navigation.navigate('Post', {post: item.postInfo.id, name: item.postInfo.userId, groupId: null, video: true}) : () => navigation.navigate('Repost', {post: item.postInfo.id, name: item.postInfo.userId, groupId: null})}>
         <FastImage source={{uri: item.postInfo.post.post[0].thumbnail}} style={styles.borderImage}/>
       </TouchableOpacity> : <TouchableOpacity style={styles.item} onPress={!item.postInfo.repost ? () => navigation.navigate('Post', {post: item.postInfo.id, name: item.postInfo.userId, groupId: null, video: false}) : () => navigation.navigate('Repost', {post: item.postInfo.id, name: item.postInfo.userId, groupId: null})}>
-        <Text style={styles.text}>{item.postInfo.post.post[0].value}</Text>
+        <Text style={styles.text}>{item.postInfo.repost ? item.postInfo.caption : item.postInfo.post.post[0].value}</Text>
       </TouchableOpacity>}
         </View> : item.item.remove ? 
         <View style={styles.likeNotificationContainer}>
@@ -333,7 +333,8 @@ const styles = StyleSheet.create({
         padding: 7.5,
         paddingLeft: 15,
         fontFamily: 'Montserrat_500Medium',
-        maxWidth: '90%'
+        maxWidth: '90%',
+        color: "#fafafa"
     },
     image: {
         height: 40, 

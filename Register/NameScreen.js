@@ -65,7 +65,7 @@ const NameScreen = () => {
     if (!userName) return; // Don't check if username is empty
 
     try {
-      console.log('first')
+      
       const docSnapshot = await getDocs(query(collection(db, 'usernames'), where('username', '==', userName.toLowerCase())))
       //docSnapshot // Update availability based on doc existence
       if (docSnapshot.docs.length > 0) {

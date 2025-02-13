@@ -3,6 +3,7 @@ import React from 'react'
 import FastImage from 'react-native-fast-image'
 import { useNavigation } from '@react-navigation/native'
 import ChatBubble from 'react-native-chat-bubble'
+import {MaterialCommunityIcons} from '@expo/vector-icons';
 const MiniPost = ({item, index, repost, name}) => {
     const navigation = useNavigation();
       return (

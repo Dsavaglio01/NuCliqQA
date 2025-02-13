@@ -1,73 +1,44 @@
-import { addDoc, collection, onSnapshot, query,  where, serverTimestamp, orderBy, startAfter, updateDoc, doc, getCountFromServer, limit, getDoc, getDocs, deleteDoc, arrayUnion } from 'firebase/firestore';
+import { collection, onSnapshot, query,  where, orderBy, startAfter, updateDoc, doc, getCountFromServer, limit, getDoc, getDocs, deleteDoc, arrayUnion } from 'firebase/firestore';
 import React, { useState, useEffect, useRef, useMemo, useCallback, useContext } from 'react';
-import {
-  View,
-  TextInput,
-  TouchableOpacity,
-  Text,
-  FlatList,
-  KeyboardAvoidingView,
-  Platform,
-  StyleSheet,
-  Alert,
-  ActivityIndicator,
-  Animated,
-  Dimensions
-} from 'react-native';
+import {View, Text, FlatList, ActivityIndicator, Animated, Dimensions, StyleSheet} from 'react-native';
 import useAuth from '../Hooks/useAuth';
-import {MaterialCommunityIcons, FontAwesome, MaterialIcons, Ionicons} from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import MainButton from '../Components/MainButton';
-import { Divider } from 'react-native-paper';
-import * as Clipboard from 'expo-clipboard'
 import uuid from 'react-native-uuid';
 import FastImage from 'react-native-fast-image';
-import {BACKEND_URL} from "@env"
 import { useIsFocused } from '@react-navigation/native'
-import { useFonts, Montserrat_600SemiBold, Montserrat_500Medium } from '@expo-google-fonts/montserrat';
 import { useFocusEffect } from '@react-navigation/native';
-import * as Haptics from 'expo-haptics';
 import themeContext from '../lib/themeContext';
 import TypingIndicator from '../Components/TypingIndicator';
-import ChatBubble from 'react-native-chat-bubble';
 import { db } from '../firebase'
 import ProfileContext from '../lib/profileContext';
 import { useSinglePickImage } from '../Hooks/useSinglePickImage';
-import getDateAndTime from '../lib/getDateAndTime';
+import ThemeChat from '../Components/Chat/ThemeChat';
+import PostChat from '../Components/Chat/PostChat';
+import TextChat from '../Components/Chat/TextChat';
+import ChatInput from '../Components/Chat/ChatInput';
+import ChatHeader from '../Components/Chat/ChatHeader';
 const PersonalChatScreen = ({route}) => {
   const {person, friendId} = route.params;
   const [loading, setLoading] = useState(true) 
   const isFocused = useIsFocused();
-  const [singleMessageLoading, setSingleMessageLoading] = useState(false);
   const [typing, setTyping] = useState(false);
   const [lastMessageId, setLastMessageId] = useState('');
   const [readBy, setReadBy] = useState([]);
   const [lastVisible, setLastVisible] = useState();
-  const inputRef = useRef();
   const [messages, setMessages] = useState([]);
   const [animatedValue] = useState(new Animated.Value(0))
   const [active, setActive] = useState(true);
   const [newMessages, setNewMessages] = useState([]);
-  const [requests, setRequests] = useState([]);
-  const [inputText, setInputText] = useState('');
   const [isInitialLoad, setIsInitialLoad] = useState(true); // To track if it's the first render
   const hasScrolled = useRef(false);
   const theme = useContext(themeContext)
-  const [imageModal, setImageModal] = useState(false);
-  const [selectedImage, setSelectedImage] = useState(null)
-  const [textCopied, setTextCopied] = useState('');
   const [reportedContent, setReportedContent] = useState([]);
-  const [userCopied, setUserCopied] = useState('');
-  const [imageCopied, setImageCopied] = useState(null);
-  const [themeCopied, setThemeCopied] = useState(null); 
-  const [keyboardFocused, setKeyboardFocused] = useState(false);
   const [friends, setFriends] = useState(0);
-  const [tapCount, setTapCount] = useState(0);
-  const timerRef = useRef(null);
   const {user} = useAuth()
   const navigation = useNavigation();
   const profile = useContext(ProfileContext);
-  const {imageLoading, pickImage} = useSinglePickImage({messagePfp: true, firstName: profile.firstName, lastName: profile.lastName, person: person,
+  const {imageLoading} = useSinglePickImage({messagePfp: true, firstName: profile.firstName, lastName: profile.lastName, person: person,
     friendId: friendId, name: `${uuid.v4()}${user.uid}${friendId}${Date.now()}message.jpg`});
   useEffect(() => {
     let unsub;
@@ -85,8 +56,6 @@ const PersonalChatScreen = ({route}) => {
       }
       fetchData()
       // This block of code will run when the screen is focused
-      
-
       // Clean-up function when the component unmounts or the screen loses focus
       return async() => {
         await updateDoc(doc(db, 'profiles', user.uid), {
@@ -122,54 +91,6 @@ const PersonalChatScreen = ({route}) => {
       // Cleanup logic when component unmounts or screen changes
     };
   }, [isFocused]);
- async function schedulePushTextNotification(id, firstName, lastName, message, notificationToken) {
-  let notis = (await getDoc(doc(db, 'profiles', id))).data().allowNotifications
-  let activeNoties = (await getDoc(doc(db, 'profiles', id))).data().activeOnMessage
-  let banned = (await getDoc(doc(db, 'profiles', id))).data().banned
-  //console.log(first)
-  const deepLink = `nucliqv1://PersonalChat?person=${profile}&friendId=${friendId}`;
-      if (notis && !activeNoties && !banned) {
-      await fetch(`${BACKEND_URL}/api/textNotification`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        firstName: firstName, lastName: lastName, 
-        message: message, pushToken: notificationToken, "content-available": 1, data: {routeName: 'PersonalChat', person: profile, friendId: friendId, deepLink: deepLink}
-      }),
-      })
-      .then(response => response.json())
-      .then(responseData => {
-    })
-    .catch(error => {
-      console.error(error);
-    })
-  }
-  }
-  async function schedulePushLikedMessageNotification(id, firstName, lastName, notificationToken) {
-    let notis = (await getDoc(doc(db, 'profiles', id))).data().allowNotifications
-    let activeNoties = (await getDoc(doc(db, 'profiles', id))).data().activeOnMessage
-    let banned = (await getDoc(doc(db, 'profiles', id))).data().banned
-    const deepLink = `nucliqv1://PersonalChat?person=${profile}&friendId=${friendId}`;
-      if (notis && !activeNoties && !banned) {
-      fetch(`${BACKEND_URL}/api/likePostNotification`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        firstName: firstName, lastName: lastName, pushToken: notificationToken, "content-available": 1, data: {routeName: 'PersonalChat', person: profile, friendId: friendId, deepLink: deepLink}
-      }),
-      })
-      .then(response => response.json())
-      .then(responseData => {
-    })
-    .catch(error => {
-      console.error(error);
-    })
-  }
-  }
   
   //console.log(friendId)
   useEffect(() => {
@@ -193,7 +114,7 @@ const PersonalChatScreen = ({route}) => {
       return unsub;
   }, [])
   function fetchMoreData() {
-    console.log('first')
+    
       if (lastVisible != undefined) {
         
     let unsub;
@@ -233,46 +154,17 @@ const PersonalChatScreen = ({route}) => {
     });
     return unsub;
   }, [onSnapshot])
-  useEffect(()=> {
-      let unsub;
-      const fetchRequests = () => {
-        unsub = onSnapshot(query(collection(db, 'profiles', user.uid, 'requests'), where('actualRequest', '==', true)), (snapshot) => {
-          setRequests(snapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data()
-          })))
-        })
-      }
-      fetchRequests();
-      return unsub;
-    }, []);
-  //console.log(newMessages.length)
   useMemo(() => {
     if (messages.length > 0) {
-      //console.log('first')
+      //
       new Promise(resolve => {
       const newArray = [...messages];
       messages.map((item, index) => {
         //console.log(item)
         if (item) {
       if (item.message.post != undefined) {
-        //console.log('first')
-        /* if (item.message.post.group != undefined) {
-          //console.log(item.message.post)
-          const getData = async() => {
-          //const docSnap = await getDoc(doc(db, 'groups', item.message.post.group))
-            //console.log(docSnap.data())
-            newArray[index].message.post = newArray[index].message.post
-            //console.log(newArray)
-            setNewMessages(newArray)
-          
-        }
-
-      
-          getData()
-        } */
         if (item.message.post.group == undefined && item.video) {
-          //console.log('first')
+          //
           const getData = async() => {
           const docSnap = await getDoc(doc(db, 'videos', item.message.post.id))
           if (docSnap.exists()) {
@@ -292,7 +184,7 @@ const PersonalChatScreen = ({route}) => {
         }
         else if (item.message.post.group == undefined && !item.video) {
           //console.log(item.message.post)
-          //console.log('first')
+          //
           const getData = async() => {
           const docSnap = await getDoc(doc(db, 'posts', item.message.post.id))
           if (docSnap.exists()) {
@@ -370,88 +262,8 @@ const PersonalChatScreen = ({route}) => {
       useNativeDriver: true,
     }).start();
   }, []);
-  const heartColor = 'gray';
-  const likedHeartColor = 'red'
-  const userPostContainer = {
-    margin: 5,
-    //marginBottom: 0,
-    paddingTop: 5,
-    padding: 10,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 5,
-    maxWidth: 270,
-    alignSelf: 'flex-end',
-    transform: [
-      {
-        scale: animatedValue.interpolate({
-          inputRange: [0, 1],
-          outputRange: [0.8, 1],
-        }),
-      },
-    ],
-    borderRadius: 20,
-    backgroundColor: '#9edaff',
-  }
-  const postContainer = {
-    margin: 5,
-    //marginBottom: 0,
-    padding: 10,
-    borderTopLeftRadius: 5,
-    borderTopRightRadius: 20,
-    maxWidth: 270,
-    alignSelf: 'flex-start',
-    transform: [
-      {
-        scale: animatedValue.interpolate({
-          inputRange: [0, 1],
-          outputRange: [0.8, 1],
-        }),
-      },
-    ],
-    borderRadius: 20,
-    backgroundColor: '#005278',
-    //alignSelf: 'center'
-  }
-  const userBubbleStyle = {
-    backgroundColor: '#9edaff',
-    padding: 10,
-    
-    margin: 5,
-    borderRadius: 20,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 5,
-    maxWidth: 200,
-    alignSelf: 'flex-end',
-    transform: [
-      {
-        scale: animatedValue.interpolate({
-          inputRange: [0, 1],
-          outputRange: [0.8, 1],
-        }),
-      },
-    ],
-  }
-   const bubbleStyle = {
-    backgroundColor: '#005278',
-    padding: 10,
-    
-    margin: 5,
-    borderRadius: 20,
-    borderTopLeftRadius: 5,
-    borderTopRightRadius: 20,
-    maxWidth: 200,
-    alignSelf: 'flex-start',
-    transform: [
-      {
-        scale: animatedValue.interpolate({
-          inputRange: [0, 1],
-          outputRange: [0.8, 1],
-        }),
-      },
-    ],
-  };
 useEffect(() => {
-  //console.log('first')
+  //
   let unsub;
   const queryData = async() => {
     unsub = onSnapshot(doc(db, 'friends', friendId), async(doc) => {
@@ -477,98 +289,6 @@ useEffect(() => {
   queryData()
   return unsub;
 }, [])
-  //console.log(active)
-  //console.log(person)
-  const sendMessage = async() => {
-    if (active && inputText.trim() !== '') {
-    if (inputText.trim() === '') {
-      return;
-    }
-    const newMessage = {
-      text: inputText,
-      //user: user.uid,
-      //toUser: person.id
-    };
-    setSingleMessageLoading(true)
-    /* await updateDoc(doc(db, 'profiles', user.uid), {
-      messageTyping: ''
-    }) */
-    inputRef.current.blur()
-        schedulePushTextNotification(person.id, profile.firstName, profile.lastName, newMessage, person.notificationToken)
-    const docRef = await addDoc(collection(db, 'friends', friendId, 'chats'), {
-        message: newMessage,
-        liked: false,
-        toUser: person.id,
-        user: user.uid,
-        firstName: profile.firstName,
-        lastName: profile.lastName,
-        pfp: person.pfp,
-        readBy: [],
-        timestamp: serverTimestamp()
-    })
-    addDoc(collection(db, 'friends', friendId, 'messageNotifications'), {
-      //message: true,
-      id: docRef.id,
-      toUser: person.id,
-      readBy: [],
-      timestamp: serverTimestamp()
-    }).then(async() =>
-         await updateDoc(doc(db, 'profiles', person.id), {
-             messageNotifications: arrayUnion({id: docRef.id, user: user.uid})
-         })).then(async() => await updateDoc(doc(db, 'friends', friendId), {
-      lastMessage: newMessage,
-      messageId: docRef.id,
-      readBy: [],
-      active: true,
-      toUser: person.id,
-      lastMessageTimestamp: serverTimestamp()
-    }
-    )).then(async() => await updateDoc(doc(db, 'profiles', user.uid, 'friends', person.id), {
-      lastMessageTimestamp: serverTimestamp()
-    })).then(async() => await updateDoc(doc(db, 'profiles', person.id, 'friends', user.uid), {
-      lastMessageTimestamp: serverTimestamp()
-    }))
-    setInputText('');
-    setSingleMessageLoading(false)
-    setKeyboardFocused(false)
-    
-  }
-  else if (!active && inputText.trim() !== 0) {
-    Alert.alert('You must both be following each other first (mutual friends) in order to message!')
-  }
-}
-  //console.log(messages)
-  //console.log(user.uid)
-  const renderLiked = async(actualId) => {
-    if (actualId.liked == true) {
-      await updateDoc(doc(db, 'friends', friendId, 'chats', actualId.id), {
-      liked: false
-    }).then(() => {
-      const updatedArray = newMessages.map((item) => {
-      if (item.id === actualId.id) {
-        return { ...item, liked: false };
-      }
-      return item;
-    });
-    setNewMessages(updatedArray) 
-    })
-    }
-    else {
-      await updateDoc(doc(db, 'friends', friendId, 'chats', actualId.id), {
-      liked: true
-    }).then(() => {
-      const updatedArray = newMessages.map((item) => {
-      if (item.id === actualId.id) {
-        return { ...item, liked: true };
-      }
-      return item;
-    });
-    setNewMessages(updatedArray) 
-    }).then(actualId.user != user.uid ? () => schedulePushLikedMessageNotification(person.id, profile.firstName, profile.lastName, person.notificationToken) : null)
-    //console.log(updatedArray)
-    
-    }
-    }
   useEffect(() =>{
     const getFriends = async() => {
       const coll = collection(db, 'profiles', person.id, 'friends');
@@ -582,9 +302,9 @@ useEffect(() => {
   }, [])
   useEffect(() => {
     let unsub;
-    unsub = onSnapshot(doc(db, 'profiles', person.id), (doc) => {
-      if (doc.data().messageTyping) {
-        if (doc.data().messageTyping == user.uid) {
+    unsub = onSnapshot(doc(db, 'profiles', person.id), (document) => {
+      if (document.data().messageTyping) {
+        if (document.data().messageTyping == user.uid) {
           setTyping(true)
         }
       }
@@ -594,282 +314,10 @@ useEffect(() => {
     })
     return unsub;
   }, [onSnapshot])
-   //console.log(typing)
-
-
-
-
-  //console.log(messages.length)
-  //console.log(friendId)
-  async function copyFunction(item) {
-    await Clipboard.setStringAsync(textCopied).then(()=> toggleCopyToFalse(item)).catch((error) => console.warn(error))
-  }
-  async function deleteMessage(item) {
-      const newMessage = newMessages[newMessages.indexOf(item.id) + 2]
-      //item.message.image
-      if (newMessage) {
-        if (item.message.image) {
-            try {
-    const response = await fetch(`${BACKEND_URL}/api/deleteImageMessageNewMessage`, {
-      method: 'POST', // Use appropriate HTTP method (GET, POST, etc.)
-      headers: {
-        'Content-Type': 'application/json', // Set content type as needed
-      },
-      body: JSON.stringify({ data: {item: item, image: item.message.image, friendId: friendId, newMessage: newMessage}}), // Send data as needed
-    })
-    const data = await response.json();
-    //console.log(data)
-      if (data.done) {
-        setNewMessages(newMessages.filter((e) => e.id != item.id))
-        setLastMessageId(newMessage.id)
-      }
-    } catch (e) {
-      console.error(e);
-      
-    }
-
-        }
-        else {
-          try {
-    const response = await fetch(`${BACKEND_URL}/api/deleteMessageNewMessage`, {
-      method: 'POST', // Use appropriate HTTP method (GET, POST, etc.)
-      headers: {
-        'Content-Type': 'application/json', // Set content type as needed
-      },
-      body: JSON.stringify({ data: {item: item, friendId: friendId, newMessage: newMessage}}), // Send data as needed
-    })
-    const data = await response.json();
-    //console.log(data)
-      if (data.done) {
-        setNewMessages(newMessages.filter((e) => e.id != item.id))
-        setLastMessageId(newMessage.id)
-      }
-    } catch (e) {
-      console.error(e);
-      
-    }
-        }
-        
-      }
-      else {
-        if (item.message.image) {
-          try {
-    const response = await fetch(`${BACKEND_URL}/api/deleteImageMessage`, {
-      method: 'POST', // Use appropriate HTTP method (GET, POST, etc.)
-      headers: {
-        'Content-Type': 'application/json', // Set content type as needed
-      },
-      body: JSON.stringify({ data: {item: item, image: item.message.image, friendId: friendId, newMessage: newMessage}}), // Send data as needed
-    })
-    const data = await response.json();
-    //console.log(data)
-      if (data.done) {
-          setNewMessages(newMessages.filter((e) => e.id != item.id))
-      }
-    } catch 
-    (e) {
-      console.error(e);
-      
-    }
-        }
-        else {
-
-          try {
-    const response = await fetch(`${BACKEND_URL}/api/deleteMessage`, {
-      method: 'POST', // Use appropriate HTTP method (GET, POST, etc.)
-      headers: {
-        'Content-Type': 'application/json', // Set content type as needed
-      },
-      body: JSON.stringify({ data: {item: item, friendId: friendId, newMessage: newMessage}}), // Send data as needed
-    })
-    const data = await response.json();
-    //console.log(data)
-      if (data.done) {
-          setNewMessages(newMessages.filter((e) => e.id != item.id))
-      }
-    } catch 
-    (e) {
-      console.error(e);
-      
-    }
-        }
-        
-      }
-      //console.log(newMessages.indexOf(item) - 1)
-
-  }
-    
-  
-  function toggleCopyToTrue(e) {
-   const updatedArray = newMessages.map(item => {
-      if (item.id === e.id) {
-        // Update the "isActive" property from false to true
-        return { ...item, copyModal: true, saveModal: false};
-      }
-      return item;
-    });
-    setNewMessages(updatedArray) 
-  }
-  function toggleSaveToTrue(e) {
-   const updatedArray = newMessages.map(item => {
-      if (item.id === e.id) {
-        // Update the "isActive" property from false to true
-        return { ...item, copyModal: false, saveModal: true };
-      }
-      return item;
-    });
-    setNewMessages(updatedArray) 
-  }
-  
-  function handleImagePress(item) {
-    setTapCount(tapCount + 1);
-
-    if (tapCount === 0) {
-      // Set a timer for the second tap
-      timerRef.current = setTimeout(() => {
-        // If no second tap occurs within the timer, treat it as a single tap
-        setTapCount(0);
-        setSelectedImage(item.message.image)
-        setImageModal(true)
-        //console.log('Single Tap!');
-      }, 300); // Adjust the time limit according to your requirements
-    } else if (tapCount === 1) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-      // If it's the second tap and the timer is still active, treat it as a double tap
-      clearTimeout(timerRef.current);
-      setTapCount(0);
-      renderLiked(item)
-    }
-  }
-  
-  function handleGroupPress(item) {
-    setTapCount(tapCount + 1);
-
-    if (tapCount === 0) {
-      // Set a timer for the second tap
-      timerRef.current = setTimeout(() => {
-        // If no second tap occurs within the timer, treat it as a single tap
-        setTapCount(0);
-        navigation.navigate('Cliqs', {screen: 'GroupHome', params: {name: item.message.post.id, newPost: false, postId: null}})
-        //console.log('Single Tap!');
-      }, 300); // Adjust the time limit according to your requirements
-    } else if (tapCount === 1) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-      // If it's the second tap and the timer is still active, treat it as a double tap
-      clearTimeout(timerRef.current);
-      setTapCount(0);
-      renderLiked(item)
-    }
-  }
-  //console.log(newMessages[0])
-  
-
-  function handleMessagePress(item) {
-    //console.log(item)
-    setTapCount(tapCount + 1);
-    //renderLiked(item)
-    if (tapCount === 0) {
-      // Set a timer for the second tap
-      timerRef.current = setTimeout(() => {
-        // If no second tap occurs within the timer, treat it as a single tap
-        setTapCount(0);
-        console.log('Single Tap!');
-      }, 500); // Adjust the time limit according to your requirements
-    } else if (tapCount === 1) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-      // If it's the second tap and the timer is still active, treat it as a double tap
-      clearTimeout(timerRef.current);
-      setTapCount(0);
-      renderLiked(item)
-      
-      
-    }
-  }
-  function handlePostPress(item) {
-
-    setTapCount(tapCount + 1);
-
-    if (tapCount === 0) {
-      // Set a timer for the second tap
-      timerRef.current = setTimeout(() => {
-        // If no second tap occurs within the timer, treat it as a single tap
-        setTapCount(0);
-        if (!item.message.post.repost && !item.message.post.post[0].video) {
-          navigation.navigate('Post', {post: item.message.post.id, requests: requests, name: item.message.post.userId, groupId: null, video: false})
-        }
-        else if (!item.message.post.repost && item.message.post.post[0].video) {
-          console.log('bruh')
-          navigation.navigate('Post', {post: item.message.post.id, requests: requests, name: item.message.post.userId, groupId: null, video: true})
-        }
-        else {
-          navigation.navigate('Repost', {post: item.message.post.id, requests: requests, name: item.message.post.userId, groupId: null, video: false})
-        }
-        
-        //console.log('Single Tap!');
-      }, 500); // Adjust the time limit according to your requirements
-    } else if (tapCount === 1) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-      // If it's the second tap and the timer is still active, treat it as a double tap
-      clearTimeout(timerRef.current);
-      setTapCount(0);
-      renderLiked(item)
-    }
-  }
-  function toggleCopyToFalse(e) {
-    const updatedArray = newMessages.map(item => {
-      if (item.id === e.id) {
-        // Update the "isActive" property from false to true
-        return { ...item, copyModal: false, saveModal: false };
-      }
-      return item;
-    });
-    setNewMessages(updatedArray)
-  }
-  const handleKeyPress = ({ nativeEvent }) => {
-    if (nativeEvent.key === 'Enter') {
-      // Prevent user from manually inserting new lines
-      return;
-    }
-  };
-  function toggleSaveToFalse(e) {
-    const updatedArray = newMessages.map(item => {
-      if (item.id === e.id) {
-        // Update the "isActive" property from false to true
-        return { ...item, copyModal: false, saveModal: false };
-      }
-      return item;
-    });
-    setNewMessages(updatedArray)
-  }
-  const [fontsLoaded, fontError] = useFonts({
-    // your other fonts here
-    Montserrat_500Medium,
-    Montserrat_600SemiBold
-  });
-
-  if (!fontsLoaded || fontError) {
-    // Handle loading errors
-    return null;
-  }
   return (
-    //console.log(person),
-    <View style={[styles.container, {backgroundColor: theme.backgroundColor}]}>
-      {newMessages.length >= 0  ? 
-      <>
-      <View style={{flexDirection: 'row', marginBottom: '-7.5%', marginLeft: '5%', marginTop: '1%'}}>
-            <MaterialCommunityIcons name='chevron-left' size={35} style={{margin: '10%', marginHorizontal: 0}} color={theme.color} onPress={() => navigation.goBack()}/>
-            <View style={{alignItems: 'center', justifyContent: 'center', marginLeft: '2.5%'}}>
-            <View style={{flexDirection: 'row'}}>
-              {person.pfp ?  <FastImage source={{uri: person.pfp}} style={{height: 35, width: 35, borderRadius: 8, margin: '10%', marginLeft: 0, marginRight: '7.5%', alignSelf: 'center', borderWidth: 1.5, borderColor: '#000'}}/> :
-               <FastImage source={require('../assets/defaultpfp.jpg')} style={{height: 35, width: 35, borderRadius: 8, margin: '10%', marginLeft: 0, marginRight: '7.5%', alignSelf: 'center', borderWidth: 1.5, borderColor: '#000'}}/>
-              }
-           
-            <Text allowFontScaling={false} numberOfLines={1} style={{fontSize: 15.36, color: theme.color, alignSelf: 'center', fontFamily: 'Montserrat_600SemiBold', width: '90%', marginLeft: '-5%'}}>{person.firstName} {person.lastName}</Text>
-            </View>
-            </View>
-         </View> 
-        <Divider borderBottomWidth={1} borderColor={theme.color}/>
-        </>
+    <View style={styles.container}>
+      {newMessages.length >= 0 ? 
+        <ChatHeader pfp={profile.pfp} text={`${person.firstName} ${person.lastName}`}/>
         : null}
         {loading && lastVisible ? <View style={{flex: 1, alignItems: 'center', justifyContent: 'flex-start', marginTop: '2.5%'}}>
         <ActivityIndicator color={theme.theme != 'light' ? "#9EDAFF" : "#005278"} /> 
@@ -883,8 +331,8 @@ useEffect(() => {
         data={newMessages}
         keyExtractor={(item, index) => index.toString()}
         inverted
+        style={{marginTop: '2.5%'}}
         showsVerticalScrollIndicator={false}
-        style={{marginBottom: '2.5%'}}
         ListFooterComponent={<View style={{paddingBottom: 10}}/>}
         onScroll={({ nativeEvent }) => {
         const offsetY = nativeEvent.contentOffset.y;
@@ -913,440 +361,19 @@ useEffect(() => {
           
         renderItem={({ item, index }) => 
         {
-          
-          
-          // Only display timestamps for messages with timestamps before or at the initial screen load time
-          
-           
-          //console.log(item)
             return (
-              item.message.theme!= undefined ? 
-            item.message.theme== null ? 
-              <View style={item.user == user.uid ? {alignSelf: 'flex-end', marginLeft: 'auto'}: {alignSelf: 'flex-start', flexDirection: 'row'}}>
-                {item.user != user.uid && ( // Only show image for non-user messages
-        <FastImage
-          source={person.pfp ? { uri: person.pfp } : require('../assets/defaultpfp.jpg')} // Replace with actual image URL
-          style={styles.profileImage}
-        />
-      )}
-              <Animated.View style={item.user == user.uid ? userBubbleStyle : bubbleStyle}>
-                <Text allowFontScaling={false} style={item.user == user.uid ? [styles.postUsername, {color: "#121212"}] : [styles.postUsername, {color: "#fafafa"}]}>Theme unavailable</Text>
-                
-                <View style={[styles.timestampContainer, item.user != user.uid && styles.userTimestampContainer]}>
-                   {getDateAndTime(item.timestamp) ?  <Text style={item.user == user.uid ? styles.userTimestamp : styles.timestamp}>{getDateAndTime(item.timestamp)}</Text> : null}
-                </View>
-            </Animated.View>
-            
-            {lastMessageId == item.id && readBy.includes(item.toUser) && item.user == user.uid && <Text style={styles.readReceipt}>Read</Text>}
-            </View> 
-             :
-             
-            <View style={item.user == user.uid ? {alignSelf: 'flex-end', marginLeft: 'auto'}: {alignSelf: 'flex-start', flexDirection: 'row'}}>
-                {item.user != user.uid && ( // Only show image for non-user messages
-        <FastImage
-          source={person.pfp ? { uri: person.pfp } : require('../assets/defaultpfp.jpg')} // Replace with actual image URL
-          style={styles.profileImage}
-        />
-      )}
-      <Animated.View style={item.user == user.uid ? userPostContainer : postContainer}>
-          <TouchableOpacity onPress={() => handleThemePress(item)}  activeOpacity={1}
-          onLongPress={item.user == user.uid ? () => { setThemeCopied(item); toggleSaveToTrue(item)}: () => {
-               setThemeCopied(item); toggleSaveToTrue(item)
-            }}>
-                <View style={{flexDirection: 'row', alignItems: 'center'}}>
-                    
-                    <View style={{alignSelf: 'center', paddingTop: 5}}>
-                      <Text allowFontScaling={false} style={item.user == user.uid ? [styles.postUsername, {color: "#121212"}] : [styles.postUsername, {color: "#fafafa"}]}>Theme: {item.message.theme.name}</Text>
-                    </View>
-                </View>
-                <View style={{ marginTop: '5%'}}>
-                {item.message.theme.images[0] ?  <FastImage source={{uri: item.message.theme.images[0]}} style={[styles.image, {width: 220}]}/> :
-               <FastImage source={require('../assets/defaultpfp.jpg')} style={styles.image}/>
-               
-              }
-              </View>
-            </TouchableOpacity>
-            <View style={[styles.timestampContainer, item.user != user.uid && styles.userTimestampContainer]}>
-                   {getDateAndTime(item.timestamp) ?  <Text style={item.user == user.uid ? styles.userTimestamp : styles.timestamp}>{getDateAndTime(item.timestamp)}</Text> : null}
-                </View>
-              
-                        <TouchableOpacity style={[styles.likeButton, item.user == user.uid && styles.userLikeButton]} onPress={item.user != user.uid ? () => renderLiked(item) : null}>
-                            <Ionicons name="heart" size={20} color={item.liked ? likedHeartColor : heartColor} /> 
-                            </TouchableOpacity>
-            </Animated.View>
-           
-            {item.message.text.length > 0 ? 
-             <View style={item.user == user.uid ? {alignSelf: 'flex-end', marginLeft: 'auto'}: {alignSelf: 'flex-start', flexDirection: 'row'}}>
-                {item.user != user.uid && ( // Only show image for non-user messages
-        <FastImage
-          source={person.pfp ? { uri: person.pfp } : require('../assets/defaultpfp.jpg')} // Replace with actual image URL
-          style={styles.profileImage}
-        />
-      )}
-            <Animated.View style={item.user == user.uid ? userBubbleStyle : bubbleStyle}>
-              <TouchableOpacity activeOpacity={1}  onPress={() => handleMessagePress(item)}
-              onLongPress={() => {toggleCopyToTrue(item); setTextCopied(item.message.text);}}>
-                {item.message.text !== "" ?
-                <>
-                
-                <Text allowFontScaling={false} style={[item.user == user.uid ? styles.userText : styles.text]}>{item.message.text}</Text>
-                
-                </> : null}
-                 
-              </TouchableOpacity> 
-              <View style={[styles.timestampContainer, item.user != user.uid && styles.userTimestampContainer]}>
-                   {getDateAndTime(item.timestamp) ?  <Text style={item.user == user.uid ? styles.userTimestamp : styles.timestamp}>{getDateAndTime(item.timestamp)}</Text> : null}
-                </View>
-                        <TouchableOpacity style={[styles.likeButton, item.user == user.uid && styles.userLikeButton]} onPress={item.user != user.uid ? () => renderLiked(item) : null}>
-                            <Ionicons name="heart" size={20} color={item.liked ? likedHeartColor : heartColor} /> 
-                            </TouchableOpacity>
-            </Animated.View> 
-            </View>
-            : null}
-            {(item.saveModal && item.user == user.uid) || (item.saveModal && !reportedContent.includes(item.id)) ?  
-          <View style={[styles.copyModal, {marginTop: '5%'}]}>
-            {item.user == user.uid ? <>
-                <TouchableOpacity style={styles.copyTextContainer} onPress={() => deleteMessage(item)}>
-                  <Text allowFontScaling={false} style={[styles.copyText, {color: "#fafafa"}]}>Delete Message</Text>
-                  <MaterialCommunityIcons name='delete' size={20} style={{alignSelf: 'center'}} color={"#fafafa"}/>
-                </TouchableOpacity>
-                <Divider color={"#fafafa"}/> 
-                </>
-                : null}
-                {!reportedContent.includes(item.id) ? 
-                <>
-                <TouchableOpacity style={styles.copyTextContainer} onPress={() => navigation.navigate('ReportPage', {id: item.id, video: false, theme: false, comment: null, cliqueId: null, post: false, comments: false, message: true, cliqueMessage: false, reportedUser: item.user})}>
-                  <Text allowFontScaling={false} style={[styles.copyText, {color: '#fafafa'}]}>Report</Text>
-                  <MaterialIcons name='report' size={20} style={{alignSelf: 'center'}} color={"#fafafa"}/>
-                </TouchableOpacity> 
-                <Divider color={"#fafafa"}/> 
-                </>
-                : null}
-                <TouchableOpacity style={styles.copyTextContainer} onPress={() => toggleSaveToFalse(item)}>
-                  <Text allowFontScaling={false} style={[styles.copyText]}>Cancel</Text>
-                  <MaterialIcons name='cancel' size={20} style={{alignSelf: 'center'}} color={"#fafafa"}/>
-                </TouchableOpacity>
-              </View> 
-          : null}
-            {lastMessageId == item.id && readBy.includes(item.toUser) && item.user == user.uid && <Text style={styles.readReceipt}>Read</Text>}
-            </View>
+              item.message.theme != undefined ? 
+              <ThemeChat themeNull={item.message.theme== null ? true: false} item={item} user={user} person={person} lastMessageId={lastMessageId} readBy={readBy} 
+                newMessages={newMessages} updateNewMessages={setNewMessages} reportedContent={reportedContent} friendId={friendId} 
+                updateLastMessageId={setLastMessageId}/> 
             :
             item.message.post == undefined && item.message.text !== "" ? 
-            <View>
-            { 
-            item.message.text != undefined ?
-              <View style={item.user == user.uid ? {alignSelf: 'flex-end', marginLeft: 'auto'}: {alignSelf: 'flex-start', flexDirection: 'row'}}>
-                {item.user != user.uid && ( // Only show image for non-user messages
-        <FastImage
-          source={person.pfp ? { uri: person.pfp } : require('../assets/defaultpfp.jpg')} // Replace with actual image URL
-          style={styles.profileImage}
-        />
-      )}
-            <Animated.View style={item.user == user.uid ? userBubbleStyle : bubbleStyle}>
-              <TouchableOpacity style={{alignItems: 'flex-end'}} activeOpacity={1}  onPress={() => handleMessagePress(item)}
-              onLongPress={() => {toggleCopyToTrue(item); setTextCopied(item.message.text);}}>
-                {item.message.text !== "" ?
-                
-                <Text allowFontScaling={false} style={[item.user == user.uid ? styles.userText : styles.text]}>{item.message.text}</Text>
-                
-                : null}
-             
-              </TouchableOpacity> 
-              <View style={[styles.timestampContainer, item.user != user.uid && styles.userTimestampContainer]}>
-                   {getDateAndTime(item.timestamp) ?  <Text style={item.user == user.uid ? styles.userTimestamp : styles.timestamp}>{getDateAndTime(item.timestamp)}</Text> : null}
-                </View>
-                        <TouchableOpacity style={[styles.likeButton, item.user == user.uid && styles.userLikeButton]} onPress={item.user != user.uid ? () => renderLiked(item) : null}>
-                            <Ionicons name="heart" size={20} color={item.liked ? likedHeartColor : heartColor} /> 
-                            </TouchableOpacity>
-        </Animated.View>
-             {lastMessageId == item.id && readBy.includes(item.toUser) && item.user == user.uid && <Text style={styles.readReceipt}>Read</Text>}
-            </View> : null
-            }
-            
-            {
-              item.copyModal ?
-              <View style={styles.copyModal}>
-                <TouchableOpacity style={styles.copyTextContainer} onPress={() => copyFunction(item)}>
-                  <Text allowFontScaling={false} style={[styles.copyText, {color: "#fafafa"}]}>Copy</Text>
-                  <MaterialCommunityIcons name='content-copy' size={20} style={{alignSelf: 'center'}} color={"#fafafa"}/>
-                </TouchableOpacity>
-                <Divider color={"#fafafa"}/>
-                {item.user == user.uid ? <>
-                <TouchableOpacity style={styles.copyTextContainer} onPress={() => deleteMessage(item)}>
-                  <Text allowFontScaling={false} style={[styles.copyText, {color: "#fafafa"}]}>Delete Message</Text>
-                  <MaterialCommunityIcons name='delete' size={20} style={{alignSelf: 'center'}} color={"#fafafa"}/>
-                </TouchableOpacity>
-                <Divider color={"#fafafa"}/> 
-                </>
-                : null}
-               {!reportedContent.includes(item.id) ? 
-                <>
-                <TouchableOpacity style={styles.copyTextContainer} onPress={() => navigation.navigate('ReportPage', {id: item.id, video: false, theme: false, comment: null, cliqueId: null, post: false, comments: false, message: true, cliqueMessage: false, reportedUser: item.user})}>
-                  <Text allowFontScaling={false} style={[styles.copyText, {color: '#fafafa'}]}>Report</Text>
-                  <MaterialIcons name='report' size={20} style={{alignSelf: 'center'}} color={"#fafafa"}/>
-                </TouchableOpacity> 
-                <Divider color={"#fafafa"}/> 
-                </>
-                : null}
-                <TouchableOpacity style={styles.copyTextContainer} onPress={() => toggleCopyToFalse(item)}>
-                  <Text allowFontScaling={false} style={[styles.copyText]}>Cancel</Text>
-                  <MaterialIcons name='cancel' size={20} style={{alignSelf: 'center'}} color={"#fafafa"}/>
-                </TouchableOpacity>
-              </View> 
-              :
-               <View style={{margin: '2.5%'}}>
-          <TouchableOpacity activeOpacity={1}  onPress={() => handleImagePress(item)} onLongPress={() => {toggleSaveToTrue(item); setImageCopied(item.message.image)}}>
-            {
-            item.message.image != undefined ? 
-            <View style={item.user == user.uid ? {alignSelf: 'flex-end', marginLeft: 'auto'}: {alignSelf: 'flex-start', flexDirection: 'row'}}>
-                {item.user != user.uid && ( // Only show image for non-user messages
-        <FastImage
-          source={person.pfp ? { uri: person.pfp } : require('../assets/defaultpfp.jpg')} // Replace with actual image URL
-          style={styles.profileImage}
-        />
-      )}
-            
-            
-            <FastImage source={{uri: item.message.image}} style={[styles.regImage, {marginRight: -5}]}/>
-     
-            {lastMessageId == item.id && readBy.includes(item.toUser) && item.user == user.uid && <Text style={styles.readReceipt}>Read</Text>}
-            {(item.saveModal && item.user == user.uid) || (item.saveModal && !reportedContent.includes(item.id)) ?  
-          <View style={[styles.copyModal, {marginTop: '5%'}]}>
-            {item.user == user.uid ? <>
-                <TouchableOpacity style={styles.copyTextContainer} onPress={() => deleteMessage(item)}>
-                  <Text allowFontScaling={false} style={[styles.copyText, {color: "#fafafa"}]}>Delete Message</Text>
-                  <MaterialCommunityIcons name='delete' size={20} style={{alignSelf: 'center'}} color={"#fafafa"}/>
-                </TouchableOpacity>
-                <Divider color={"#fafafa"}/> 
-                </>
-                : null}
-                {!reportedContent.includes(item.id) ? 
-                <>
-                <TouchableOpacity style={styles.copyTextContainer} onPress={() => navigation.navigate('ReportPage', {id: item.id, video: false, theme: false, comment: null, cliqueId: null, post: false, comments: false, message: true, cliqueMessage: false, reportedUser: item.user})}>
-                  <Text allowFontScaling={false} style={[styles.copyText, {color: '#fafafa'}]}>Report</Text>
-                  <MaterialIcons name='report' size={20} style={{alignSelf: 'center'}} color={"#fafafa"}/>
-                </TouchableOpacity> 
-                <Divider color={"#fafafa"}/> 
-                </>
-                : null}
-                <TouchableOpacity style={styles.copyTextContainer} onPress={() => toggleSaveToFalse(item)}>
-                  <Text allowFontScaling={false} style={[styles.copyText]}>Cancel</Text>
-                  <MaterialIcons name='cancel' size={20} style={{alignSelf: 'center'}} color={"#fafafa"}/>
-                </TouchableOpacity>
-              </View> 
-          : null}
-            </View>
-            : null}
-          </TouchableOpacity>
-          </View>
-            }
-            </View> :
-          item.message.post != undefined && item.message.post == null ? 
-              <View style={item.user == user.uid ? {alignSelf: 'flex-end', marginLeft: 'auto'}: {alignSelf: 'flex-start', flexDirection: 'row'}}>
-                {item.user != user.uid && ( // Only show image for non-user messages
-        <FastImage
-          source={person.pfp ? { uri: person.pfp } : require('../assets/defaultpfp.jpg')} // Replace with actual image URL
-          style={styles.profileImage}
-        />
-      )}
-              <Animated.View style={item.user == user.uid ? userBubbleStyle : bubbleStyle}>
-                <Text allowFontScaling={false} style={item.user == user.uid ? [styles.postUsername, {color: "#121212"}] : [styles.postUsername, {color: "#fafafa"}]}>Post unavailable</Text>
-                <View style={[styles.timestampContainer, item.user != user.uid && styles.userTimestampContainer]}>
-                   {getDateAndTime(item.timestamp) ?  <Text style={item.user == user.uid ? styles.userTimestamp : styles.timestamp}>{getDateAndTime(item.timestamp)}</Text> : null}
-                </View>
-            </Animated.View>
-            
-            {lastMessageId == item.id && readBy.includes(item.toUser) && item.user == user.uid && <Text style={styles.readReceipt}>Read</Text>}
-            </View> 
-             : 
-          item.message.post != undefined && item.message.post.multiPost == true  ? 
-          <View style={{flexDirection: 'column'}}>
-           <View style={item.user == user.uid ? {alignSelf: 'flex-end', marginLeft: 'auto'}: {alignSelf: 'flex-start', flexDirection: 'row'}}>
-                {item.user != user.uid && ( // Only show image for non-user messages
-        <FastImage
-          source={person.pfp ? { uri: person.pfp } : require('../assets/defaultpfp.jpg')} // Replace with actual image URL
-          style={styles.profileImage}
-        />
-      )}
-      <Animated.View style={item.user == user.uid ? userPostContainer : postContainer}>
-            <TouchableOpacity  activeOpacity={1} onPress={() => handlePostPress(item)}
-          onLongPress={item.user == user.uid ? () => { setUserCopied(item.message.post.username); toggleSaveToTrue(item); }: () => {
-               setUserCopied(item.message.post.username); toggleSaveToTrue(item);
-            }}>
-                <View style={{flexDirection: 'row'}}>
-                  {item.message.post.pfp ?  <FastImage source={{uri: item.message.post.pfp}} style={styles.imagepfp}/> :
-               <FastImage source={require('../assets/defaultpfp.jpg')} style={styles.imagepfp}/>
-              }
-                    <Text allowFontScaling={false} style={item.user == user.uid ? [styles.postUsername, {color: "#121212"}] : [styles.postUsername, {color: "#fafafa"}]}>@{item.message.post.username}</Text>
-                </View>
-                 {item.message.post.post[0].image ?
-                      <FastImage source={{uri: item.message.post.post[0].post, priority: 'normal'}} style={item.message.post.caption.length == 0 ? styles.image
-                    : [styles.image, {borderBottomLeftRadius: 0, borderBottomRightRadius: 0}]}/>: item.message.post.post[0].video ?
-                      <FastImage source={{uri: item.message.post.post[0].thumbnail, priority: 'normal'}} style={item.message.post.caption.length == 0 ? [styles.image]
-                    : [styles.image, {borderBottomLeftRadius: 0, borderBottomRightRadius: 0}]}/> : 
-                    <View style={{marginTop: -5}}>
-          <ChatBubble bubbleColor='#fff' tailColor='#fff'>
-         <Text allowFontScaling={false} style={[styles.image, {fontSize: item.message.post.post[0].textSize, width: 191, color: "#121212", fontFamily: 'Montserrat_500Medium'}]}>{item.message.post.post[0].value}</Text>
-        </ChatBubble>
-        </View>
-                    
-                     }
-                {item.message.post.caption.length > 0 ? 
-                <View style={{width: '90%'}}>
-                  <Text allowFontScaling={false} numberOfLines={1} style={item.user == user.uid ? [styles.captionText, {color: "#121212"}] : [styles.captionText, {color: "#fafafa"}]}>{item.message.post.username} - {item.message.post.caption}</Text> 
-                </View>
-                : null}
-                </TouchableOpacity> 
-            <View style={[styles.timestampContainer, item.user != user.uid && styles.userTimestampContainer]}>
-                   {getDateAndTime(item.timestamp) ?  <Text style={item.user == user.uid ? styles.userTimestamp : styles.timestamp}>{getDateAndTime(item.timestamp)}</Text> : null}
-                </View>
-              
-                        <TouchableOpacity style={[styles.likeButton, item.user == user.uid && styles.userLikeButton]} onPress={item.user != user.uid ? () => renderLiked(item) : null}>
-                            <Ionicons name="heart" size={20} color={item.liked ? likedHeartColor : heartColor} /> 
-                            </TouchableOpacity>
-            </Animated.View>
-                  </View>
-            {item.message.text.length > 0 ? 
-            <View style={item.user == user.uid ? {alignSelf: 'flex-end', marginLeft: 'auto'}: {alignSelf: 'flex-start', flexDirection: 'row'}}>
-                {item.user != user.uid && ( // Only show image for non-user messages
-        <FastImage
-          source={person.pfp ? { uri: person.pfp } : require('../assets/defaultpfp.jpg')} // Replace with actual image URL
-          style={styles.profileImage}
-        />
-      )}
-            <Animated.View style={item.user == user.uid ? userBubbleStyle : bubbleStyle}>
-              <TouchableOpacity activeOpacity={1}  onPress={() => handleMessagePress(item)}
-              onLongPress={() => {toggleCopyToTrue(item); setTextCopied(item.message.text);}}>
-                {item.message.text !== "" ?
-                <>
-                
-                <Text allowFontScaling={false} style={[item.user == user.uid ? styles.userText : styles.text]}>{item.message.text}</Text>
-                
-                </> : null}
-               
-              </TouchableOpacity> 
-              <View style={[styles.timestampContainer, item.user != user.uid && styles.userTimestampContainer]}>
-                   {getDateAndTime(item.timestamp) ?  <Text style={item.user == user.uid ? styles.userTimestamp : styles.timestamp}>{getDateAndTime(item.timestamp)}</Text> : null}
-                </View>
-                        <TouchableOpacity style={[styles.likeButton, item.user == user.uid && styles.userLikeButton]} onPress={item.user != user.uid ? () => renderLiked(item) : null}>
-                            <Ionicons name="heart" size={20} color={item.liked ? likedHeartColor : heartColor} /> 
-                            </TouchableOpacity>
-              
-            </Animated.View> 
-            </View>
-            
-            : null}
-            
-            {(item.saveModal && item.user == user.uid) || (item.saveModal && !reportedContent.includes(item.id)) ?  
-          <View style={[styles.copyModal, {marginTop: '5%'}]}>
-            {item.user == user.uid ? <>
-                <TouchableOpacity style={styles.copyTextContainer} onPress={() => deleteMessage(item)}>
-                  <Text allowFontScaling={false} style={[styles.copyText, {color: "#fafafa"}]}>Delete Message</Text>
-                  <MaterialCommunityIcons name='delete' size={20} style={{alignSelf: 'center'}} color={"#fafafa"}/>
-                </TouchableOpacity>
-                <Divider color={"#fafafa"}/> 
-                </>
-                : null}
-                {!reportedContent.includes(item.id) ? 
-                <>
-                <TouchableOpacity style={styles.copyTextContainer} onPress={() => navigation.navigate('ReportPage', {id: item.id, video: false, theme: false, comment: null, cliqueId: null, post: false, comments: false, message: true, cliqueMessage: false, reportedUser: item.user})}>
-                  <Text allowFontScaling={false} style={[styles.copyText, {color: '#fafafa'}]}>Report</Text>
-                  <MaterialIcons name='report' size={20} style={{alignSelf: 'center'}} color={"#fafafa"}/>
-                </TouchableOpacity> 
-                <Divider color={"#fafafa"}/> 
-                </>
-                : null}
-                <TouchableOpacity style={styles.copyTextContainer} onPress={() => toggleSaveToFalse(item)}>
-                  <Text allowFontScaling={false} style={[styles.copyText]}>Cancel</Text>
-                  <MaterialIcons name='cancel' size={20} style={{alignSelf: 'center'}} color={"#fafafa"}/>
-                </TouchableOpacity>
-              </View> 
-          : null}
-            
-            
-            
-            {lastMessageId == item.id && readBy.includes(item.toUser) && item.user == user.uid && <Text style={styles.readReceipt}>Read</Text>}
-          </View> 
-          : 
-          item.message.post != null && item.message.post.group ? 
-         <>
-         <View style={item.user == user.uid ? [styles.postContainer, {height: 275, padding: 7.5, paddingRight: 12.5}] : [styles.postContainer, {backgroundColor: "grey", alignSelf: 'flex-start'}]} >
-          <TouchableOpacity activeOpacity={1} onPress={() => handleGroupPress(item)} onLongPress={item.user == user.uid ? () => {  toggleSaveToTrue(item) }: () => {
-               toggleSaveToTrue(item)
-
-            }}>
-                <View style={{flexDirection: 'row', alignItems: 'center'}}>
-                    
-                    <View style={{alignSelf: 'center', paddingTop: 5}}>
-                      <Text allowFontScaling={false} style={item.user == user.uid ? [styles.postUsername, {color: "#121212"}] : [styles.postUsername, {color: "#fafafa"}]}>Cliq: {item.message.post.name}</Text>
-                    </View>
-                </View>
-                <View style={{ marginTop: '5%'}}>
-                {item.message.post ? item.message.post.pfp ?  <FastImage source={{uri: item.message.post.pfp}} style={[styles.image, {width: 220}]}/> :
-               <FastImage source={require('../assets/defaultpfp.jpg')} style={styles.image}/> : <FastImage source={require('../assets/defaultpfp.jpg')} style={styles.image}/> 
-               
-              }
-              </View>
-            </TouchableOpacity>
-            
-            </View>
-
-            {item.message.text.length > 0 ? 
-            <View style={item.user == user.uid ? {alignSelf: 'flex-end', marginLeft: 'auto'}: {alignSelf: 'flex-start', flexDirection: 'row'}}>
-                {item.user != user.uid && ( // Only show image for non-user messages
-        <FastImage
-          source={person.pfp ? { uri: person.pfp } : require('../assets/defaultpfp.jpg')} // Replace with actual image URL
-          style={styles.profileImage}
-        />
-      )}
-            <Animated.View style={item.user == user.uid ? userBubbleStyle : bubbleStyle}>
-              <TouchableOpacity activeOpacity={1}  onPress={() => handleMessagePress(item)}
-              onLongPress={() => {toggleCopyToTrue(item); setTextCopied(item.message.text);}}>
-                {item.message.text !== "" ?
-                <>
-                
-                <Text allowFontScaling={false} style={[item.user == user.uid ? styles.userText : styles.text]}>{item.message.text}</Text>
-                
-                </> : null}
-              
-              </TouchableOpacity> 
-               <View style={[styles.timestampContainer, item.user != user.uid && styles.userTimestampContainer]}>
-                   {getDateAndTime(item.timestamp) ?  <Text style={item.user == user.uid ? styles.userTimestamp : styles.timestamp}>{getDateAndTime(item.timestamp)}</Text> : null}
-                </View>
-                        <TouchableOpacity style={[styles.likeButton, item.user == user.uid && styles.userLikeButton]} onPress={item.user != user.uid ? () => renderLiked(item) : null}>
-                            <Ionicons name="heart" size={20} color={item.liked ? likedHeartColor : heartColor} /> 
-                            </TouchableOpacity>
-            </Animated.View> 
-            </View>
-            : null}
-            {(item.saveModal && item.user == user.uid) || (item.saveModal && !reportedContent.includes(item.id)) ?  
-          <View style={[styles.copyModal, {marginTop: '5%'}]}>
-            {item.user == user.uid ? <>
-                <TouchableOpacity style={styles.copyTextContainer} onPress={() => deleteMessage(item)}>
-                  <Text allowFontScaling={false} style={[styles.copyText, {color: "#fafafa"}]}>Delete Message</Text>
-                  <MaterialCommunityIcons name='delete' size={20} style={{alignSelf: 'center'}} color={"#fafafa"}/>
-                </TouchableOpacity>
-                <Divider color={"#fafafa"}/> 
-                </>
-                : null}
-                {!reportedContent.includes(item.id) ? 
-                <>
-                <TouchableOpacity style={styles.copyTextContainer} onPress={() => navigation.navigate('ReportPage', {id: item.id, video: false, theme: false, comment: null, cliqueId: null, post: false, comments: false, message: true, cliqueMessage: false, reportedUser: item.user})}>
-                  <Text allowFontScaling={false} style={[styles.copyText, {color: '#fafafa'}]}>Report</Text>
-                  <MaterialIcons name='report' size={20} style={{alignSelf: 'center'}} color={"#fafafa"}/>
-                </TouchableOpacity> 
-                <Divider color={"#fafafa"}/> 
-                </>
-                : null}
-                <TouchableOpacity style={styles.copyTextContainer} onPress={() => toggleSaveToFalse(item)}>
-                  <Text allowFontScaling={false} style={[styles.copyText]}>Cancel</Text>
-                  <MaterialIcons name='cancel' size={20} style={{alignSelf: 'center'}} color={"#fafafa"}/>
-                </TouchableOpacity>
-              </View> 
-          : null}
-            {lastMessageId == item.id && readBy.includes(item.toUser) && item.user == user.uid && <Text style={styles.readReceipt}>Read</Text>}
-
-          </> 
+            <TextChat item={item} user={user} person={person} lastMessageId={lastMessageId} readBy={readBy} newMessages={newMessages} updateLastMessageId={setLastMessageId}
+                updateNewMessages={setNewMessages} reportedContent={reportedContent} friendId={friendId}/> :
+          item.message.post != undefined ? 
+              <PostChat postNull={item.message.post == null ? true : false} item={item} user={user} person={person} 
+                lastMessageId={lastMessageId} readBy={readBy} newMessages={newMessages} updateLastMessageId={setLastMessageId}
+                updateNewMessages={setNewMessages} reportedContent={reportedContent} friendId={friendId}/>  
           : <></>
           
             
@@ -1363,7 +390,7 @@ useEffect(() => {
         <FastImage source={require('../assets/defaultpfp.jpg')} style={{height: Dimensions.get('screen').height / 7, width: Dimensions.get('screen').height / 7, borderRadius: 70, alignSelf: 'center', borderWidth: 1.25, borderColor: '#9edaff'}}/>
          }
                     
-                    <Text allowFontScaling={false} style={[styles.username, {color: theme.color}]}>{person.firstName} {person.lastName}</Text>
+                    <Text allowFontScaling={false} style={styles.username}>{person.firstName} {person.lastName}</Text>
                     <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'center'}}>
                         <Text allowFontScaling={false} style={[styles.supplementHeader, {color: theme.color}]}>{friends} {friends != 1 ? 'Friends' : 'Friend'}</Text>
                     </View>
@@ -1378,7 +405,7 @@ useEffect(() => {
         <FastImage source={require('../assets/defaultpfp.jpg')} style={{height: Dimensions.get('screen').height / 7, width: Dimensions.get('screen').height / 7, borderRadius: 70, alignSelf: 'center', borderWidth: 1.25, borderColor: '#9edaff'}}/>
          }
                     
-                    <Text allowFontScaling={false} style={[styles.username, {color: theme.color}]}>{person.firstName} {person.lastName}</Text>
+                    <Text allowFontScaling={false} style={styles.username}>{person.firstName} {person.lastName}</Text>
                     <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'center'}}>
                         <Text allowFontScaling={false} style={[styles.supplementHeader, {color: theme.color}]}>{friends} {friends != 1 ? 'Friends' : 'Friend'}</Text>
                     </View>
@@ -1388,56 +415,8 @@ useEffect(() => {
                     </View>
                 </View>
                 }
-                
-        {/* <Text allowFontScaling={false} style={styles.characterCountText}>{inputText.length}/200</Text> */}
       {!imageLoading ? 
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={newMessages.length == 0 ? {flexDirection: 'row', marginTop: '5%'} : {marginBottom: '5%', flexDirection: 'row'}}>
-        <View style={inputText.length > 0 ? [styles.input, {width: '75%'}] : styles.input}>
-          
-          <TextInput
-            placeholder="Type message..."
-            value={inputText}
-            multiline
-            onKeyPress={handleKeyPress}
-            placeholderTextColor={theme.color}
-            onChangeText={async(text) => {
-              const sanitizedText = text.replace(/\n/g, ''); // Remove all new line characters
-              setInputText(sanitizedText); 
-              if (text.length > 0) {
-              await updateDoc(doc(db, 'profiles', user.uid), {
-              messageTyping: person.id
-            })
-            }
-            else {
-              await updateDoc(doc(db, 'profiles', user.uid), {
-              messageTyping: ''
-            })
-            }
-          }}
-            style={keyboardFocused ? {width: '100%', color: theme.color, padding: 5, alignSelf: 'center'} : {width: '92.25%', color: theme.color, padding: 5, alignSelf: 'center'}}
-            ref={inputRef}
-            maxLength={200}
-            enablesReturnKeyAutomatically={true}
-            
-            //onFocus={keyboardFocused}
-          />
-          {inputText.length == 0 && !keyboardFocused ? <>
-          <FontAwesome name='picture-o' color={theme.color} size={25} style={{alignSelf: 'center'}} onPress={pickImage}/>
-          </> : null }
-        
-        </View>
-        {!singleMessageLoading || !imageLoading ?
-                inputText.length > 0 ? <TouchableOpacity style={styles.sendButton} onPress={ () => {sendMessage()}}>
-          <Text allowFontScaling={false} style={[styles.sendButtonText, {color: "#fafafa"}]}>Send</Text>
-        </TouchableOpacity> : null
-                : 
-                <View style={{ flex: 1, alignItems: 'center', marginTop: '2.5%'}}>
-                <ActivityIndicator color={theme.theme != 'light' ? "#9EDAFF" : "#005278"} style={{alignSelf: 'center'}}/>
-                </View>
-                }
-        
-        {/*  */}
-        </KeyboardAvoidingView> 
+      <ChatInput newMessages={newMessages} friendId={friendId} person={person} profile={profile} active={active} />
         : 
         <ActivityIndicator color={"#9edaff"}/>}
     </View>
@@ -1447,334 +426,15 @@ useEffect(() => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  messageContainer: {
-   padding: 20,
-    paddingVertical: 10,
-    margin: '2.5%',
-    maxWidth: 255,
-    //width: '45%',
-    //marginLeft: '50%',
-    backgroundColor: '#005278',
-    borderRadius: 20,
-    marginVertical: 0,
-    marginBottom: 0,
-    //marginRight: '7.5%',
-    //paddingTop: 0,
-    alignSelf: 'flex-end'
-
-  },
-  topMessage: {
-    borderTopLeftRadius: 15,
-    borderTopRightRadius: 15,
-    borderBottomLeftRadius: 15,
-    borderBottomRightRadius: 0,
-    marginBottom: 0,
-  },
-  topUserMessage: {
-    borderTopLeftRadius: 15,
-    borderTopRightRadius: 15,
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 15,
-    marginBottom: 0,
-  },
-  middleMessage: {
-    borderTopLeftRadius: 15,
-    borderTopRightRadius: 0,
-    borderBottomLeftRadius: 15,
-    borderBottomRightRadius: 0,
-    marginBottom: 0,
-    
-  },
-  middleUserMessage: {
-    borderTopLeftRadius: 0,
-    borderTopRightRadius: 15,
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 15,
-    marginBottom: 0,
-  },
-  bottomMessage: {
-    borderTopLeftRadius: 15,
-    borderTopRightRadius: 0,
-    borderBottomLeftRadius: 15,
-    borderBottomRightRadius: 15,
-    marginBottom: 0,
-  },
-  bottomUserMessage: {
-    borderTopLeftRadius: 0,
-    borderTopRightRadius: 15,
-    borderBottomLeftRadius: 15,
-    borderBottomRightRadius: 15,
-    marginBottom: 0,
-  },
-  singleMessage: {
-    borderRadius: 15,
-    marginBottom: 0,
-  },
-  postContainer: {
-    margin: '2.5%',
-    padding: 5,
-    //width: 250,
-    height: 325,
-    width: 245,
-    borderRadius: 20,
-    backgroundColor: "#005278"
-  },
-  messageText: {
-    
-  },
-  timestampText: {
-    fontSize: 12,
-    fontFamily: 'Montserrat_500Medium',
-    color: '#888',
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 8,
-    marginLeft: 0,
-    marginRight: 0,
-    zIndex: 2
-  },
-  input: {
-    //flex: 1,
-    height: 40,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    marginBottom: '2.5%',
-    marginLeft: '2.5%',
-    marginRight: '2.5%',
-    flexDirection: 'row'
-  }, 
-  sendButton: {
-    //marginLeft: 2,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: '#005278',
-    borderRadius: 8,
-    marginBottom: '2.5%',
-    justifyContent: 'center',
-    //marginLeft: '-6%'
-  },
-  sendButtonText: {
-    fontWeight: 'bold',
-    //alignSelf: 'center'
-  },
-  postUsername: {
-    fontSize: 15.36,
-    fontFamily: 'Montserrat_500Medium',
-    //padding: 5,
-    alignSelf: 'center',
-    paddingLeft: 5,
-  },
-  captionText: {
-    fontSize: 12.29,
-    fontFamily: 'Montserrat_500Medium',
-    padding: 10,
-    paddingBottom: 0,
-    paddingHorizontal: 5,
-    paddingRight: 0,
-    //marginTop: '5%'
-  },
-  image: {height: 220, width: 223.4375, borderRadius: 8, marginLeft: 5},
-  replyImage: {
-    height: 220,
-    width: 225,
-    borderRadius: 8,
-    padding: 5,
-    margin: 5
-  },
-  regImage: {
-    height: 200,
-    width: 200,
-    borderRadius: 10,
-    resizeMode: 'contain'
-  },
-  fullImage: {
-    /* height: 650,
-    width: 350, */
-    width: 350, // Specific width (optional)
-    height: 650,
+    backgroundColor: "#121212"
   },
   username: {
       fontSize: 15.36,
       fontFamily: 'Montserrat_500Medium',
       padding: 10,
-      textAlign: 'center'
+      textAlign: 'center',
+      color: "#fafafa"
     },
-    modalContainer: {
-        flex: 1,
-        //justifyContent: 'center',
-        alignItems: 'center',
-        //marginTop: 22
-    },
-  modalView: {
-    width: '100%',
-    //marginTop: '5%',
-    height: '100%',
-    //margin: 20,
-    backgroundColor: '#121212',
-    borderRadius: 20,
-    padding: 35,
-    paddingTop: 25,
-    //paddingBottom: 25,
-    //alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  copyModal: {
-    borderRadius: 10,
-    backgroundColor: "gray",
-    marginRight: '5%',
-    marginLeft: '5%',
-    marginBottom: '2.5%'
-  },
-  copyText: {
-    fontSize: 15.36,
-    fontFamily: 'Montserrat_500Medium',
-    paddingRight: 10,
-    color: "#fafafa",
-    //padding: 10
-  },
-  copyTextContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    padding: 10
-  },
-  replyText: {
-    fontSize: 12.29,
-    fontFamily: 'Montserrat_500Medium',
-    textAlign: 'right',
-    padding: 10
-  },
-  addpfp: {
-    flexDirection: 'row',
-    marginTop: 0,
-    margin: '2.5%',
-    position: 'relative'
-  },
-  pfp: {
-    width: 30,
-    height: 30,
-    borderRadius: 15
-  },
-  readRightText: {
-    fontSize: 12.29,
-    fontFamily: 'Montserrat_500Medium',
-    marginTop: 5,
-    marginBottom: 5,
-    textAlign: 'right',
-    marginRight: 20
-  },
-  readLeftText: {
-    fontSize: 12.29,
-    fontFamily: 'Montserrat_500Medium',
-    marginTop: -5,
-    marginBottom: 5,
-    textAlign: 'left',
-    marginLeft: 20
-  },
-  imagepfp: {
-    height: 33, width: 33, borderRadius: 8, margin: '5%'
-  },
-  overlay: {
-      ...StyleSheet.absoluteFillObject,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    },
-    characterCountText: {
-      fontSize: 9,
-      fontFamily: 'Montserrat_500Medium',
-      padding: 5,
-      textAlign: 'right',
-      paddingRight: 0,
-      paddingTop: 2.5,
-      marginRight: '7.5%',
-      marginTop: '10%',
-            backgroundColor: "transparent"
-    },
-     timestamp: {
-    fontSize: 12,
-    color: '#fafafa',
-    marginRight: 'auto',
-    marginTop: 5,
-  },
-  userTimestamp: {
-    fontSize: 12,
-    color: '#121212',
-    marginTop: 5,
-  },
-  text: {
-    fontSize: 15.36, 
-    color: "#fafafa",
-    alignSelf: 'flex-start',
-    textAlign: 'left'
-  },
-  userText: {
-    fontSize: 15.36,
-    color: "#121212",
-    textAlign: 'left'
-  },
-  timestampContainer: { 
-    width: 80,  // Adjust the width as needed
-    alignItems: 'flex-end', // Align timestamp to the right
-  },
-  userTimestampContainer: {
-    width: 80,
-    alignItems: 'flex-start',
-  },
-  likeButton: {
-  position: 'absolute',
-  bottom: 5,
-  right: 10, // Default: right side
-},
-userLikeButton: {
-  left: 10, 
-  //bottom: 10,
-  right: 'auto', 
-}, 
-readReceipt: { 
-    fontSize: 12.29,
-    color: '#fafafa',
-    marginLeft: 'auto', 
-    marginRight: 10
-  },
-  profileImage: {
-    width: 40,
-    height: 40,
-    backgroundColor: "#fafafa",
-    borderRadius: 20,
-    marginRight: 10, // Add spacing between image and text
-  },
-  messageContent: { // Style for wrapping text and timestamp
-    flex: 1, 
-  },
-  imagepfp: {
-    height: 33, width: 33, borderRadius: 8, margin: '5%'
-  },
-  postUsername: {
-    fontSize: 15.36,
-    fontFamily: 'Montserrat_500Medium',
-    //padding: 5,
-    alignSelf: 'center',
-  },
-  captionText: {
-    fontSize: 12.29,
-    fontFamily: 'Montserrat_500Medium',
-    padding: 10,
-    paddingBottom: 0,
-    paddingHorizontal: 5,
-    paddingRight: 0,
-    //marginTop: '5%'
-  },
-  image: {height: 220, width: 220, borderRadius: 8, marginLeft: 5},
 });
 
 export default PersonalChatScreen;

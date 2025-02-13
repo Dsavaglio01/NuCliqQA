@@ -26,7 +26,7 @@ const GroupName = () => {
                   onPress: () => console.log('Cancel Pressed'),
                   style: 'cancel',
                 },
-                {text: 'OK', onPress: () => console.log('first')},
+                {text: 'OK', onPress: () => console.log('first') },
               ]);
       }
       else if (groupName.trim().length == 0) {

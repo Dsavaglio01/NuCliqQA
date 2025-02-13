@@ -53,7 +53,7 @@ const PeopleList = ({route}) => {
     const theme = useContext(themeContext)
     useEffect(() => {
       if (route.params?.firstTime) {
-        //console.log('first')
+        //
         setIsFirstTime(false)
       }
     }, [route.params?.firstTime])

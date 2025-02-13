@@ -25,6 +25,7 @@ import {PURCHASE_URL} from "@env";
 import { Montserrat_600SemiBold, Montserrat_400Regular, Montserrat_500Medium, Montserrat_700Bold, useFonts } from '@expo-google-fonts/montserrat';
 import { ProfileProvider } from './lib/profileContext';
 import { RequestProvider } from './lib/requestContext';
+import { RealProfileProvider } from './lib/realProfileContext';
 
     
 LogBox.ignoreAllLogs()
@@ -323,9 +324,11 @@ if (isReady && navigationReady && user && reportedContent.length < 10 && firstNa
       <Provider>
         <AuthProvider>
           <ProfileProvider>
-            <RequestProvider>
-              <AppContent />
-            </RequestProvider>
+            <RealProfileProvider>
+              <RequestProvider>
+                <AppContent />
+              </RequestProvider>
+            </RealProfileProvider>
           </ProfileProvider>
         </AuthProvider>
     </Provider>

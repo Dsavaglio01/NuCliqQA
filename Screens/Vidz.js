@@ -38,7 +38,7 @@ useEffect(() => {
     //console.log(firstTime)
     useEffect(() => {
       if (route.params?.firstTime) {
-        //console.log('first')
+        //
         setIsFirstTime(false)
       }
     }, [route.params?.firstTime])
@@ -108,6 +108,9 @@ useEffect(() => {
     getData();
     
   }, [])
+  const handlePostScroll = _.debounce(() => {
+      fetchMoreData();
+    }, 500)
   function fetchMoreData() {
       if (recommendedPosts.length < 30) {
       if (lastVisible != undefined) {
@@ -164,7 +167,7 @@ useEffect(() => {
     }
     }
     else {
-      //console.log('first')
+      //
       setLoading(true)
     const getRecommendations = async() => {
       await fetch(`${BACKEND_URL}/api/getMoreRecommendedPosts`, {
@@ -209,18 +212,9 @@ useEffect(() => {
     <Provider>
       <View style={styles.container}>
         <FirstTimeModal isFirstTime={isFirstTime} vidz={true} closeFirstTimeModal={() => setIsFirstTime(false)}/>
-        <View style={styles.innerContainer} onLayout={handleLayout}>
-          <View style={styles.headerContainer}>
-            <View style={{marginTop: '3%'}}>
-              <FastImage source={require('../assets/DarkMode5.png')} style={styles.logo}/>
-            </View>
-            <Text style={{fontSize: 37.5, fontWeight: '200', color: theme.theme != 'light' ? "#9EDAFF" : "#005278", marginLeft: '6%'}}>|</Text>
-            <Text numberOfLines={1} style={[styles.header, { fontFamily: 'Montserrat_500Medium', color: theme.theme != 'light' ? "#9EDAFF" : "#005278", backgroundColor: theme.backgroundColor}]}>{"Vidz For You"}</Text>
-          </View>
-        </View>
         {postDone && user && tempPosts.length > 0 ? <>
-        <VideoPostComponent data={tempPosts} home={true} loading={loading} lastVisible={lastVisible} actualClique={null}
-        blockedUsers={profile.blockedUsers} openPostMenu={null} clique={false} cliqueId={null} pfp={profile.pfp} ogUsername={profile.username} 
+        <VideoPostComponent fetchMoreData={handlePostScroll} data={tempPosts} home={true} loading={loading} lastVisible={lastVisible} actualClique={null}
+        blockedUsers={profile.blockedUsers} openPostMenu={null} clique={false} cliqueId={null} pfp={profile.pfp} ogUsername={profile.userName} 
         admin={false} edit={false} caption={null} notificationToken={profile.notificationToken} smallKeywords={profile.smallKeywords} 
         largeKeywords={profile.largeKeywords} reportedPosts={reportedPosts} reportedComments={reportedComments}/>
         </>
@@ -243,7 +237,7 @@ const styles = StyleSheet.create({
   innerContainer: {
       marginTop: '8%',
       marginBottom: '2.5%',
-      marginLeft: '15.85%',
+      marginLeft: '5%',
       marginRight: '9%',
       justifyContent: 'space-evenly',
       flexDirection: 'row',

@@ -71,7 +71,7 @@ const GroupPosts = ({route}) => {
         {user && posts.length > 0 ? <>
         <PostComponent data={posts} forSale={profile.forSale} background={profile.background} home={false} loading={loading} lastVisible={lastVisible} 
           actualClique={group} videoStyling={null || false} cliqueIdPfp={group.banner} cliqueIdName={group.name} post={null} blockedUsers={profile.blockedUsers}
-          openPostMenu={null} clique={true} cliqueId={group.id} pfp={profile.pfp} ogUsername={profile.username} admin={admin} edit={false} caption={null} 
+          openPostMenu={null} clique={true} cliqueId={group.id} pfp={profile.pfp} ogUsername={profile.userName} admin={admin} edit={false} caption={null} 
           notificationToken={profile.notificationToken} smallKeywords={profile.smallKeywords} largeKeywords={profile.largeKeywords} reportedPosts={reportedPosts}
           reportedComments={reportedComments} privacy={profile.privacy}/>
         </>

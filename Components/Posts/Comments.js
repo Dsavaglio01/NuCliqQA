@@ -1,8 +1,8 @@
-import { StyleSheet, Text, View, Modal, TouchableOpacity, TouchableHighlight, FlatList, Keyboard, ActivityIndicator, Dimensions,
-  KeyboardAvoidingView, TextInput, Alert} from 'react-native'
-import Animated, {useSharedValue, useAnimatedStyle, useAnimatedGestureHandler, withSpring, runOnJS} from 'react-native-reanimated';
-import {  GestureDetector, Gesture} from 'react-native-gesture-handler';
-import React, { useRef, useState, useEffect, useCallback } from 'react'
+import { StyleSheet, Text, View, Modal, TouchableOpacity, TouchableHighlight, FlatList, Keyboard, 
+  ActivityIndicator, KeyboardAvoidingView, TextInput, Alert,
+  Dimensions} from 'react-native'
+import Animated, {useSharedValue, useAnimatedStyle, runOnJS} from 'react-native-reanimated';
+import React, { useRef, useState, useEffect, useCallback, useContext } from 'react'
 import ReportModal from './ReportModal'
 import {MaterialCommunityIcons, MaterialIcons} from '@expo/vector-icons';
 import { Divider } from 'react-native-paper';
@@ -16,10 +16,19 @@ import { Timestamp } from 'firebase/firestore';
 import { schedulePushCommentNotification, schedulePushCommentReplyNotification } from '../../notificationFunctions';
 import _ from 'lodash';
 import NextButton from '../NextButton';
+import ProfileContext from '../../lib/profileContext';
+import { db } from '../../firebase';
+import { getDoc, doc } from 'firebase/firestore';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
+function clamp(val, min, max) {
+  return Math.min(Math.max(val, min), max);
+}
+
+const { width, height } = Dimensions.get('screen');
 const CommentsModal = ({commentModal, closeCommentModal, deleteReply, postNull, user, reportedComments, username, focusedPost, ableToShare,
-    blockedUsers, pfp, notificationToken, videoStyling
+    blockedUsers, pfp, notificationToken, videoStyling, actualData, handleActualData
 }) => {
-    //console.log(focusedPost)
+    const profile = useContext(ProfileContext)
     const navigation = useNavigation();
     const textInputRef = useRef(null);
     const handleClose = () => {
@@ -27,6 +36,9 @@ const CommentsModal = ({commentModal, closeCommentModal, deleteReply, postNull, 
     }
     const handlePost = () => {
         postNull()
+    }
+    const handleData = (data) => {
+      handleActualData(data);
     }
     const handleScroll = _.debounce((event) => {
       // Your logic for fetching more data
@@ -43,31 +55,44 @@ const CommentsModal = ({commentModal, closeCommentModal, deleteReply, postNull, 
     const [reportComment, setReportComment] = useState(null);
     const [singleCommentLoading, setSingleCommentLoading] = useState(false);
     const [tempReplyName, setTempReplyName] = useState('');
+    const [tempCommentId, setTempCommentId] = useState(null);
     const [replyLastVisible, setReplyLastVisible] = useState(null);
     const [tempReplyId, setTempReplyId] = useState(0);
     const [reply, setReply] = useState('');
     const [lastCommentVisible, setLastCommentVisible] = useState(null);
-    const { height } = Dimensions.get('window');
-    const translateY = useSharedValue(0);
-    // Handle gesture
-    const gesture = Gesture.Pan()
-      .onUpdate((event) => {
-        translateY.value = event.translationY > 0 ? event.translationY : 0; // Only move downward
-      })
-      .onEnd((event) => {
-        if (event.translationY > height * 0.3) {
-          // Close modal if pulled down far enough
-          runOnJS(closeCommentModal())();
-        } else {
-          // Snap back into position
-          translateY.value = withSpring(0);
-        }
-      });
+    const translationY = useSharedValue(0);
+    const prevTranslationY = useSharedValue(0);
 
-    // Animated style
-    const animatedStyle = useAnimatedStyle(() => ({
-      transform: [{ translateY: translateY.value }],
+    const animatedStyles = useAnimatedStyle(() => ({
+      transform: [
+        { translateY: translationY.value },
+      ],
     }));
+    const pan = Gesture.Pan()
+    .minDistance(1)
+    .onStart(() => {
+      prevTranslationY.value = translationY.value;
+    })
+    .onUpdate((event) => {
+      const maxTranslateY = height / 2 - 150;
+      translationY.value = clamp(
+        prevTranslationY.value + event.translationY,
+        0,
+        maxTranslateY
+      );
+    }).onEnd(() => {
+    if (translationY.value >= height / 2 - 150) {
+      // Activate your function here
+      {handleClose(); 
+        setReportCommentModal(false); 
+        handlePost();
+        setComments([]); 
+        setNewComment(''); 
+        setReplyFocus(false); 
+        setReplyToReplyFocus(false)}
+    }
+  })
+    .runOnJS(true);
     useEffect(() => {
       if (textInputRef.current && replyToReplyFocus) { 
         textInputRef.current.focus();
@@ -152,7 +177,6 @@ if (!ableToShare) {
     Alert.alert('Post unavailable to reply')
   }
   else if (videoStyling) {
-    setAddingReply(true)
   setSingleCommentLoading(true)
   
   const commentSnap = await getDoc(doc(db, 'videos', focusedPost.id, 'comments', tempCommentId))
@@ -160,7 +184,7 @@ if (!ableToShare) {
     reply: reply,
             pfp: pfp,
             notificationToken: notificationToken,
-            username: ogUsername,
+            username: profile.userName,
             replyToComment: false,
             replyTo: tempReplyName,
             timestamp: Timestamp.fromDate(new Date()),
@@ -175,7 +199,7 @@ if (!ableToShare) {
                           headers: {
                             'Content-Type': 'application/json', // Set content type as needed
                           },
-                          body: JSON.stringify({ data: {tempCommentId: tempCommentId, textModerationURL: TEXT_MODERATION_URL, newReply: newReply, commentSnap: commentSnap.data(), reply: reply, user: user.uid, focusedPost: focusedPost, username: ogUsername}}), // Send data as needed
+                          body: JSON.stringify({ data: {tempCommentId: tempCommentId, textModerationURL: TEXT_MODERATION_URL, newReply: newReply, commentSnap: commentSnap.data(), reply: reply, user: user.uid, focusedPost: focusedPost, username: profile.userName}}), // Send data as needed
                         })
                         const data = await response.json();
                         if (data.link) {
@@ -192,7 +216,7 @@ if (!ableToShare) {
                 loading: false,
             pfp: pfp,
             notificationToken: notificationToken,
-            username: ogUsername,
+            username: profile.userName,
             replyToComment: false,
             replyTo: tempReplyName,
             timestamp: Timestamp.fromDate(new Date()),
@@ -217,12 +241,12 @@ if (!ableToShare) {
         const updatedData = [...actualData];
         updatedData[objectIndex] = updatedObject;
         // Set the new array as the state
-        setActualData(updatedData);
+        handleData(updatedData);
       }
       setReply('')
       setReplyToReplyFocus(false)
       setSingleCommentLoading(false)
-      schedulePushCommentReplyNotification(commentSnap.data().user, ogUsername, commentSnap.data().notificationToken, reply)
+      schedulePushCommentReplyNotification(commentSnap.data().user, profile.userName, commentSnap.data().notificationToken, reply)
     }
   } catch (e) {
     console.error(e);
@@ -252,7 +276,7 @@ if (!ableToShare) {
                 loading: false,
             pfp: pfp,
             notificationToken: notificationToken,
-            username: ogUsername,
+            username: profile.userName,
             replyToComment: false,
             replyTo: tempReplyName,
             timestamp: Timestamp.fromDate(new Date()),
@@ -276,7 +300,7 @@ if (!ableToShare) {
         const updatedData = [...actualData];
         updatedData[objectIndex] = updatedObject;
         // Set the new array as the state
-        setActualData(updatedData);
+        handleData(updatedData);
       }
       setReply('')
       setReplyToReplyFocus(false)
@@ -294,7 +318,7 @@ if (!ableToShare) {
       }
   }
   else {
-    setAddingReply(true)
+    
   setSingleCommentLoading(true)
   
   const commentSnap = await getDoc(doc(db, 'posts', focusedPost.id, 'comments', tempCommentId))
@@ -302,7 +326,7 @@ if (!ableToShare) {
     reply: reply,
             pfp: pfp,
             notificationToken: notificationToken,
-            username: ogUsername,
+            username: profile.userName,
             replyToComment: false,
             replyTo: tempReplyName,
             timestamp: Timestamp.fromDate(new Date()),
@@ -310,6 +334,7 @@ if (!ableToShare) {
             postId: focusedPost.id,
             user: user.uid
   }
+  console.log(tempReplyName)
   if (commentSnap.exists() && username !== commentSnap.data().username) {
     try {
                             const response = await fetch(`http://10.0.0.225:4000/api/newReplyToReply`, {
@@ -317,7 +342,7 @@ if (!ableToShare) {
                           headers: {
                             'Content-Type': 'application/json', // Set content type as needed
                           },
-                          body: JSON.stringify({ data: {tempCommentId: tempCommentId, textModerationURL: TEXT_MODERATION_URL, newReply: newReply, commentSnap: commentSnap.data(), reply: reply, user: user.uid, focusedPost: focusedPost, username: ogUsername}}), // Send data as needed
+                          body: JSON.stringify({ data: {tempCommentId: tempCommentId, textModerationURL: TEXT_MODERATION_URL, newReply: newReply, commentSnap: commentSnap.data(), reply: reply, user: user.uid, focusedPost: focusedPost, username: profile.userName}}), // Send data as needed
                         })
                         const data = await response.json();
                         if (data.link) {
@@ -333,7 +358,7 @@ if (!ableToShare) {
                 loading: false,
             pfp: pfp,
             notificationToken: notificationToken,
-            username: ogUsername,
+            username: profile.userName,
             replyToComment: false,
             replyTo: tempReplyName,
             timestamp: Timestamp.fromDate(new Date()),
@@ -358,7 +383,7 @@ if (!ableToShare) {
         const updatedData = [...actualData];
         updatedData[objectIndex] = updatedObject;
         // Set the new array as the state
-        setActualData(updatedData);
+        handleData(updatedData);
       }
       setReply('')
       setReplyToReplyFocus(false)
@@ -394,7 +419,7 @@ if (!ableToShare) {
                 loading: false,
             pfp: pfp,
             notificationToken: notificationToken,
-            username: ogUsername,
+            username: profile.userName,
             replyToComment: false,
             replyTo: tempReplyName,
             timestamp: Timestamp.fromDate(new Date()),
@@ -419,7 +444,7 @@ if (!ableToShare) {
         const updatedData = [...actualData];
         updatedData[objectIndex] = updatedObject;
         // Set the new array as the state
-        setActualData(updatedData);
+        handleData(updatedData);
       }
       setReply('')
      setReplyToReplyFocus(false)
@@ -442,26 +467,26 @@ if (!ableToShare) {
     Alert.alert('Post unavailable to reply')
   }
   else if (videoStyling) {
-    setAddingReply(true)
+    
   setSingleCommentLoading(true)
   const commentSnap = await getDoc(doc(db, 'videos', focusedPost.id, 'comments', tempReplyId))
     const newReply = {reply: reply,
             pfp: pfp,
             notificationToken: notificationToken,
-            username: ogUsername,
+            username: profile.userName,
             replyToComment: true,
             timestamp: Timestamp.fromDate(new Date()),
             likedBy: [],
             postId: focusedPost.id,
             user: user.uid}
-  if (commentSnap.exists() && commentSnap.data().username !== ogUsername) {
+  if (commentSnap.exists() && commentSnap.data().username !== profile.userName) {
     try {
                             const response = await fetch(`http://10.0.0.225:4000/api/newReplyVideo`, {
                           method: 'POST', // Use appropriate HTTP method (GET, POST, etc.)
                           headers: {
                             'Content-Type': 'application/json', // Set content type as needed
                           },
-                          body: JSON.stringify({ data: {tempReplyId: tempReplyId, textModerationURL: TEXT_MODERATION_URL, newReply: newReply, commentSnap: commentSnap.data(), reply: reply, user: user.uid, focusedPost: focusedPost, username: ogUsername}}), // Send data as needed
+                          body: JSON.stringify({ data: {tempReplyId: tempReplyId, textModerationURL: TEXT_MODERATION_URL, newReply: newReply, commentSnap: commentSnap.data(), reply: reply, user: user.uid, focusedPost: focusedPost, username: profile.userName}}), // Send data as needed
                         })
                         const data = await response.json();
                         if (data.link) {
@@ -477,7 +502,7 @@ if (!ableToShare) {
                 loading: false,
             pfp: pfp,
             notificationToken: notificationToken,
-            username: ogUsername,
+            username: profile.userName,
             replyToComment: true,
             timestamp: Timestamp.fromDate(new Date()),
             likedBy: [],
@@ -500,12 +525,12 @@ if (!ableToShare) {
         const updatedData = [...actualData];
         updatedData[objectIndex] = updatedObject;
         // Set the new array as the state
-        setActualData(updatedData);
+        handleData(updatedData);
       }
      setReply('')
      setReplyFocus(false)
      setSingleCommentLoading(false)
-     schedulePushCommentReplyNotification(commentSnap.data().user, ogUsername, commentSnap.data().notificationToken, reply)
+     schedulePushCommentReplyNotification(commentSnap.data().user, profile.userName, commentSnap.data().notificationToken, reply)
     }
   }
   catch (e) {
@@ -514,6 +539,7 @@ if (!ableToShare) {
   }
   }
   else if (commentSnap.exists()) {
+    console.log('bruh')
     try {
                             const response = await fetch(`http://10.0.0.225:4000/api/newReplyVideoUsername`, {
                           method: 'POST', // Use appropriate HTTP method (GET, POST, etc.)
@@ -530,14 +556,14 @@ if (!ableToShare) {
                           profanityUsernameAlert()
                         }
                         else if (data.done) {
-        
+                        console.log(data)
               const updatedData = comments.filter((e) => e.id == tempReplyId)
               const newObject = {reply: reply,
                 commentId: tempReplyId,
                 loading: false,
             pfp: pfp,
             notificationToken: notificationToken,
-            username: ogUsername,
+            username: profile.userName,
             replyToComment: true,
             timestamp: Timestamp.fromDate(new Date()),
             likedBy: [],
@@ -561,7 +587,7 @@ if (!ableToShare) {
         const updatedData = [...actualData];
         updatedData[objectIndex] = updatedObject;
         // Set the new array as the state
-        setActualData(updatedData);
+        handleData(updatedData);
       }
       setReply('')
       setSingleCommentLoading(false)
@@ -579,20 +605,22 @@ if (!ableToShare) {
       }
   }
   else {
-    setAddingReply(true)
+    console.log('fjdsklfsdklfksklfdkldfsljk')
   setSingleCommentLoading(true)
+  console.log(`tempReplyId: ${tempReplyId}`)
   const commentSnap = await getDoc(doc(db, 'posts', focusedPost.id, 'comments', tempReplyId))
+  console.log(commentSnap.exists())
     const newReply = {reply: reply,
             pfp: pfp,
             notificationToken: notificationToken,
-            username: ogUsername,
+            username: profile.userName,
             replyToComment: true,
             timestamp: Timestamp.fromDate(new Date()),
             likedBy: [],
             postId: focusedPost.id,
             user: user.uid}
   //console.log(commentSnap.exists() && commentSnap.data().username !== username)
-  if (commentSnap.exists() && commentSnap.data().username !== ogUsername) {
+  if (commentSnap.exists() && commentSnap.data().username !== profile.userName) {
     //console.log(tempReplyId, newReply, commentSnap, reply, user.uid, focusedPost, username)
    try {
                             const response = await fetch(`http://10.0.0.225:4000/api/newReply`, {
@@ -600,7 +628,7 @@ if (!ableToShare) {
                           headers: {
                             'Content-Type': 'application/json', // Set content type as needed
                           },
-                          body: JSON.stringify({ data: {tempReplyId: tempReplyId, textModerationURL: TEXT_MODERATION_URL, newReply: newReply, commentSnap: commentSnap.data(), reply: reply, user: user.uid, focusedPost: focusedPost, username: ogUsername}}), // Send data as needed
+                          body: JSON.stringify({ data: {tempReplyId: tempReplyId, textModerationURL: TEXT_MODERATION_URL, newReply: newReply, commentSnap: commentSnap.data(), reply: reply, user: user.uid, focusedPost: focusedPost, username: profile.userName}}), // Send data as needed
                         })
                         const data = await response.json();
                         if (data.link) {
@@ -618,7 +646,7 @@ if (!ableToShare) {
                 loading: false,
             pfp: pfp,
             notificationToken: notificationToken,
-            username: ogUsername,
+            username: profile.userName,
             replyToComment: true,
             timestamp: Timestamp.fromDate(new Date()),
             likedBy: [],
@@ -641,7 +669,7 @@ if (!ableToShare) {
         const updatedData = [...actualData];
         updatedData[objectIndex] = updatedObject;
         // Set the new array as the state
-        setActualData(updatedData);
+        handleData(updatedData);
       }
             
       setReply('')
@@ -656,6 +684,7 @@ if (!ableToShare) {
     }
   }
   else if (commentSnap.exists()) {
+    console.log('j')
     try {
                             const response = await fetch(`http://10.0.0.225:4000/api/newReplyUsername`, {
                           method: 'POST', // Use appropriate HTTP method (GET, POST, etc.)
@@ -679,7 +708,7 @@ if (!ableToShare) {
                 loading: false,
             pfp: pfp,
             notificationToken: notificationToken,
-            username: ogUsername,
+            username: profile.userName,
             replyToComment: true,
             timestamp: Timestamp.fromDate(new Date()),
             likedBy: [],
@@ -703,7 +732,7 @@ if (!ableToShare) {
         const updatedData = [...actualData];
         updatedData[objectIndex] = updatedObject;
         // Set the new array as the state
-        setActualData(updatedData);
+        handleData(updatedData);
       }
       setReply('')
         setSingleCommentLoading(false)
@@ -738,7 +767,7 @@ if (!ableToShare) {
                           headers: {
                             'Content-Type': 'application/json', // Set content type as needed
                           },
-                          body: JSON.stringify({ data: {newComment: newComment, textModerationURL: TEXT_MODERATION_URL, blockedUsers: blockedUsers, pfp: pfp, notificationToken: notificationToken, user: user.uid, focusedPost: focusedPost, username: ogUsername}}), // Send data as needed
+                          body: JSON.stringify({ data: {newComment: newComment, textModerationURL: TEXT_MODERATION_URL, blockedUsers: blockedUsers, pfp: pfp, notificationToken: notificationToken, user: user.uid, focusedPost: focusedPost, username: profile.userName}}), // Send data as needed
                         })
                         const data = await response.json();
                         if (data.link) {
@@ -751,7 +780,7 @@ if (!ableToShare) {
                                         setComments([...comments, {id: data.docRef, comment: newComment, showReply: false, loading: false,
                                             pfp: pfp,
                                             notificationToken: notificationToken,
-                                            username: ogUsername,
+                                            username: profile.userName,
                                             timestamp: Timestamp.fromDate(new Date()),
                                             likedBy: [],
                                             replies: [],
@@ -767,7 +796,7 @@ if (!ableToShare) {
         const updatedData = [...actualData];
         updatedData[objectIndex] = updatedObject;
         // Set the new array as the state
-        setActualData(updatedData);
+        handleData(updatedData);
       }
         setNewComment('')
         setSingleCommentLoading(false)
@@ -785,7 +814,7 @@ if (!ableToShare) {
                           headers: {
                             'Content-Type': 'application/json', // Set content type as needed
                           },
-                          body: JSON.stringify({ data: {newComment: newComment, textModerationURL: TEXT_MODERATION_URL, blockedUsers: blockedUsers, pfp: pfp, notificationToken: notificationToken, user: user.uid, focusedPost: focusedPost, username: ogUsername}}), // Send data as needed
+                          body: JSON.stringify({ data: {newComment: newComment, textModerationURL: TEXT_MODERATION_URL, blockedUsers: blockedUsers, pfp: pfp, notificationToken: notificationToken, user: user.uid, focusedPost: focusedPost, username: profile.userName}}), // Send data as needed
                         })
                         const data = await response.json();
                         if (data.link) {
@@ -799,7 +828,7 @@ if (!ableToShare) {
                       setComments([...comments, {id: data.docRef, comment: newComment, showReply: false, loading: false,
                                             pfp: pfp,
                                             notificationToken: notificationToken,
-                                            username: ogUsername,
+                                            username: profile.userName,
                                             timestamp: Timestamp.fromDate(new Date()),
                                             likedBy: [],
                                             replies: [],
@@ -816,7 +845,7 @@ if (!ableToShare) {
         const updatedData = [...actualData];
         updatedData[objectIndex] = updatedObject;
         // Set the new array as the state
-        setActualData(updatedData);
+        handleData(updatedData);
       }
       setNewComment('')
         setSingleCommentLoading(false)
@@ -837,7 +866,7 @@ if (!ableToShare) {
                           headers: {
                             'Content-Type': 'application/json', // Set content type as needed
                           },
-                          body: JSON.stringify({ data: {newComment: newComment, textModerationURL: TEXT_MODERATION_URL, blockedUsers: blockedUsers, pfp: pfp, notificationToken: notificationToken, user: user.uid, focusedPost: focusedPost, username: ogUsername}}), // Send data as needed
+                          body: JSON.stringify({ data: {newComment: newComment, textModerationURL: TEXT_MODERATION_URL, blockedUsers: blockedUsers, pfp: pfp, notificationToken: notificationToken, user: user.uid, focusedPost: focusedPost, username: profile.userName}}), // Send data as needed
                         })
                         const data = await response.json();
                         if (data.link) {
@@ -850,7 +879,7 @@ if (!ableToShare) {
                                         setComments([...comments, {id: data.docRef, comment: newComment, showReply: false, loading: false,
                                             pfp: pfp,
                                             notificationToken: notificationToken,
-                                            username: ogUsername,
+                                            username: profile.userName,
                                             timestamp: Timestamp.fromDate(new Date()),
                                             likedBy: [],
                                             replies: [],
@@ -866,7 +895,7 @@ if (!ableToShare) {
         const updatedData = [...actualData];
         updatedData[objectIndex] = updatedObject;
         // Set the new array as the state
-        setActualData(updatedData);
+        handleData(updatedData);
       }
       setNewComment('')
       setSingleCommentLoading(false)
@@ -877,13 +906,14 @@ if (!ableToShare) {
   }
                     }
                     else {
+                      console.log('fkdsjfklskl')
                       try {
                             const response = await fetch(`http://10.0.0.225:4000/api/newCommentVideo`, {
                           method: 'POST', // Use appropriate HTTP method (GET, POST, etc.)
                           headers: {
                             'Content-Type': 'application/json', // Set content type as needed
                           },
-                          body: JSON.stringify({ data: {newComment: newComment, textModerationURL: TEXT_MODERATION_URL, blockedUsers: blockedUsers, pfp: pfp, notificationToken: notificationToken, user: user.uid, focusedPost: focusedPost, username: ogUsername}}), // Send data as needed
+                          body: JSON.stringify({ data: {newComment: newComment, textModerationURL: TEXT_MODERATION_URL, blockedUsers: blockedUsers, pfp: pfp, notificationToken: notificationToken, user: user.uid, focusedPost: focusedPost, username: profile.userName}}), // Send data as needed
                         })
                         const data = await response.json();
                         if (data.link) {
@@ -896,7 +926,7 @@ if (!ableToShare) {
                       setComments([...comments, {id: data.docRef, comment: newComment, showReply: false, loading: false,
                                             pfp: pfp,
                                             notificationToken: notificationToken,
-                                            username: ogUsername,
+                                            username: profile.userName,
                                             timestamp: Timestamp.fromDate(new Date()),
                                             likedBy: [],
                                             replies: [],
@@ -913,7 +943,7 @@ if (!ableToShare) {
         const updatedData = [...actualData];
         updatedData[objectIndex] = updatedObject;
         // Set the new array as the state
-        setActualData(updatedData);
+        handleData(updatedData);
       }
       setNewComment('')
       setSingleCommentLoading(false)
@@ -987,6 +1017,29 @@ if (!ableToShare) {
     </Text>
   );
 };
+function replySecondFunction(item) {
+  setReplyFocus(true); 
+  if (textInputRef.current) {
+    textInputRef.current.focus();
+  }
+  setTempReplyName(item.username); 
+  setTempReplyId(item.id);
+}
+function replyFunction(item, element) {
+  
+  setReplyToReplyFocus(true); 
+  if (textInputRef.current) {
+    console.log(textInputRef.current)
+    textInputRef.current.focus(); 
+  }
+  else {
+    console.log('fds')
+  }
+  
+  setTempReplyName(element.username); 
+  setTempCommentId(item.id); 
+  setTempReplyId(element.id);
+}
 async function toggleShowReply(e) {
    const updatedArray = comments.map(item => {
       if (item.id === e.id) {
@@ -1057,9 +1110,7 @@ async function addLike(item) {
                 <View style={styles.commentFooterContainer}>
                     <View style={{flexDirection: 'row'}}>
                         <Text style={styles.dateText}>{getDateAndTime(item.timestamp)}</Text>
-                        <TouchableOpacity style={styles.reply} onPress={() => {setReplyFocus(true); if (textInputRef.current) {
-      textInputRef.current.focus();
-    } setTempReplyName(item.username); setTempReplyId(item.id)}}>
+                        <TouchableOpacity style={styles.reply} onPress={() => replySecondFunction(item)}>
                             <Text style={styles.replyText}>Reply</Text>
                         </TouchableOpacity>
                     </View>
@@ -1125,7 +1176,7 @@ async function addLike(item) {
                                     <View style={styles.replyFooterContainer}>
                                         <View style={{flexDirection: 'row'}}>
                                             <Text style={styles.dateText}>{element.timestamp ? getDateAndTime(element.timestamp) : null}</Text>
-                                            <TouchableOpacity style={styles.reply} onPress={() => {setReplyToReplyFocus(true); setTempReplyName(element.username); setTempCommentId(item.id); setTempReplyId(element.id)}}>
+                                            <TouchableOpacity style={styles.reply} onPress={() => replyFunction(item, element)}>
                                                 <Text style={styles.replyText}>Reply</Text>
                                             </TouchableOpacity>
                                         </View>
@@ -1157,16 +1208,19 @@ async function addLike(item) {
       }
 }
   return (
-    <GestureDetector gesture={gesture}>
+    
    <Modal visible={commentModal} animationType="slide" transparent onRequestClose={() => handleClose()}>
-            <View style={[styles.modalContainer, {transform: [{ translateY: translateY.value }]}]}>
+    <GestureHandlerRootView>
+    <GestureDetector gesture={pan}>
+            <Animated.View style={[styles.modalContainer, animatedStyles]}>
                 <View style={styles.modalView}>
                    <View style={styles.container}>
+                    <View style={styles.line}/>
       {reportCommentModal ? <Text style={styles.headerText}>Report</Text> : <Text style={styles.headerText}>Comments</Text> }
-       <TouchableOpacity style={{marginLeft: 'auto'}} onPress={() => {handleClose(); setReportCommentModal(false); handlePost();
+       {/* <TouchableOpacity style={{marginLeft: 'auto'}} onPress={() => {handleClose(); setReportCommentModal(false); handlePost();
         setComments([]); setNewComment(''); setReplyFocus(false); setReplyToReplyFocus(false)}}>
             <MaterialCommunityIcons name='close' size={25} style={styles.close} color={"#fafafa"}/>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
         
         {reportCommentModal ? 
         <ReportModal />
@@ -1205,7 +1259,6 @@ async function addLike(item) {
                 data={comments.slice().sort((a, b) => b.timestamp - a.timestamp)}
                 renderItem={(v) =>
           renderComments(v, () => {
-            console.log('Pressed', v);
             deleteItem(v);
           })}
                 keyExtractor={item => item.id}
@@ -1267,9 +1320,11 @@ async function addLike(item) {
     </KeyboardAvoidingView> 
     </>: null}
                 </View>
-            </View>
+            </Animated.View>
+            </GestureDetector>
+    </GestureHandlerRootView>
         </Modal>
-        </GestureDetector>
+    
   )
 }
 
@@ -1277,8 +1332,8 @@ export default CommentsModal
 
 const styles = StyleSheet.create({
     modalContainer: {
-        marginTop: '55%',
-        height: '75%',
+        marginTop: '20%',
+        height: '100%',
         backgroundColor: "#121212"
     },
     modalView: {
@@ -1300,15 +1355,23 @@ const styles = StyleSheet.create({
     elevation: 5,
     },
     container: {
-        flex: 1,
-        backgroundColor: "#121212"
+      flex: 1,
+      backgroundColor: "#121212"
+    },
+    line: {
+      height: 3,
+      alignSelf: 'center',
+      marginTop: '5%',
+      width: 30,
+      backgroundColor: "#fafafa",
+      borderRadius: 1
     },
     headerText: {
-        fontSize: 15.36,
-        fontFamily: 'Montserrat_500Medium',
-        textAlign: 'center',
-        padding: 10,
-        color: "#fafafa"
+      fontSize: 15.36,
+      fontFamily: 'Montserrat_500Medium',
+      textAlign: 'center',
+      padding: 10,
+      color: "#fafafa"
     },
     close: {
         marginTop: '-7.5%', 
@@ -1429,6 +1492,12 @@ const styles = StyleSheet.create({
         color: "#fafafa",
         alignSelf: 'center'
     },
+    commentText: {
+      fontSize: 15.36,
+      fontFamily: 'Montserrat_500Medium',
+      padding: 5,
+      paddingBottom: 0
+    },
     viewRepliesText: {
         fontSize: 12.29,
         padding: 5,
@@ -1449,7 +1518,7 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-end',
         alignItems: 'flex-end',
         borderColor: "#fafafa",
-        marginBottom: '17.5%',
+        marginBottom: '25%',
         borderTopWidth: 0.25,
         width: '100%',
         backgroundColor: "transparent"

@@ -12,11 +12,11 @@ import themeContext from '../lib/themeContext';
 import _ from 'lodash';
 import { db } from '../firebase'
 import ProfileContext from '../lib/profileContext';
-import getDateAndTime from '../lib/getDateAndTime';
+import PreviewChat from '../Components/Chat/PreviewChat';
 const ChatScreen = ({route}) => {
     const profile = useContext(ProfileContext);
     const navigation = useNavigation();
-    const {payloadGroup, theme, message} = route.params; 
+    const {message} = route.params; 
     const [searches, setSearches] = useState([]);
     const [friends, setFriends] = useState([]);
     const modeTheme = useContext(themeContext)
@@ -34,7 +34,6 @@ const ChatScreen = ({route}) => {
     const [searching, setSearching] = useState(false)
     const [moreResults, setMoreResults] = useState(false);
   const [moreResultButton, setMoreResultButton] = useState(false);
-    const [recentSearches, setRecentSearches] = useState(false);
     const [lastVisible, setLastVisible] = useState();
     const [loading, setLoading] = useState(true);
     const {user} = useAuth()
@@ -88,25 +87,18 @@ const ChatScreen = ({route}) => {
         Promise.all(friends.map(async(item) => await getDoc(doc(db, 'profiles', item.id))))
       .then(snapshots => {
         setFriendsInfo(snapshots.map(snapshot => ({id: snapshot.id, ...snapshot.data(), checked: false})))
-        //console.log(snapshots.map(snapshot => snapshot.data()))
-        //const documents = snapshots.map(snapshot => snapshot.data());
-        // Process the fetched documents here
       })
       .catch(error => {
         // Handle errors
       });
       }
     }, [friends])
-    //console.log(friendsInfo.length)
     useMemo(() => {
       if (ogActiveFriends.length > 0) {
         Promise.all(ogActiveFriends.map(async(item) => await getDoc(doc(db, 'profiles', item.id))))
       .then(snapshots => {
 
         setActiveFriendsInfo(snapshots.map(snapshot => ({id: snapshot.id, ...snapshot.data(), checked: false})))
-        //console.log(snapshots.map(snapshot => snapshot.data()))
-        //const documents = snapshots.map(snapshot => snapshot.data());
-        // Process the fetched documents here
       })
       .catch(error => {
         // Handle errors
@@ -119,9 +111,6 @@ const ChatScreen = ({route}) => {
       Promise.all(friends.map(async(item) => await getDoc(doc(db, 'friends', item.friendId))))
       .then(snapshots => {
         setCompleteFriends(snapshots.map(snapshot => ({id: snapshot.id, ...snapshot.data()})))
-        //console.log(snapshots.map(snapshot => snapshot.data()))
-        //const documents = snapshots.map(snapshot => snapshot.data());
-        // Process the fetched documents here
       })
       .catch(error => {
         // Handle errors
@@ -179,9 +168,6 @@ const ChatScreen = ({route}) => {
         Promise.all(completeFriends.map(async(item) => await getDoc(doc(db, 'friends', item.id))))
       .then(snapshots => {
         setLastMessages(snapshots.map(snapshot => ({id: snapshot.id, ...snapshot.data()})))
-        //console.log(snapshots.map(snapshot => snapshot.data()))
-        //const documents = snapshots.map(snapshot => snapshot.data());
-        // Process the fetched documents here
       })
       .catch(error => {
         // Handle errors
@@ -199,7 +185,6 @@ const ChatScreen = ({route}) => {
         return obj2;
       });
       // Update the state variable array2 with the modified array
-      //console.log(updatedArray2)
       new Promise(resolve => {
         setCompleteMessages(updatedArray2
         .filter((e) => e.lastMessageTimestamp != undefined)
@@ -208,50 +193,6 @@ const ChatScreen = ({route}) => {
           resolve(); // Resolve the Promise after setCompleteMessages is done
       }).finally(() => setLoading(false)); 
     }, [lastMessages])
-    async function deleteMessageNotifications (item) {
-      
-      //console.log(item)
-    }
-    const renderChats = ({item, index}, onClick) => {
-        return (
-          <View>
-            <TouchableOpacity style={[styles.messageContainer, {backgroundColor: modeTheme.backgroundColor}]} activeOpacity={1} onPress={() => {deleteMessageNotifications(item); navigation.navigate('PersonalChat', {person: item, friendId: completeFriends.filter((element) => element.id.includes(item.id))[0].id})}}>
-              {item.pfp ? <FastImage source={{uri: item.pfp}} style={{height: 45, width: 45, borderRadius: 8, borderWidth: 1.5}}/> :
-              <FastImage source={require('../assets/defaultpfp.jpg')} style={{height: 45, width: 45, borderRadius: 8, borderWidth: 1.5}}/>
-              }
-                
-                 <View style={{paddingLeft: 7.5, width: '75%'}}>
-                    <Text numberOfLines={1} style={[styles.name, {color: modeTheme.color}]}>{item.firstName} {item.lastName}</Text>
-                    {filteredGroup.length > 0 ? <Text numberOfLines={1} style={[styles.message, {color: modeTheme.color}]}>{item.userName}</Text> : 
-                    <Text numberOfLines={1} style={[styles.message, {color: modeTheme.color}]}>{item.lastMessage == undefined ? 'Start the Conversation!' : item.lastMessage.userSent != undefined ?
-                    `Sent a profile`: item.lastMessage.post != undefined ? item.lastMessage.post.group != undefined ? 'Sent a Cliq' : `Sent a post by ${item.lastMessage.userName}` 
-                    :  item.lastMessage.theme != undefined ? `Sent a theme` :
-                     item.lastMessage.image != undefined ? 'Sent a photo' : 
-                    item.lastMessage.image && item.lastMessage.text.length > 0 ? item.lastMessage.text : item.lastMessage.text}</Text>}
-                    {/* <Text style={styles.message}>{}</Text> */}
-                </View>
-                <View style={{flexDirection: 'column', marginLeft: 'auto'}}>
-                  <Text style={{fontSize: 12.29, paddingBottom: 5, color: modeTheme.color, fontFamily: 'Montserrat_500Medium'}}>{getDateAndTime(item.lastMessageTimestamp)}</Text>
-                {
-                  messageNotifications.length > 0 ?
-                  messageNotifications.filter((element) => element.id == item.messageId).length > 0 ? 
-                  <View>
-                  <MaterialCommunityIcons name='message-badge-outline' style={{textAlign: 'right', paddingRight: 5}} size={25} color={"#33FF68"}/>
-                </View> : 
-                 <View>
-                  <MaterialCommunityIcons name='message-outline' style={{textAlign: 'right', paddingRight: 5}}  size={25} color={modeTheme.color}/>
-                </View> :
-                <View>
-                  <MaterialCommunityIcons name='message-outline' style={{textAlign: 'right', paddingRight: 5}} size={25} color={modeTheme.color}/>
-                </View> 
-                }
-                </View>
-                
-                
-            </TouchableOpacity>
-          </View>
-        )
-    }
     const url = 'https://apps.apple.com/us/app/nucliq/id6451544113'
     const shareApp = async() => {
       try {
@@ -278,7 +219,6 @@ const ChatScreen = ({route}) => {
       setSearching(true)
       setMoreResultButton(false)
       setMoreResults(false)
-      //const temp = specificSearch.toLowerCase()
       const tempList = Array.from(new Set(searches.map(JSON.stringify))).map(JSON.parse).filter(item => {
           return item
       })
@@ -326,7 +266,7 @@ const ChatScreen = ({route}) => {
       }
     }, [route.params?.notification])
     async function deleteCheckedNotifications() {
-      //console.log('first')
+      //
       const querySnapshot = await getDocs(collection(db, "profiles", user.uid, 'checkNotifications'));
       querySnapshot.forEach(async(docu) => {
         await deleteDoc(doc(db, 'profiles', user.uid, 'checkNotifications', docu.id))
@@ -359,156 +299,107 @@ const renderEvents = ({item, index}) => {
 
   return (
     <Provider>
-    <View style={[styles.container, {backgroundColor: modeTheme.backgroundColor}]}>
-    <View style={styles.header}>
-            <TouchableOpacity style={{alignSelf: 'center',}} hitSlop={{ top: 50, bottom: 50, left: 50, right: 50 }} onPress={payloadGroup ? () => navigation.navigate('Cliqs', {screen: 'GroupHome', params: {name: payloadGroup.id}}) : theme ? () => {navigation.navigate('Themes', {screen : 'All', params: {name: null, groupId: null, goToMy: false, groupTheme: null, group: null, registers: false}})}  
-        : () => navigation.goBack()} >
-                <MaterialCommunityIcons name='chevron-left' color={modeTheme.color} size={35} onPress={payloadGroup ? () => navigation.navigate('Cliqs', {screen: 'GroupHome', params: {name: payloadGroup.id}}) : theme ? () => {navigation.navigate('Themes', {screen : 'All', params: {name: null, groupId: null, goToMy: false, groupTheme: null, group: null, registers: false}})}  
-        : () => navigation.goBack()} />
-            </TouchableOpacity>
-            
-            {
-            message ?
-                  <>
-            <Text style={[styles.headerText, {color: modeTheme.color}]}>Messages</Text>
-
-        
-       
-        </>
-        :
-         <>
-          <Text style={[styles.headerText, {color: modeTheme.color}]}>Notifications</Text>
-        </>
-        }
-        <MaterialCommunityIcons name='share-variant-outline' size={27.5} color={"#fafafa"} onPress={shareApp}/>
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity style={{alignSelf: 'center'}} hitSlop={{ top: 50, bottom: 50, left: 50, right: 50 }} onPress={() => navigation.goBack()} >
+            <MaterialCommunityIcons name='chevron-left' color={"#fafafa"} size={35}/>
+          </TouchableOpacity>
+          <Text style={styles.headerText}>Messages</Text>
+          <MaterialCommunityIcons name='share-variant-outline' size={27.5} color={"#fafafa"} onPress={shareApp}/>
         </View>
-      <Divider />
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{flex: 1}}>
-      {message ? <>
-      {loading && completeMessages.length == 0 ?  <View style={{alignItems: 'center', flex: 1, justifyContent: 'center'}}>
-          <ActivityIndicator color={modeTheme.theme != 'light' ? "#9EDAFF" : "#005278"} size={"large"}/> 
-        </View> : friendsInfo.filter(obj => completeMessages.some(otherObj => otherObj.id === obj.id)).length > 0 ?
-      <>
-      {/* {activeFriends.filter(obj => completeMessages.some(otherObj => otherObj.id === obj.id)).length > 0 ? 
-      <View style={{marginVertical: '5%', marginBottom: 0}}>
-      <ScrollView horizontal contentContainerStyle={{flexGrow: 1}}>
-        {activeFriends.filter(obj => completeMessages.some(otherObj => otherObj.id === obj.id)).map((item) => {
-          //console.log(item)
-          return (
-            <>
-            <View style={{height: 10, width: 10, position: 'relative', backgroundColor: '#9edaff', borderRadius: 8, left: 12, zIndex: 3}}/>
-            <TouchableOpacity onPress={() => navigation.navigate('ViewingProfile', {name: item.id, viewing: true})}>
-            
-            {item.pfp ? <FastImage source={{uri: item.pfp}} style={{height: 45, width: 45, borderRadius: 8, borderWidth: 1.5, marginLeft: 5, marginRight: 5}}/> :
-              <FastImage source={require('../assets/defaultpfp.jpg')} style={{height: 45, width: 45, borderRadius: 8, borderWidth: 1.5, marginLeft: 5, marginRight: 5}}/>
-              }
-            </TouchableOpacity>
-            </>
-          )
-          
-        })}
-      </ScrollView>
-      </View> : null}  */}
-      {friendsInfo.filter(obj => completeMessages.some(otherObj => otherObj.id === obj.id)).length > 0 ? 
-          <View style={{margin: '5%'}}>
-            <TouchableOpacity activeOpacity={1} style={{width: '100%', marginTop: '2.5%', zIndex: 0}}>
-            <View style={{flexDirection: 'row'}}>
-                  <SearchInput value={specificSearch} icon={'magnify'} placeholder={'Search'} onFocus={() => {setRecentSearches(true); setSearching(true)}} iconStyle={styles.homeIcon}
-                  containerStyle={!searching ? {borderWidth: 1, borderColor: modeTheme.color, width: '100%'} : {borderWidth: 1, borderColor: modeTheme.color, width: '90%'}} onSubmitEditing={ () => {setRecentSearches(false)}} text={searching ? true : false} onChangeText={setSpecificSearch} 
-                  onPress={() => { setRecentSearches(true); setSpecificSearch(''); setSearching(true)}}/>
-                  {searching ?
-                  <MaterialCommunityIcons name='close' size={40} style={styles.closeHomeIcon} color={modeTheme.color} onPress={() => {setRecentSearches(false); setSearching(false); Keyboard.dismiss(); setFiltered([]); setSpecificSearch('')}}/> : null}
-                  </View>
-                  <View>
-                  {searching && filtered.length == 0 && specificSearch.length > 0 ?
-                  <View>
-                    <Text style={{fontFamily: 'Montserrat_500Medium', color: modeTheme.color, fontSize: 15.36, paddingHorizontal: 10, textAlign: 'center', marginRight: '5%', marginTop: '5%'}}>No Search Results</Text>
-                  </View> :  
-                  searching && moreResults
-                  ?
-                  <>
-                  <FlatList 
-                      data={!moreResults ? filtered.slice(0, 3) : filtered.slice(0, 10)}
-                      renderItem={renderEvents}
-                      keyExtractor={(item) => item.id}
-                      contentContainerStyle={{flexGrow: 1}}
-                      //contentContainerStyle={{width: '100%', zIndex: 3, flewGrow: 1}}
-                      scrollEnabled={moreResultButton ? false: true}
-                  /> 
-                  </>
-                  : searching && (moreResults || specificSearch.length > 0) ? 
-                  <View>
-                  <FlatList 
-                      data={!moreResults ? filtered.slice(0, 3) : filtered.slice(0, 10)}
-                      renderItem={renderEvents}
-                      keyExtractor={(item) => item.id}
-                      contentContainerStyle={{flexGrow: 1}}
-                      scrollEnabled={moreResultButton ? false: true}
-                  /> 
-                  {moreResults ? 
-                  <TouchableOpacity style={{alignItems: 'center', marginRight: '5%'}} onPress={() => {setRecentSearches(false); setMoreResults(true); setMoreResultButton(false);}}>
-                    <Text style={{paddingTop: 5, fontFamily: 'Montserrat_400Regular', color: modeTheme.theme != 'light' ? "#9EDAFF" : "#005278"}}>See more results</Text>
-                    </TouchableOpacity> : null}
-                  </View> : <></>}
-                  </View>
-                  
-                  
-              </TouchableOpacity>
-              
-          </View>
-      : null}
-        {/* <Divider style={{borderWidth: 0.5}}/> */}
-        {!searching ? <View style={{flex: 1}}>
-            {filteredGroup.length > 0 ? 
-            <FlatList 
-                data={filteredGroup}
-                renderItem={renderChats}
-                keyExtractor={(item) => item.id.toString()}
-                style={{height: '50%'}}
-                contentContainerStyle={{zIndex: 0}}
-            /> :
-            completeMessages.length > 0 ? 
-            <FlatList 
-                data={completeMessages}
-                renderItem={renderChats}
-                keyExtractor={(item) => item.id.toString()}
-                //contentContainerStyle={{flex: 1}}
-                style={activeFriends.filter(obj => completeMessages.some(otherObj => otherObj.id === obj.id)).length > 0 ? {height: '100%'} : {height: '100%'}}
-                ListFooterComponent={<View style={{paddingBottom: 75}}/>}
-                onScroll={handleScroll}
-                //ListFooterComponentStyle={<View style={{paddingBottom: 100}}/>}
-                //style={{flex: 1}}
-                //contentContainerStyle={{zIndex: 0, height: '100%'}}
+        <Divider />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{flex: 1}}>
+        {message ? <>
+        {loading && completeMessages.length == 0 ?  <View style={{alignItems: 'center', flex: 1, justifyContent: 'center'}}>
+            <ActivityIndicator color={modeTheme.theme != 'light' ? "#9EDAFF" : "#005278"} size={"large"}/> 
+          </View> : friendsInfo.filter(obj => completeMessages.some(otherObj => otherObj.id === obj.id)).length > 0 ?
+        <>
+        {friendsInfo.filter(obj => completeMessages.some(otherObj => otherObj.id === obj.id)).length > 0 ? 
+            <View style={{margin: '5%'}}>
+              <TouchableOpacity activeOpacity={1} style={{width: '100%', marginTop: '2.5%', zIndex: 0}}>
+              <View style={{flexDirection: 'row'}}>
+                    <SearchInput value={specificSearch} icon={'magnify'} placeholder={'Search'} onFocus={() => {setSearching(true)}} iconStyle={styles.homeIcon}
+                    containerStyle={!searching ? {borderWidth: 1, borderColor: modeTheme.color, width: '100%'} : {borderWidth: 1, borderColor: modeTheme.color, width: '90%'}} text={searching ? true : false} onChangeText={setSpecificSearch} 
+                    onPress={() => { setSpecificSearch(''); setSearching(true)}}/>
+                    {searching ?
+                    <MaterialCommunityIcons name='close' size={40} style={styles.closeHomeIcon} color={modeTheme.color} onPress={() => {setSearching(false); Keyboard.dismiss(); setFiltered([]); setSpecificSearch('')}}/> : null}
+                    </View>
+                    <View>
+                    {searching && filtered.length == 0 && specificSearch.length > 0 ?
+                    <View>
+                      <Text style={{fontFamily: 'Montserrat_500Medium', color: modeTheme.color, fontSize: 15.36, paddingHorizontal: 10, textAlign: 'center', marginRight: '5%', marginTop: '5%'}}>No Search Results</Text>
+                    </View> :  
+                    searching && moreResults
+                    ?
+                    <>
+                    <FlatList 
+                        data={!moreResults ? filtered.slice(0, 3) : filtered.slice(0, 10)}
+                        renderItem={renderEvents}
+                        keyExtractor={(item) => item.id}
+                        contentContainerStyle={{flexGrow: 1}}
+                        //contentContainerStyle={{width: '100%', zIndex: 3, flewGrow: 1}}
+                        scrollEnabled={moreResultButton ? false: true}
+                    /> 
+                    </>
+                    : searching && (moreResults || specificSearch.length > 0) ? 
+                    <View>
+                    <FlatList 
+                        data={!moreResults ? filtered.slice(0, 3) : filtered.slice(0, 10)}
+                        renderItem={renderEvents}
+                        keyExtractor={(item) => item.id}
+                        contentContainerStyle={{flexGrow: 1}}
+                        scrollEnabled={moreResultButton ? false: true}
+                    /> 
+                    {moreResults ? 
+                    <TouchableOpacity style={{alignItems: 'center', marginRight: '5%'}} onPress={() => { setMoreResults(true); setMoreResultButton(false);}}>
+                      <Text style={{paddingTop: 5, fontFamily: 'Montserrat_400Regular', color: modeTheme.theme != 'light' ? "#9EDAFF" : "#005278"}}>See more results</Text>
+                      </TouchableOpacity> : null}
+                    </View> : <></>}
+                    </View>
+                    
+                    
+                </TouchableOpacity>
                 
-            /> : null
-            }
-            {loading ? 
-            <View style={{}}>
-          <ActivityIndicator color={modeTheme.theme != 'light' ? "#9EDAFF" : "#005278"}/> 
-        </View> : null
-            }
+            </View>
+        : null}
+          {!searching ? <View style={{flex: 1}}>
+              {filteredGroup.length > 0 ? 
+              <FlatList 
+                  data={filteredGroup}
+                  renderItem={({item}) => <PreviewChat item={item} completeFriends={completeFriends} filteredGroup={filteredGroup} group={false} 
+                  messageNotifications={messageNotifications}/>}
+                  keyExtractor={(item) => item.id.toString()}
+                  style={{height: '50%'}}
+                  contentContainerStyle={{zIndex: 0}}
+              /> :
+              completeMessages.length > 0 ? 
+              <FlatList 
+                  data={completeMessages}
+                  renderItem={({item}) => <PreviewChat item={item} completeFriends={completeFriends} filteredGroup={filteredGroup} group={false} 
+                  messageNotifications={messageNotifications}/>}
+                  keyExtractor={(item) => item.id.toString()}
+                  style={activeFriends.filter(obj => completeMessages.some(otherObj => otherObj.id === obj.id)).length > 0 ? {height: '100%'} : {height: '100%'}}
+                  ListFooterComponent={<View style={{paddingBottom: 75}}/>}
+                  onScroll={handleScroll}
+              /> : null
+              }
+              {loading ? 
+              <View>
+            <ActivityIndicator color={modeTheme.theme != 'light' ? "#9EDAFF" : "#005278"}/> 
+          </View> : null
+              }
 
-            
-            
+              
+              
+          </View> : null}
+        </> : !loading && friendsInfo.filter(obj => completeMessages.some(otherObj => otherObj.id === obj.id)).length == 0 ? 
+        <View style={{justifyContent: 'center', flex: 1, marginBottom: '40%', alignItems: 'center'}}>
+          <Text style={[styles.noFriendsText, {color: modeTheme.color}]}>Sorry no Friends to Chat With</Text>
+          <MaterialCommunityIcons name='emoticon-sad-outline' color={modeTheme.color} size={50} style={{alignSelf: 'center', marginTop: '10%'}}/>
         </View> : null}
-      {/* </View> */}
-      </> : message && !loading && friendsInfo.filter(obj => completeMessages.some(otherObj => otherObj.id === obj.id)).length == 0 ? 
-      <View style={{justifyContent: 'center', flex: 1, marginBottom: '40%', alignItems: 'center'}}>
-        <Text style={[styles.noFriendsText, {color: modeTheme.color}]}>Sorry no Friends to Chat With</Text>
-        <MaterialCommunityIcons name='emoticon-sad-outline' color={modeTheme.color} size={50} style={{alignSelf: 'center', marginTop: '10%'}}/>
-      </View> : null}
-      </> : <>
-      {loading &&!lastVisible ?  <View style={{justifyContent: 'flex-end', flex: 1}}>
-          <ActivityIndicator color={modeTheme.theme != 'light' ? "#9EDAFF" : "#005278"} size={"large"}/> 
-        </View> : message ?
-      <View style={{justifyContent: 'center', flex: 1, marginBottom: '40%'}}>
-        <Text style={[styles.noFriendsText, {color: modeTheme.color}]}>Sorry no Friends to Chat With</Text>
-        <MaterialCommunityIcons name='emoticon-sad-outline' color={modeTheme.color} size={50} style={{alignSelf: 'center', marginTop: '10%'}}/>
-      </View> : null}
-      </>
-      }
-            
-      </KeyboardAvoidingView>
+        </> : null}
+              
+        </KeyboardAvoidingView>
     </View>
     
       
@@ -520,7 +411,8 @@ export default ChatScreen
 
 const styles = StyleSheet.create({
     container: {
-        flex: 1,
+      flex: 1,
+      backgroundColor: "#121212"
     },
     profilesContainer: {
         flexDirection: 'row'
@@ -655,25 +547,23 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        //justifyContent: 'space-between',
-        marginTop: '8%',
-        marginLeft: '5%',
-        marginRight: '5%'
-    },
-    headerText: {
-        fontSize: 19.20,
-        flex: 1,
-        textAlign: 'center',
-        paddingLeft: 0,
-         fontFamily: 'Montserrat_700Bold',
-        alignSelf: 'center',
-        padding: 10,
-        //marginLeft: '-5%'
-        
-        marginRight: '5%'
-    },
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: '8%',
+    marginLeft: '5%',
+    marginRight: '5%'
+  },
+  headerText: {
+    fontSize: 19.20,
+    flex: 1,
+    textAlign: 'center',
+    paddingLeft: 0,
+    fontFamily: 'Montserrat_700Bold',
+    alignSelf: 'center',
+    padding: 10,
+    marginRight: '5%',
+    color: "#fafafa"
+  },
     homeIcon: {position: 'absolute', left: 280, top: 8.5},
   homeContainer: {marginLeft: '5%', marginBottom: '5%'},
   closeHomeIcon: {marginLeft: '1%'},

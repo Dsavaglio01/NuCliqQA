@@ -51,7 +51,7 @@ useEffect(() => {
   }, [])
 useEffect(() => {
   if (route.params?.reloading) {
-    //console.log('first')
+    //
     setPosts([]);
       setActiveIndex(0)
       setReloadPage(true)
@@ -178,6 +178,9 @@ useEffect(() => {
     getData();
     
   }, [])
+  const handlePostScroll = _.debounce(() => {
+    fetchMoreData();
+  }, 500)
   async function fetchMoreData() {
     if (lastVisible != undefined && meet) {
         const { posts, lastVisible: newLastVisible } = await fetchMorePublicPostsExcludingBlockedUsers(profile.blockedUsers, lastVisible);
@@ -204,13 +207,15 @@ useEffect(() => {
           </View>
           <View style={styles.buttonsContainer}>
             <Ionicons name='search' size={27} color={theme.color} style={{alignSelf: 'center'}} onPress={sendSearchingDataBack}/>
-            {messageNotifications.length > 0 ? <MaterialCommunityIcons name='message-badge-outline' size={27} color="#33FF68" style={styles.buttons} onPress={() => navigation.navigate('Chat', {sending: false, message: true,  })}/> :
-            <MaterialCommunityIcons name='message-outline' size={27} color={theme.color} style={[styles.buttons, {paddingLeft: 7}]} onPress={() => navigation.navigate('Chat', {sending: false, message: true, })}/>}
+            {messageNotifications.length > 0 ? <MaterialCommunityIcons name='message-badge-outline' size={27} color="#33FF68" style={styles.bellButtons} onPress={() => navigation.navigate('Chat', {sending: false, message: true,  })}/> :
+            <MaterialCommunityIcons name='message-outline' size={27} color={theme.color} style={styles.bellButtons} onPress={() => navigation.navigate('Chat', {sending: false, message: true, })}/>}
             {nonMessageNotifications > 0 ? 
             <MaterialCommunityIcons name='bell-badge-outline' size={29} color="#33FF68" style={styles.bellButtons} onPress={() => navigation.navigate('NotificationScreen')}/> :
             <MaterialCommunityIcons name='bell-outline' size={29} color={theme.color} style={styles.bellButtons} onPress={() => navigation.navigate('NotificationScreen')}/>
             }
-            <MoodComponent meet={meet} following={following} mood={mood} sendMeetDataBack={sendMeetDataBack} sendFollowingDataBack={sendFollowingDataBack} sendMoodDataBack={sendMoodDataBack}/>
+            <View style={{marginLeft: '5%'}}> 
+              <MoodComponent meet={meet} following={following} mood={mood} sendMeetDataBack={sendMeetDataBack} sendFollowingDataBack={sendFollowingDataBack} sendMoodDataBack={sendMoodDataBack}/>
+            </View>
           </View>
         </View>
         {searching ? 
@@ -220,9 +225,9 @@ useEffect(() => {
             <StoriesArray story={story} user={user} profile={profile} userId={user.uid}/>
           : null}
           {!searching && postDone && user && tempPosts.length > 0 ? 
-          <PostComponent data={tempPosts} forSale={profile.forSale} background={profile.background} home={true} loading={loading} lastVisible={lastVisible} 
+          <PostComponent fetchMoreData={handlePostScroll} data={tempPosts} forSale={profile.forSale} background={profile.background} home={true} loading={loading} lastVisible={lastVisible} 
           actualClique={null} videoStyling={null || false} cliqueIdPfp={null} cliqueIdName={null} post={null} blockedUsers={profile.blockedUsers}
-          openPostMenu={null} clique={false} cliqueId={null} pfp={profile.pfp} ogUsername={profile.username} admin={false} edit={false} caption={null} 
+          openPostMenu={null} clique={false} cliqueId={null} pfp={profile.pfp} ogUsername={profile.userName} admin={false} edit={false} caption={null} 
           notificationToken={profile.notificationToken} smallKeywords={profile.smallKeywords} largeKeywords={profile.largeKeywords} reportedPosts={reportedPosts}
           reportedComments={reportedComments} privacy={profile.privacy}/>
           : loading && !lastVisible && !searching ? 

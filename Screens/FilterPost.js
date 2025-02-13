@@ -2,9 +2,6 @@ import { StyleSheet, Text, View, Button, Dimensions } from 'react-native'
 import React, {useState, useRef} from 'react'
 import RegisterHeader from '../Components/RegisterHeader';
 import { useNavigation } from '@react-navigation/native';
-//import { Surface } from 'gl-react-expo';
-//import ImageFilters from 'react-native-gl-image-filters';
-import Header from '../Components/Header';
 import NewPostHeader from '../Components/NewPostHeader';
 import Filter from '../Design/Filter';
 const settings = [

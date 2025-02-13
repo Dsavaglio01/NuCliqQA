@@ -2,7 +2,7 @@ import { StyleSheet, Text, View, FlatList, TouchableOpacity, Keyboard, ActivityI
 import React, {useState, useEffect, useMemo, useCallback, useContext} from 'react'
 import SearchInput from '../Components/SearchInput'
 import { useNavigation } from '@react-navigation/native'
-import { collection, getDoc, getDocs, onSnapshot, query, where, addDoc, limit, updateDoc, orderBy, doc, serverTimestamp, deleteDoc, startAt, endAt } from 'firebase/firestore'
+import { collection, getDoc, onSnapshot, query, where, addDoc, limit, updateDoc, orderBy, doc, serverTimestamp, deleteDoc } from 'firebase/firestore'
 import { Menu, Provider, Divider} from 'react-native-paper'
 import {MaterialCommunityIcons, Ionicons} from '@expo/vector-icons';
 import useAuth from '../Hooks/useAuth'
@@ -36,10 +36,10 @@ const All = ({route}) => {
   const [purchasedLastVisible, setPurchasedLastVisible] = useState([]);
   const [freeTempPosts, setFreeTempPosts] = useState([]);
   const [purchased, setPurchased] = useState(false);
-  const [myThemes, setMyThemes] = useState(null);
+  const [myThemes, setMyThemes] = useState([]);
   const [mostPopular, setMostPopular] = useState(true);
   const theme = useContext(themeContext)
-  const [purchasedThemes, setPurchasedThemes] = useState(null);
+  const [purchasedThemes, setPurchasedThemes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [themeSearches, setThemeSearches] = useState([]);
   const [filteredGroup, setFilteredGroup] = useState(null);
@@ -97,24 +97,33 @@ const All = ({route}) => {
     }, [onSnapshot])
     useEffect(() => {
     let unsubscribe;
-    if (user.uid && purchased && sortIncreasingDate) {
-      unsubscribe = fetchPurchasedThemes(user.uid, 'timestamp', 'desc', setPurchasedThemes, setPurchasedLastVisible);
+    const getThemes = async() => {
+      if (user.uid && purchased && mostPopular) {
+        unsubscribe = await fetchPurchasedThemes(user.uid, 'bought_count', 'desc', setPurchasedThemes, setPurchasedLastVisible);
+      }
+      if (user.uid && purchased && sortIncreasingDate) {
+        unsubscribe = await fetchPurchasedThemes(user.uid, 'timestamp', 'desc', setPurchasedThemes, setPurchasedLastVisible);
+      }
+      else if (user.uid && purchased && sortDecreasingDate) {
+        unsubscribe = await fetchPurchasedThemes(user.uid, 'timestamp', 'asc', setPurchasedThemes, setPurchasedLastVisible);
+      }
+      else if (user.uid && purchased && sortDecreasingPrice) {
+        unsubscribe = await fetchPurchasedThemes(user.uid, 'price', 'asc', setPurchasedThemes, setPurchasedLastVisible);
+      }
+      else if (user.uid && purchased && sortIncreasingPrice) {
+        unsubscribe = await fetchPurchasedThemes(user.uid, 'price', 'desc', setPurchasedThemes, setPurchasedLastVisible);
+      }
     }
-    else if (user.uid && purchased && sortDecreasingDate) {
-      unsubscribe = fetchPurchasedThemes(user.uid, 'timestamp', 'asc', setPurchasedThemes, setPurchasedLastVisible);
-    }
-    else if (user.uid && purchased && sortDecreasingPrice) {
-      unsubscribe = fetchPurchasedThemes(user.uid, 'price', 'asc', setPurchasedThemes, setPurchasedLastVisible);
-    }
-    else if (user.uid && purchased && sortIncreasingPrice) {
-      unsubscribe = fetchPurchasedThemes(user.uid, 'price', 'desc', setPurchasedThemes, setPurchasedLastVisible);
-    }
+    getThemes();
     return () => {
       if (unsubscribe) {
+        setTimeout(() => {
+          setLoading(false)
+        },  500);
         return unsubscribe;
       }
     };
-  }, [user?.uid, purchased, sortIncreasingDate, sortDecreasingDate, sortIncreasingPrice, sortDecreasingPrice]);
+  }, [user?.uid, purchased, mostPopular, sortIncreasingDate, sortDecreasingDate, sortIncreasingPrice, sortDecreasingPrice]);
     useEffect(() => {
       if (specificSearch.length > 0) {
       setMoreResultButton(false)
@@ -143,11 +152,6 @@ const All = ({route}) => {
     }, [route.params?.firstTime])
   useMemo(() => {
     const getSearches = async() => {
-    if (specificSearch.length > 0 && get) {
-      setThemeSearches([])
-      const {themeSearches} = await fetchThemeSearches('products', specificSearch, user.uid);
-      setThemeSearches(themeSearches)
-    } 
     if (specificSearch.length > 0 && free) {
       setThemeSearches([])
       const {themeSearches} = await fetchThemeSearches('freeThemes', specificSearch, user.uid);
@@ -165,57 +169,61 @@ const All = ({route}) => {
     } 
   }
   getSearches()
-  }, [specificSearch, get, free, my, purchased])
+  }, [specificSearch, free, my, purchased])
   useMemo(() => {
-    if (user.uid && my && mostPopular) {
-      const { tempPosts, lastMyVisible } = fetchMyThemes(user.uid, 'bought_count', 'desc');
-      setMyThemes(tempPosts);
-      setMyLastVisible(lastMyVisible);
+    const getThemes = async() => {
+      if (user.uid && my && mostPopular) {
+        const { tempPosts, lastMyVisible } = await fetchMyThemes(user.uid, 'bought_count', 'desc');
+        setMyThemes(tempPosts);
+        setMyLastVisible(lastMyVisible);
+      }
+      else if (user.uid && my && sortIncreasingDate) {
+        const { tempPosts, lastMyVisible } = await fetchMyThemes(user.uid, 'timestamp', 'desc');
+        setMyThemes(tempPosts);
+        setMyLastVisible(lastMyVisible);
+      }
+      else if (user.uid && my && sortDecreasingDate) {
+        const { tempPosts, lastMyVisible } = await fetchMyThemes(user.uid, 'timestamp', 'asc');
+        setMyThemes(tempPosts);
+        setMyLastVisible(lastMyVisible);
+      }
+      else if (user.uid && my && sortDecreasingPrice) {
+        const { tempPosts, lastMyVisible } = await fetchMyThemes(user.uid, 'price', 'asc');
+        setMyThemes(tempPosts);
+        setMyLastVisible(lastMyVisible);
+      }
+      else if (user.uid && my && sortIncreasingPrice) {
+        const { tempPosts, lastMyVisible } = await fetchMyThemes(user.uid, 'price', 'desc');
+        setMyThemes(tempPosts);
+        setMyLastVisible(lastMyVisible);
+      }
     }
-    else if (user.uid && my && sortIncreasingDate) {
-      const { tempPosts, lastMyVisible } = fetchMyThemes(user.uid, 'timestamp', 'desc');
-      setMyThemes(tempPosts);
-      setMyLastVisible(lastMyVisible);
-    }
-    else if (user.uid && my && sortDecreasingDate) {
-      const { tempPosts, lastMyVisible } = fetchMyThemes(user.uid, 'timestamp', 'asc');
-      setMyThemes(tempPosts);
-      setMyLastVisible(lastMyVisible);
-    }
-    else if (user.uid && my && sortDecreasingPrice) {
-      const { tempPosts, lastMyVisible } = fetchMyThemes(user.uid, 'price', 'asc');
-      setMyThemes(tempPosts);
-      setMyLastVisible(lastMyVisible);
-    }
-    else if (user.uid && my && sortIncreasingPrice) {
-      const { tempPosts, lastMyVisible } = fetchMyThemes(user.uid, 'price', 'desc');
-      setMyThemes(tempPosts);
-      setMyLastVisible(lastMyVisible);
-    }
+    getThemes();
+    
   }, [my, user?.uid, mostPopular, sortIncreasingDate, sortDecreasingDate, sortIncreasingPrice, sortDecreasingPrice])
-  function fetchMyData () {
+  async function fetchMyData () {
     if (myLastVisible != undefined && mostPopular) {
-      const { tempPosts, lastMyVisible } = fetchMoreMyThemes(user.uid, 'bought_count', 'desc', myLastVisible);
+      const { tempPosts, lastMyVisible } = await fetchMoreMyThemes(user.uid, 'bought_count', 'desc', myLastVisible);
       setMyThemes([...myThemes, ...tempPosts]);
       setMyLastVisible(lastMyVisible);
     }
     else if (myLastVisible != undefined && sortIncreasingDate) {
-      const { tempPosts, lastMyVisible } = fetchMoreMyThemes(user.uid, 'timestamp', 'desc', myLastVisible);
+      const { tempPosts, lastMyVisible } = await fetchMoreMyThemes(user.uid, 'timestamp', 'desc', myLastVisible);
       setMyThemes([...myThemes, ...tempPosts]);
       setMyLastVisible(lastMyVisible);
     }
     else if (myLastVisible != undefined && sortDecreasingDate) {
-      const { tempPosts, lastMyVisible } = fetchMoreMyThemes(user.uid, 'timestamp', 'asc', myLastVisible);
+      const { tempPosts, lastMyVisible } = await fetchMoreMyThemes(user.uid, 'timestamp', 'asc', myLastVisible);
       setMyThemes([...myThemes, ...tempPosts]);
       setMyLastVisible(lastMyVisible);
     }
     else if (myLastVisible != undefined && sortDecreasingPrice) {
-      const { tempPosts, lastMyVisible } = fetchMoreMyThemes(user.uid, 'price', 'asc', myLastVisible);
+      const { tempPosts, lastMyVisible } = await fetchMoreMyThemes(user.uid, 'price', 'asc', myLastVisible);
       setMyThemes([...myThemes, ...tempPosts]);
       setMyLastVisible(lastMyVisible);
     }
     else if (myLastVisible != undefined && sortIncreasingPrice) {
-      const { tempPosts, lastMyVisible } = fetchMoreMyThemes(user.uid, 'price', 'desc', myLastVisible);
+      const { tempPosts, lastMyVisible } = await fetchMoreMyThemes(user.uid, 'price', 'desc', myLastVisible);
       setMyThemes([...myThemes, ...tempPosts]);
       setMyLastVisible(lastMyVisible);
     }
@@ -223,62 +231,65 @@ const All = ({route}) => {
   }
   async function fetchPurchasedData() {
     if (purchasedLastVisible != undefined && mostPopular) {
-      const { tempPosts, lastPurchasedVisible } = fetchMorePurchasedThemes(user.uid, 'bought_count', 'desc', purchasedLastVisible);
+      const { tempPosts, lastPurchasedVisible } = await fetchMorePurchasedThemes(user.uid, 'bought_count', 'desc', purchasedLastVisible);
       setPurchasedThemes([...purchasedThemes, ...tempPosts]);
       setPurchasedLastVisible(lastPurchasedVisible);
     }
     else if (purchasedLastVisible != undefined && sortDecreasingDate) {
-      const { tempPosts, lastPurchasedVisible } = fetchMorePurchasedThemes(user.uid, 'timestamp', 'asc', purchasedLastVisible);
+      const { tempPosts, lastPurchasedVisible } = await fetchMorePurchasedThemes(user.uid, 'timestamp', 'asc', purchasedLastVisible);
       setPurchasedThemes([...purchasedThemes, ...tempPosts]);
       setPurchasedLastVisible(lastPurchasedVisible);
     }
     else if (purchasedLastVisible != undefined && sortDecreasingPrice) {
-      const { tempPosts, lastPurchasedVisible } = fetchMorePurchasedThemes(user.uid, 'price', 'asc', purchasedLastVisible);
+      const { tempPosts, lastPurchasedVisible } = await fetchMorePurchasedThemes(user.uid, 'price', 'asc', purchasedLastVisible);
       setPurchasedThemes([...purchasedThemes, ...tempPosts]);
       setPurchasedLastVisible(lastPurchasedVisible);
     }
     else if (purchasedLastVisible != undefined && sortIncreasingDate) {
-      const { tempPosts, lastPurchasedVisible } = fetchMorePurchasedThemes(user.uid, 'timestamp', 'desc', purchasedLastVisible);
+      const { tempPosts, lastPurchasedVisible } = await fetchMorePurchasedThemes(user.uid, 'timestamp', 'desc', purchasedLastVisible);
       setPurchasedThemes([...purchasedThemes, ...tempPosts]);
       setPurchasedLastVisible(lastPurchasedVisible);
     }
     else if (purchasedLastVisible != undefined && sortIncreasingPrice) {
-      const { tempPosts, lastPurchasedVisible } = fetchMorePurchasedThemes(user.uid, 'price', 'desc', purchasedLastVisible);
+      const { tempPosts, lastPurchasedVisible } = await fetchMorePurchasedThemes(user.uid, 'price', 'desc', purchasedLastVisible);
       setPurchasedThemes([...purchasedThemes, ...tempPosts]);
       setPurchasedLastVisible(lastPurchasedVisible);
     }
     
   }
   useMemo(() => {
+    const getThemes = async() => {
     if (user.uid && free && mostPopular) {
-      const { tempPosts, lastFreeVisible } = fetchFreeThemes(user.uid, 'bought_count', 'desc');
+      const { tempPosts, lastFreeVisible } = await fetchFreeThemes('bought_count', 'desc');
       setFreeTempPosts(tempPosts);
       setLastVisible(lastFreeVisible);
     }
     else if (user.uid && free && sortIncreasingDate) {
-      const { tempPosts, lastFreeVisible } = fetchFreeThemes(user.uid, 'timestamp', 'desc');
+      const { tempPosts, lastFreeVisible } = await fetchFreeThemes('timestamp', 'desc');
       setFreeTempPosts(tempPosts);
       setLastVisible(lastFreeVisible);
     }
     else if (user.uid && free && sortDecreasingDate) {
-      const { tempPosts, lastFreeVisible } = fetchFreeThemes(user.uid, 'timestamp', 'asc');
+      const { tempPosts, lastFreeVisible } = await fetchFreeThemes('timestamp', 'asc');
       setFreeTempPosts(tempPosts);
       setLastVisible(lastFreeVisible);
     }
+  }
+  getThemes();
   }, [mostPopular, free, user?.uid, sortIncreasingDate, sortDecreasingDate])
-  function fetchMoreFreeData () {
+  async function fetchMoreFreeData () {
     if (mostPopular && lastVisible != undefined) {
-      const { tempPosts, lastFreeVisible } = fetchMoreFreeThemes(user.uid, 'bought_count', 'desc', lastVisible);
+      const { tempPosts, lastFreeVisible } = await fetchMoreFreeThemes('bought_count', 'desc', lastVisible);
       setFreeTempPosts([...freeTempPosts, ...tempPosts])
       setLastVisible(lastFreeVisible);
     }
     else if (sortIncreasingDate && lastVisible != undefined) {
-      const { tempPosts, lastFreeVisible } = fetchMoreFreeThemes(user.uid, 'timestamp', 'desc', lastVisible);
+      const { tempPosts, lastFreeVisible } = await fetchMoreFreeThemes('timestamp', 'desc', lastVisible);
       setFreeTempPosts([...freeTempPosts, ...tempPosts])
       setLastVisible(lastFreeVisible);
     }
     else if (sortDecreasingDate && lastVisible != undefined) {
-      const { tempPosts, lastFreeVisible } = fetchMoreFreeThemes(user.uid, 'timestamp', 'asc', lastVisible);
+      const { tempPosts, lastFreeVisible } = await fetchMoreFreeThemes('timestamp', 'asc', lastVisible);
       setFreeTempPosts([...freeTempPosts, ...tempPosts])
       setLastVisible(lastFreeVisible);
     }
@@ -320,8 +331,6 @@ const All = ({route}) => {
     if (mySearches.length > 0 && my) {
       setTempSearches([])
       mySearches.map(async(item) => {
-        //console.log('first')
-        //console.log(item)
         const docSnap = await getDoc(doc(db, 'profiles', user.uid, 'myThemes', item.id))
         if (docSnap.exists()) {
           setTempSearches(prevState => [...prevState, {id: docSnap.id, searchId: item.id, ...docSnap.data()}])
@@ -335,8 +344,6 @@ const All = ({route}) => {
     if (purchasedSearch.length > 0 && purchased) {
       setTempSearches([])
       purchasedSearch.map(async(item) => {
-        //console.log('first')
-        //console.log(item)
         const docSnap = await getDoc(doc(db, 'profiles', user.uid, 'purchased', item.id))
         if (docSnap.exists()) {
           setTempSearches(prevState => [...prevState, {id: docSnap.id, searchId: item.id, ...docSnap.data()}])
@@ -349,8 +356,6 @@ const All = ({route}) => {
     if (freeSearches.length > 0 && free) {
       setTempSearches([])
       freeSearches.map(async(item) => {
-        //console.log('first')
-        //console.log(item)
         const docSnap = await getDoc(doc(db, 'freeThemes', item.id))
         if (docSnap.exists()) {
           setTempSearches(prevState => [...prevState, {id: docSnap.id, searchId: item.id, ...docSnap.data()}])
@@ -377,7 +382,6 @@ const All = ({route}) => {
     var element = item
     if (free) {
       if (tempSearches.filter(e => e.id == item.id).length > 0) {
-      //console.log('bruh')
       tempSearches.map(async(e) => {
         if (e.id == e.id) {
           //setTempId(element.id)
@@ -409,7 +413,6 @@ const All = ({route}) => {
     }
     else if (purchased) {
       if (tempSearches.filter(e => e.id == item.id).length > 0) {
-      //console.log('bruh')
       tempSearches.map(async(e) => {
         if (e.id == e.id) {
           //setTempId(element.id)
@@ -441,7 +444,6 @@ const All = ({route}) => {
     }
     else if (my) {
       if (tempSearches.filter(e => e.id == item.id).length > 0) {
-      //console.log('bruh')
       tempSearches.map(async(e) => {
         if (e.id == e.id) {
           //setTempId(element.id)
@@ -499,7 +501,7 @@ const All = ({route}) => {
     
   }, 400);
   const renderThemes = ({item}) => {
-    //console.log(item)
+    console.log(item)
     return (
         <TouchableOpacity style={styles.categoriesContainer} onPress={() => {setFilteredGroup([item]); addToRecentSearches(item); setSearching(false)}}>
             <FastImage source={{uri: item.images[0]}} style={{height: 40, width: 40, borderRadius: 8}}/>
@@ -525,7 +527,6 @@ const All = ({route}) => {
     )
   }
    async function removeSearch(item) {
-    console.log(item)
       await deleteDoc(doc(db, 'profiles', user.uid, 'recentSearches', item.searchId)).then(() => setTempSearches(tempSearches.filter((e) => e.id !== item.id)))
   }
   //console.log(loading)
@@ -666,12 +667,14 @@ const All = ({route}) => {
       </View>
       <View style={styles.main}>
         {filteredGroup != null ? 
-            renderSpecific(filteredGroup)
+            <ThemeComponent specific={true} free={free} purchased={purchased} my={my} user={user}
+            item={filteredGroup[0]} groupId={groupId} name={name} freeTempPosts={freeTempPosts} 
+            updateMyThemes={setMyThemes} updateFreeTempPosts={setFreeTempPosts}/>
           : free && freeTempPosts.length > 0 ? 
           <FlatList 
           data={freeTempPosts}
-            renderItem={<ThemeComponent free={free} purchased={purchased} my={my} user={user}
-            item={item} groupId={groupId} name={name}/>}
+            renderItem={({item}) => <ThemeComponent free={free} purchased={purchased} my={my} user={user}
+            item={item} groupId={groupId} name={name} freeTempPosts={freeTempPosts} updateFreeTempPosts={setFreeTempPosts}/>}
             numColumns={2}
             keyExtractor={(item) => item.id}
             style={{ height: '130%'}}
@@ -683,12 +686,12 @@ const All = ({route}) => {
           : my && myThemes.length > 0 ? 
           <FlatList 
               data={myThemes}
-            renderItem={<ThemeComponent free={free} purchased={purchased} my={my} user={user}
+            renderItem={({item}) => <ThemeComponent free={free} myThemes={myThemes} updateMyThemes={setMyThemes} purchased={purchased} my={my} user={user}
             item={item} groupId={groupId} name={name}/>}
             numColumns={2}
             keyExtractor={(item) => item.id.toString()}
-            ListFooterComponent={<FooterComponent loading={loading} />
-          }
+            extraData={loading}
+            ListFooterComponent={<FooterComponent loading={loading} />}
             style={{height: '130%'}}
             onScroll={handleScroll}
           />
@@ -696,11 +699,11 @@ const All = ({route}) => {
           <>
           <FlatList 
               data={purchasedThemes}
-            renderItem={<ThemeComponent free={free} purchased={purchased} my={my} user={user}
+            renderItem={({item}) => <ThemeComponent free={free} purchased={purchased} my={my} user={user}
             item={item} groupId={groupId} name={name}/>}
             numColumns={2}
-            ListFooterComponent={<FooterComponent loading={loading} />
-          }
+            extraData={loading}
+            ListFooterComponent={<FooterComponent loading={loading} />}
             keyExtractor={(item) => item.id}
             style={{height: '130%'}}
             onScroll={handleScroll}

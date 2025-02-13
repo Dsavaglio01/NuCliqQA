@@ -1,7 +1,5 @@
 import { StyleSheet, Text, View, FlatList, Keyboard, TouchableOpacity, TextInput, Image, Alert, SafeAreaView, Button, TouchableWithoutFeedback} from 'react-native'
 import React, {useState, useEffect, useRef, useContext} from 'react'
-import Header from '../Components/Header'
-import NewPostHeader from '../Components/NewPostHeader'
 import { useNavigation } from '@react-navigation/native'
 import {MaterialCommunityIcons, Foundation, MaterialIcons} from '@expo/vector-icons'
 import { Divider, Provider, Menu } from 'react-native-paper'
@@ -193,7 +191,7 @@ const MultiPost = ({route}) => {
           id: index + 1
         })) */
         //console.log(updatedData)
-        //console.log('first')
+        //
         navigation.navigate('NewPost', {postArray: [{id: count, image: false, visible: false, value: text, text: true, textSize: actualTextSize, textColor: textColor, textAlign: textAlign, backgroundColor: backgroundColor}], group:group, actualGroup: actualGroup, groupId: groupId, groupName: groupName})
         /* if (updatedData.filter((word) => word.image == true).length < 6) {
           navigation.navigate('NewPost', {postArray: updatedData, group:group, groupId: groupId})

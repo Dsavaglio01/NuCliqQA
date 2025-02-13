@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View, TouchableOpacity, Alert, ActivityIndicator } from 'react-native'
 import React, {useEffect, useState, useContext} from 'react'
-import { onSnapshot, doc, arrayUnion, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { onSnapshot, doc, arrayUnion, setDoc, updateDoc, serverTimestamp, increment} from 'firebase/firestore';
 import useAuth from '../Hooks/useAuth';
 import {MaterialCommunityIcons, Feather} from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -175,7 +175,7 @@ const GroupHome = ({route}) => {
       setGroupsJoined(prevState => [...prevState, item.id])
       await updateDoc(doc(db, 'groups', item.id), {
       members: arrayUnion(user.uid),
-      memberUsernames: arrayUnion(profile.username),
+      memberUsernames: arrayUnion(profile.userName),
       allowMessageNotifications: arrayUnion(user.uid),
       allowPostNotifications: arrayUnion(user.uid)
     }).then(async() => await updateDoc(doc(db, 'groups', item.id, 'channels', item.id), {
@@ -233,15 +233,15 @@ const GroupHome = ({route}) => {
               group.members.includes(user.uid) ? <View style={{flexDirection: 'row', alignSelf: 'center', marginTop: 20, justifyContent: 'space-between', width: 70, marginRight: '5%'}}>
                     {notifications ? 
               <TouchableOpacity style={{alignSelf: 'center'}} 
-              onPress={() => navigation.navigate('GroupChannels', {id: group.id, group: group, person: user.uid, pfp: group.banner, name: group.name, sending: false, notifications: true})}>
+              onPress={() => navigation.navigate('GroupNotifications', {id: group.id, group: group, person: user.uid, pfp: group.banner, name: group.name, sending: false, notifications: true})}>
                         <MaterialCommunityIcons name='bell-badge-outline' size={29.5} color="#33FF68"/>
                     </TouchableOpacity> : <TouchableOpacity style={{alignSelf: 'center'}} 
-                    onPress={() => navigation.navigate('GroupChannels', {id: group.id, group: group, person: user.uid, pfp: group.banner, name: group.name, sending: false, notifications: true})}>
+                    onPress={() => navigation.navigate('GroupNotifications', {id: group.id, group: group, person: user.uid, pfp: group.banner, name: group.name, sending: false, notifications: true})}>
                         <MaterialCommunityIcons name='bell-outline' size={29.5} color={"#fafafa"}/>
                     </TouchableOpacity>
               }
                     
-                    <TouchableOpacity style={{alignSelf: 'center'}} onPress={() => navigation.navigate('NewPost', {group: true, groupName: group.name, actualGroup: group, groupId: group.id, postArray: [], blockedUsers: profile.blockedUsers, admin: group.admins.includes(user.uid), username: profile.username})}>
+                    <TouchableOpacity style={{alignSelf: 'center'}} onPress={() => navigation.navigate('NewPost', {group: true, groupName: group.name, actualGroup: group, groupId: group.id, postArray: [], blockedUsers: profile.blockedUsers, admin: group.admins.includes(user.uid), username: profile.userName})}>
                       <MaterialCommunityIcons name='plus' size={29.5} color={"#fafafa"} />
                     </TouchableOpacity>
                   </View> : null : null
@@ -313,17 +313,20 @@ const GroupHome = ({route}) => {
           </View> : <ActivityIndicator color={"#9edaff"} /> : <ActivityIndicator color={"#9edaff"}/>}
         
           <View style={{margin: '5%', flexDirection: 'column'}} >
-            <TouchableOpacity style={styles.buttonHeaders} onPress={group ? () => navigation.navigate('GroupPosts', {group: group, admin: group.admins.includes(user.uid) ? true : false, username: profile.username, blockedUsers: profile.blockedUsers}): null}>
+            <TouchableOpacity style={styles.buttonHeaders} onPress={group ? () => navigation.navigate('GroupPosts', {group: group, admin: group.admins.includes(user.uid) ? true : false, username: profile.userName, blockedUsers: profile.blockedUsers}): null}>
               <Text style={styles.buttonText}>{group.name} Posts</Text>
               <MaterialCommunityIcons name='chevron-right' size={25} color={"#fafafa"} style={{marginLeft: 'auto'}}/>
             </TouchableOpacity >
-            
+            <TouchableOpacity style={styles.buttonHeaders} onPress={group ? () => navigation.navigate('GroupVidz', {group: group, admin: group.admins.includes(user.uid) ? true : false, username: profile.userName, blockedUsers: profile.blockedUsers}): null}>
+              <Text style={styles.buttonText}>{group.name} Vidz</Text>
+              <MaterialCommunityIcons name='chevron-right' size={25} color={"#fafafa"} style={{marginLeft: 'auto'}}/>
+            </TouchableOpacity >
             <TouchableOpacity style={styles.buttonHeaders} onPress={() => navigation.navigate('GroupMembers', {groupId: group.id, members: group.members.slice(0, 100), name: group.name, admins: group.admins})}>
               <Text style={styles.buttonText}>{group.name} Members</Text>
               <MaterialCommunityIcons name='chevron-right' size={25} color={"#fafafa"} style={{marginLeft: 'auto'}}/>
             </TouchableOpacity>
             {messageNotifications.length > 0 ? <View style={[styles.greenDot, {position: 'relative', top: 7.5, zIndex: 3, left: '95%', height: 13, width: 13, borderRadius: 10}] }/> : null}
-            <TouchableOpacity style={messageNotifications.length > 0 ? [styles.buttonHeaders, {marginTop: -2}] : styles.buttonHeaders} onPress={group.members.includes(user.uid) ? () => navigation.navigate('GroupChannels', {id: group.id, pfp: group.banner, group: group, name: group.name, notifications: false}) : () => channelAlert()}>
+            <TouchableOpacity style={messageNotifications.length > 0 ? [styles.buttonHeaders, {marginTop: -2}] : styles.buttonHeaders} onPress={group.members.includes(user.uid) ? () => navigation.navigate('GroupNotifications', {id: group.id, pfp: group.banner, group: group, name: group.name, notifications: false}) : () => channelAlert()}>
               <Text style={styles.buttonText}>{group.name} Chats</Text>
               <MaterialCommunityIcons name='chevron-right' size={25} color={"#fafafa"} style={{marginLeft: 'auto'}}/>
             </TouchableOpacity>

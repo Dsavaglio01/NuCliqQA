@@ -1,8 +1,7 @@
 import { TEXT_MODERATION_URL, MODERATION_API_SECRET, MODERATION_API_USER } from "@env";
 import axios from "axios";
 
-export const useDownloadText = ({ data }) => {
-
+export const useDownloadText = ({caption, actualPostArray, setNewPostArray, url}) => {
   // Text Moderation Check 
   const checkTextModeration = async () => {
     data = new FormData();
@@ -18,21 +17,36 @@ export const useDownloadText = ({ data }) => {
       });
 
       if (!validateModerationResponse(moderationResponse.data)) {
-        handleModerationFailure(reference);
+        //handleModerationFailure(reference);
         return;
       }
 
       // Post Validated Image to Backend
-      await postImageToBackend(item);
+      postTextToBackend(caption);
     } catch (error) {
       console.error("Error in image moderation:", error);
       setDownloadLoading(false);
     }
   };
-};
+  const postTextToBackend = () => {
+    const updatedArray = actualPostArray.map((obj) => ({ ...obj }));
+    updatedArray[actualPostArray.findIndex(e => e.post === item.post)].post = url
+    setNewPostArray(prevState => [updatedArray[actualPostArray.findIndex(e => e.post === item.post)], ...prevState])
+}
 // Validate Moderation Response
   const validateModerationResponse = (data) => {
-    const thresholds = {
+    if (data.link.matches.length > 0) {
+        linkUsernameAlert()
+        return true;
+    }
+    else if (data.profanity.matches.length > 0 && data.profanity.matches.some(obj => obj.intensity === 'high')) {
+        profanityUsernameAlert()
+        return true;
+    }
+    else {
+        return false;
+    }
+    /* const thresholds = {
       drugs: 0.9,
       gore: 0.9,
       offensive: 0.9,
@@ -46,5 +60,8 @@ export const useDownloadText = ({ data }) => {
       return false;
     });
 
-    return !failed;
+    return !failed; */
+    
   };
+  return {checkTextModeration}
+};

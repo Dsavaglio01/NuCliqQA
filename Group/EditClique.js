@@ -240,7 +240,7 @@ const EditClique = ({route}) => {
                   onPress: () => console.log('Cancel Pressed'),
                   style: 'cancel',
                 },
-                {text: 'OK', onPress: () => deleteObject(reference).then(() => console.log('first')).catch((error) => {
+                {text: 'OK', onPress: () => deleteObject(reference).catch((error) => {
                   console.error(error)
                 })},
               ]);
@@ -471,7 +471,7 @@ const EditClique = ({route}) => {
       
     }
     async function privateFunction() {
-        //console.log('first')
+        //
         setEditedPrivacy(editedPrivacy == 'private' ? 'public' : 'private')
     }
     const linkUsernameAlert = () => {

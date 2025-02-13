@@ -71,7 +71,7 @@ const GroupPic = ({route}) => {
         <View style={styles.main}>
           <RegisterHeader onPress={() => navigation.goBack()} colorOne={{borderColor: '#3286ac'}} colorTwo={{borderColor: '#3286ac'}} colorThree={{borderColor: '#3286ac'}} colorFour={{borderColor: '#3286ac'}} colorFive={{borderColor: '#3286ac'}} colorSix={{borderColor: "#3286ac"}} group={true}/>
             <Text style={styles.addText}>Add a Cliq Photo Banner</Text>
-            <PfpImage groupBanner={true} name={`${user.uid}${name}groupPic.jpg`} userName={profile.username} searchKeywords={profile.searchKeywords} groupName={name} id={id} category={category} 
+            <PfpImage groupBanner={true} name={`${user.uid}${name}groupPic.jpg`} userName={profile.userName} searchKeywords={profile.searchKeywords} groupName={name} id={id} category={category} 
             description={description} groupSecurity={groupSecurity} skipOnPress={() => uploadClique()} />
         </View>
     </ImageBackground> 

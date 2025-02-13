@@ -1,20 +1,13 @@
-import { ActivityIndicator, FlatList, Image, Dimensions, Alert, StyleSheet, Text, View } from 'react-native'
-import React, { useContext, useEffect, useState, useMemo } from 'react'
-import { collection, getDoc, getDocs, getFirestore, onSnapshot, query, where, doc, deleteDoc, updateDoc, arrayRemove, limit, startAfter, orderBy } from 'firebase/firestore';
+import { ActivityIndicator, FlatList, Dimensions, StyleSheet, Text, View } from 'react-native'
+import React, { useContext, useEffect, useState, } from 'react'
+import { collection, getDoc, onSnapshot, query, where, doc, deleteDoc, limit, startAfter, orderBy } from 'firebase/firestore';
 import useAuth from '../Hooks/useAuth';
 import { TouchableOpacity } from 'react-native-gesture-handler';
 import { useNavigation } from '@react-navigation/native';
-import RegisterHeader from '../Components/RegisterHeader';
 import {MaterialCommunityIcons} from '@expo/vector-icons'
-import NextButton from '../Components/NextButton';
-import RadioButtonGroup, { RadioButtonItem } from "expo-radio-button"
 import ThemeHeader from '../Components/ThemeHeader';
-import PostComponent from '../Components/PostComponent';
 import { Divider } from 'react-native-paper';
 import FastImage from 'react-native-fast-image';
-import MainButton from '../Components/MainButton';
-import Checkbox from 'expo-checkbox'
-import { useFonts, Montserrat_500Medium, Montserrat_700Bold} from '@expo-google-fonts/montserrat';
 import { db } from '../firebase';
 import _ from 'lodash';
 import themeContext from '../lib/themeContext';
@@ -25,30 +18,12 @@ const CliqueContentList = ({route}) => {
     const theme = useContext(themeContext)
     const [content, setContent] = useState([]);
     const [pfp, setPfp] = useState(null);
-    const [editedCards, setEditedCards] = useState([]);
     const [completePosts, setCompletePosts] = useState([]);
-    const [current, setCurrent] = useState(false);
-    const [savedPosts, setSavedPosts] = useState([]);
     const [requests, setRequests] = useState([]);
     const [lastVisible, setLastVisible] = useState();
     const [loading, setLoading] = useState(true);
     const [isDead, setIsDead] = useState(false);
     const navigation = useNavigation();
-    useEffect(()=> {
-      let unsub;
-      const fetchCards = async () => {
-        //const passes = await getDocs(collection(db, 'users', user.uid, 'passes')).then((snapshot) => snapshot.docs.map((doc) => doc.id));
-        unsub = onSnapshot(query(collection(db, 'profiles', user.uid, 'requests'), where('actualRequest', '==', true)), (snapshot) => {
-          setRequests(snapshot.docs.map((doc)=> ( {
-            id: doc.id,
-            ...doc.data()
-            //info: doc.data().info
-          })))
-        })
-      } 
-      fetchCards();
-      return unsub;
-    }, []);
     useEffect(() => {
       if (comments) {
         const getData = async() => {
@@ -73,8 +48,6 @@ const CliqueContentList = ({route}) => {
         }
       }
     }, [contentDone])
-    //console.log(posts)
-    //console.log(comments)
     useEffect(() => {
       const getData = async() => {
         const docSnap = await getDoc(doc(db, 'groups', id))
@@ -364,16 +337,7 @@ const CliqueContentList = ({route}) => {
     // Your logic for fetching more data
     fetchMoreData()
   }, 500);
-    //console.log(posts.length)
-    const [fontsLoaded, fontError] = useFonts({
-    // your other fonts here
-    Montserrat_500Medium
-  });
 
-  if (!fontsLoaded || fontError) {
-    // Handle loading errors
-    return null;
-  }
     const renderPosts = ({item, index}) => {
       //console.log(item)
       return (

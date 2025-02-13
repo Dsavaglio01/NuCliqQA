@@ -1,54 +1,35 @@
-import { StyleSheet, Text, View, Image, TouchableOpacity, Alert } from 'react-native'
-import React, {useContext, useEffect, useState} from 'react'
+import { StyleSheet, Text, View, TouchableOpacity, Alert } from 'react-native'
+import React, {useContext, useState} from 'react'
 import {MaterialCommunityIcons, Entypo, Ionicons} from '@expo/vector-icons'
 import { useNavigation } from '@react-navigation/native'
-import MainLogo from './MainLogo'
-import { Provider, Menu, Divider } from 'react-native-paper'
-import { useFonts, Montserrat_500Medium } from '@expo-google-fonts/montserrat'
-import { setDoc, doc, serverTimestamp, deleteDoc, query, collection, getDocs, where, getDoc, onSnapshot } from 'firebase/firestore'
-import { db } from '../firebase'
+import { Menu, Divider } from 'react-native-paper'
 import {BACKEND_URL} from '@env'
 import useAuth from '../Hooks/useAuth'
 import themeContext from '../lib/themeContext'
 import FastImage from 'react-native-fast-image'
+import ProfileContext from '../lib/profileContext'
 const ThemeHeader = ({text, cancelButton, style, video, adminCliques, backButton, searching, groupsJoined, following, myCliques, groupPosts, cliqueId, postArray, caption, id, groupposting, 
-  filteredGroup, explore, thirdButton, onPress, repost, timestamp, post, actualPost, groupName, blockedUsers, username, actualGroup, userId, homePost, cliquePost, clique, actuallyExplore, actuallyJoined, name, actuallyFilteredGroup, viewingProfile}) => {
+  filteredGroup, explore, timestamp, post, actualPost, groupName, blockedUsers, username, actualGroup, userId, homePost, cliquePost, clique, actuallyExplore, actuallyJoined, name, actuallyFilteredGroup, viewingProfile}) => {
   const navigation = useNavigation();
   const [visible, setVisible] = useState(false);
   const theme = useContext(themeContext)
-  const [reportedContent, setReportedContent] = useState([]);
-  //)
+  const profile = useContext(ProfileContext);
   const {user} = useAuth();
-  //console.log(timestamp)
-   const openMenu = () => setVisible(true)
-   //console.log(groupsJoined)
-    const closeMenu = () => setVisible(false)
-    const sendSearchingDataBack = () => {
-        searching(true)
-    }
-    const sendFollowingDataBack = () => {
-      following(true);
-      filteredGroup([]);  
-      explore(false);
-    }
-    const sendMeetDataBack = () => {
-      following(false);
-      explore(true);
-      filteredGroup([]); 
-    }
-    useEffect(() => {
-      const getData = async() => {
-        let unsub;
-        unsub = onSnapshot(doc(db, "profiles", user.uid), (doc) => { 
-          if (doc.exists()){
-              setReportedContent(doc.data().reportedPosts)
-          }
-      });
-      return unsub;
-      }
-      getData();
-    }, [onSnapshot])
-    //console.log(id)
+  const openMenu = () => setVisible(true)
+  const closeMenu = () => setVisible(false)
+  const sendSearchingDataBack = () => {
+      searching(true)
+  }
+  const sendFollowingDataBack = () => {
+    following(true);
+    filteredGroup([]);  
+    explore(false);
+  }
+  const sendMeetDataBack = () => {
+    following(false);
+    explore(true);
+    filteredGroup([]); 
+  }
     async function deletePost(id){ 
       Alert.alert('Delete Post', 'Are You Sure You Want to Delete This Post?', [
       {
@@ -59,35 +40,6 @@ const ThemeHeader = ({text, cancelButton, style, video, adminCliques, backButton
       {text: 'OK', onPress: async() => {
       try {
     const response = await fetch(`${BACKEND_URL}/api/deletePost`, {
-      method: 'POST', // Use appropriate HTTP method (GET, POST, etc.)
-      headers: {
-        'Content-Type': 'application/json', // Set content type as needed
-      },
-      body: JSON.stringify({ data: {id: id, user: user.uid}}), // Send data as needed
-    })
-    const data = await response.json();
-    if (data.done) {
-      navigation.goBack()
-    }
-  } catch (error) {
-    console.error('Error:', error);
-  }
-      }},
-    ]);
-      
-    //console.log(id)
-        
-    }
-     async function deleteVideo(id){ 
-      Alert.alert('Delete Vid', 'Are You Sure You Want to Delete This Vid?', [
-      {
-        text: 'Cancel',
-        onPress: () => console.log('Cancel Pressed'),
-        style: 'cancel',
-      },
-      {text: 'OK', onPress: async() => {
-      try {
-    const response = await fetch(`${BACKEND_URL}/api/deleteVideo`, {
       method: 'POST', // Use appropriate HTTP method (GET, POST, etc.)
       headers: {
         'Content-Type': 'application/json', // Set content type as needed
@@ -156,17 +108,6 @@ const ThemeHeader = ({text, cancelButton, style, video, adminCliques, backButton
         }
       
     }
-    const [fontsLoaded, fontError] = useFonts({
-    // your other fonts here
-    Montserrat_500Medium
-  });
-  
-  if (!fontsLoaded || fontError) {
-    // Handle loading errors
-    return null;
-  }
-  //console.log(name)
-  //console.log(postArray ? postArray[0].text : null)
   return (
 
     <View style={clique ? [styles.innerContainer, style, {marginLeft: '9.5%', backgroundColor: theme.backgroundColor}] : [styles.innerContainer, {backgroundColor: theme.backgroundColor}, style]}>
@@ -231,7 +172,7 @@ const ThemeHeader = ({text, cancelButton, style, video, adminCliques, backButton
                 {name == user.uid ? <Menu.Item title="Delete" titleStyle={{color: theme.color}} onPress={homePost ? () => deletePost(actualPost) : cliquePost ?  () => deleteCliquePost(actualPost) : null}/> : null}
                   {name == user.uid ? postArray != null ? postArray[0].text ? getHour(timestamp) ? null : null 
                   : <Menu.Item title="Edit" titleStyle={{color: theme.color}} onPress={ cliquePost ? () => navigation.navigate('Caption', {edit: true, group: actualGroup, groupPfp: actualGroup.banner, groupName: groupName, postArray: postArray, groupId: cliqueId, editCaption: caption, editId: id}) : () =>  navigation.navigate('Caption', {edit: true, postArray: postArray, editCaption: caption, editId: id})}/> : null : null}
-                  {!reportedContent.includes(id) ? <Menu.Item title="Report" titleStyle={{color: theme.color}} onPress={cliqueId ? () => navigation.navigate('ReportPage', {id: id, comment: null, video: video, theme: false, cliqueId: cliqueId, post: true, comments: false, message: false, cliqueMessage: false, reportedUser: userId}) : () => navigation.navigate('ReportPage', {id: id, comment: null, video: video, cliqueId: null, post: true, theme: false, comments: false, message: false, cliqueMessage: false, reportedUser: userId})}/> : null}
+                  {!profile.reportedPosts.includes(id) ? <Menu.Item title="Report" titleStyle={{color: theme.color}} onPress={cliqueId ? () => navigation.navigate('ReportPage', {id: id, comment: null, video: video, theme: false, cliqueId: cliqueId, post: true, comments: false, message: false, cliqueMessage: false, reportedUser: userId}) : () => navigation.navigate('ReportPage', {id: id, comment: null, video: video, cliqueId: null, post: true, theme: false, comments: false, message: false, cliqueMessage: false, reportedUser: userId})}/> : null}
               </Menu>
                : null
                 }
@@ -240,9 +181,6 @@ const ThemeHeader = ({text, cancelButton, style, video, adminCliques, backButton
                   <MaterialCommunityIcons name='plus' style={{paddingTop: '3.5%'}} color={theme.color} size={27.5}/>
                 </TouchableOpacity>
                  : null}
-                  {/* <View style={{flexDirection: 'row', alignSelf: 'center', marginTop: 10}}>
-                    <Ionicons name='search' size={30} color="#000" style={{alignSelf: 'center', marginRight: '5%'}} onPress={() => setSearching(true)}/>
-                  </View> */}
           </View>
   )
 }

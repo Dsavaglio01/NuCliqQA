@@ -1,57 +1,60 @@
 import { StyleSheet, Text, View, TouchableOpacity, Dimensions, Alert} from 'react-native'
-import React, {useState} from 'react'
+import React, {useContext, useState} from 'react'
 import { useNavigation } from '@react-navigation/native'
 import {Entypo, MaterialCommunityIcons} from '@expo/vector-icons';
-const ThemeComponent = ({get, free, my, purchased, user, item, groupId, name}) => {
+import FastImage from 'react-native-fast-image';
+import ProfileContext from '../../lib/profileContext';
+const ThemeComponent = ({get, specific, free, my, purchased, myThemes, updateMyThemes, user, item, groupId, name, freeTempPosts, updateFreeTempPosts}) => {
     const [chosenTheme, setChosenTheme] = useState(null);
     const [useThemeModal, setUseThemeModal] = useState(false);
+    const profile = useContext(ProfileContext);
     const navigation = useNavigation();
     function itemFreeToTransparent(item) {
     const updatedThemes = [...freeTempPosts];
-    const objectIndex = updatedThemes.findIndex(obj => obj.id === item.item.id)
+    const objectIndex = updatedThemes.findIndex(obj => obj.id === item.id)
     updatedThemes[objectIndex].transparent = true
-    setFreeTempPosts(updatedThemes)
+    updateFreeTempPosts(updatedThemes)
   }
   function itemFreeNotToTransparent(item) {
     const updatedThemes = [...freeTempPosts];
-    const objectIndex = updatedThemes.findIndex(obj => obj.id === item.item.id)
+    const objectIndex = updatedThemes.findIndex(obj => obj.id === item.id)
     updatedThemes[objectIndex].transparent = false
-    setFreeTempPosts(updatedThemes)
+    updateFreeTempPosts(updatedThemes)
   }
   function itemAllToTransparent(item) {
     const updatedThemes = [...tempPosts];
-    const objectIndex = updatedThemes.findIndex(obj => obj.id === item.item.id)
+    const objectIndex = updatedThemes.findIndex(obj => obj.id === item.id)
     
     updatedThemes[objectIndex].transparent = true
     setTempPosts(updatedThemes)
   }
   function itemAllNotToTransparent(item) {
     const updatedThemes = [...tempPosts];
-    const objectIndex = updatedThemes.findIndex(obj => obj.id === item.item.id)
+    const objectIndex = updatedThemes.findIndex(obj => obj.id === item.id)
     updatedThemes[objectIndex].transparent = false
     setTempPosts(updatedThemes)
   }
   function itemToTransparent(item) {
     const updatedMyThemes = [...myThemes];
-    const objectIndex = updatedMyThemes.findIndex(obj => obj.id === item.item.id)
+    const objectIndex = updatedMyThemes.findIndex(obj => obj.id === item.id)
     updatedMyThemes[objectIndex].transparent = true
-    setMyThemes(updatedMyThemes)
+    updateMyThemes(updatedMyThemes)
   }
   function itemNotToTransparent(item) {
     const updatedMyThemes = [...myThemes];
-    const objectIndex = updatedMyThemes.findIndex(obj => obj.id === item.item.id)
+    const objectIndex = updatedMyThemes.findIndex(obj => obj.id === item.id)
     updatedMyThemes[objectIndex].transparent = false
-    setMyThemes(updatedMyThemes)
+    updateMyThemes(updatedMyThemes)
   }
   function itemPurchaseToTransparent(item) {
     const updatedMyThemes = [...purchasedThemes];
-    const objectIndex = updatedMyThemes.findIndex(obj => obj.id === item.item.id)
+    const objectIndex = updatedMyThemes.findIndex(obj => obj.id === item.id)
     updatedMyThemes[objectIndex].transparent = true
     setPurchasedThemes(updatedMyThemes)
   }
   function itemPurchaseNotToTransparent(item) {
     const updatedMyThemes = [...purchasedThemes];
-    const objectIndex = updatedMyThemes.findIndex(obj => obj.id === item.item.id)
+    const objectIndex = updatedMyThemes.findIndex(obj => obj.id === item.id)
     updatedMyThemes[objectIndex].transparent = false
     setPurchasedThemes(updatedMyThemes)
   }
@@ -69,7 +72,7 @@ const ThemeComponent = ({get, free, my, purchased, user, item, groupId, name}) =
       headers: {
         'Content-Type': 'application/json', // Set content type as needed
       },
-      body: JSON.stringify({ data: { background: background, theme: item.item.images[0], postBackground: postBackground, item: item, user: user.uid}}), // Send data as needed
+      body: JSON.stringify({ data: { background: background, theme: item.images[0], postBackground: postBackground, item: item, user: user.uid}}), // Send data as needed
     })
     const data = await response.json();
     if (data.done) {
@@ -82,23 +85,23 @@ const ThemeComponent = ({get, free, my, purchased, user, item, groupId, name}) =
     ]);
   }
   return (
-    <View style={styles.themeContainer}>
-      <TouchableOpacity onPress={my ? () => navigation.navigate('SpecificTheme', {myId: item.item.id, my: true}) : purchased ? item.item.price > 0 ? () => navigation.navigate('SpecificTheme', {chargeId: item.item.chargeId, bought: item.item.bought, 
-      id: item.item.productId, metadata: item.item.metadata, theme: item.item.images[0], name: item.item.name, description: item.item.description, free: false, purchased: true}) 
-      : () => navigation.navigate('SpecificTheme', {id: item.item.productId, productId: item.item.productId, metadata: {userId: user.uid}, theme: item.item.images[0], name: item.item.name, description: item.item.description, free: true, purchased: false}) : 
-        item.item.metadata != undefined || item.item.bought != undefined && !groupId && !free ? () => navigation.navigate('SpecificTheme', {id: item.item.id, groupTheme: null, free: false, username: item.item.username}) 
-      : groupId && !free ? ()  => navigation.navigate('SpecificTheme', {id: item.item.id, groupId: groupId, groupTheme: item.item.images[0], groupName: name,
-        free: false, username: item.item.username}) : free && !groupId ? () => navigation.navigate('SpecificTheme', {productId: item.item.id, groupTheme: null, free: true, username: item.item.username}) :
-      free && groupId ? () => navigation.navigate('SpecificTheme', {productId: item.item.id, groupName: name, username: item.item.username, groupTheme: item.item.images[0], free: true, groupId: groupId}) : null}>
-        <FastImage source={{uri: item.item.images[0]}} style={styles.theme}/>
+    <View style={specific ? [styles.themeContainer, {height: '45%'}] : styles.themeContainer}>
+      <TouchableOpacity onPress={my ? () => navigation.navigate('SpecificTheme', {myId: item.id, my: true}) : purchased ? item.price > 0 ? () => navigation.navigate('SpecificTheme', {chargeId: item.chargeId, bought: item.bought, 
+      id: item.productId, metadata: item.metadata, theme: item.images[0], name: item.name, description: item.description, free: false, purchased: true}) 
+      : () => navigation.navigate('SpecificTheme', {id: item.productId, productId: item.productId, metadata: {userId: user.uid}, theme: item.images[0], name: item.name, description: item.description, free: true, purchased: false}) : 
+        item.metadata != undefined || item.bought != undefined && !groupId && !free ? () => navigation.navigate('SpecificTheme', {id: item.id, groupTheme: null, free: false, username: item.username}) 
+      : groupId && !free ? ()  => navigation.navigate('SpecificTheme', {id: item.id, groupId: groupId, groupTheme: item.images[0], groupName: name,
+        free: false, username: item.username}) : free && !groupId ? () => navigation.navigate('SpecificTheme', {productId: item.id, groupTheme: null, free: true, username: item.username}) :
+      free && groupId ? () => navigation.navigate('SpecificTheme', {productId: item.id, groupName: name, username: item.username, groupTheme: item.images[0], free: true, groupId: groupId}) : null}>
+        <FastImage source={{uri: item.images[0]}} style={styles.theme}/>
       </TouchableOpacity>
       <View style={styles.dotContainer}>
-        <Text style={styles.nameText} numberOfLines={1}>{item.item.name}</Text>
-        <TouchableOpacity onPress={purchased ? itemPurchaseToTransparent : free ? () => itemFreeToTransparent(item) : my ? itemToTransparent(item) : () => itemAllToTransparent(item)}>
+        <Text style={styles.nameText} numberOfLines={1}>{item.name}</Text>
+        <TouchableOpacity onPress={purchased ? itemPurchaseToTransparent : free ? () => itemFreeToTransparent(item) : my ? () => itemToTransparent(item) : () => itemAllToTransparent(item)}>
         <Entypo name="dots-three-vertical" style={{alignSelf: 'center'}} size={17.5} color={"#fafafa"}/>
         </TouchableOpacity>
       </View>
-      {item.item.transparent ? 
+      {item.transparent ? 
         <View style={styles.overlay}>
           <TouchableOpacity style={styles.closeContainer} onPress={purchased ? () => {itemPurchaseNotToTransparent(item); setChosenTheme(null)} :
             free ? () => {itemFreeNotToTransparent(item); setChosenTheme(null)} :
@@ -113,7 +116,7 @@ const ThemeComponent = ({get, free, my, purchased, user, item, groupId, name}) =
               </TouchableOpacity>
               {!purchased ? 
               <>
-                <TouchableOpacity style={styles.applyContainer} onPress={() => navigation.navigate('DesignTheme', {groupId: groupId, themeName: item.item.name, keywords: item.item.keywords, searchKeywords: item.item.searchKeywords, edit: true, source: item.item.images[0], themeId: item.item.id, selling: item.item.forSale, price: item.item.price})}>
+                <TouchableOpacity style={styles.applyContainer} onPress={() => navigation.navigate('DesignTheme', {groupId: groupId, themeName: item.name, keywords: item.keywords, searchKeywords: item.searchKeywords, edit: true, source: item.images[0], themeId: item.id, selling: item.forSale, price: item.price})}>
                     <Text style={styles.applyText}>Edit Theme</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.applyContainer} onPress={() => deleteTheme(item)}>
@@ -122,23 +125,23 @@ const ThemeComponent = ({get, free, my, purchased, user, item, groupId, name}) =
               </>
               : null}
             </View> : 
-            free ? <TouchableOpacity style={styles.applyContainer} onPress={!groupId ? () => navigation.navigate('SpecificTheme', {productId: item.item.id, groupTheme: null, free: true, username: item.item.username}) : groupId ? 
-            () => navigation.navigate('SpecificTheme', {productId: item.item.id, groupName: name, groupTheme: item.item.images[0], free: true, groupId: groupId, username: item.item.username}) : null}>
+            free ? <TouchableOpacity style={styles.applyContainer} onPress={!groupId ? () => navigation.navigate('SpecificTheme', {productId: item.id, groupTheme: null, free: true, username: item.username}) : groupId ? 
+            () => navigation.navigate('SpecificTheme', {productId: item.id, groupName: name, groupTheme: item.images[0], free: true, groupId: groupId, username: item.username}) : null}>
                 <Text style={styles.applyText}>Get Theme</Text>
-              </TouchableOpacity>  :<TouchableOpacity style={styles.applyContainer} onPress={item.item.metadata != undefined || item.item.bought != undefined && !groupId ? () => navigation.navigate('SpecificTheme', {id: item.item.id, groupTheme: null, free: false, username: item.item.username}) : item.item.metadata != undefined || item.item.bought != undefined ?
-              () => navigation.navigate('SpecificTheme', {id: item.item.id, groupName: name, groupTheme: item.item.images[0], groupId: groupId, free: false, username: item.item.username}) : null}>
+              </TouchableOpacity>  :<TouchableOpacity style={styles.applyContainer} onPress={item.metadata != undefined || item.bought != undefined && !groupId ? () => navigation.navigate('SpecificTheme', {id: item.id, groupTheme: null, free: false, username: item.username}) : item.metadata != undefined || item.bought != undefined ?
+              () => navigation.navigate('SpecificTheme', {id: item.id, groupName: name, groupTheme: item.images[0], groupId: groupId, free: false, username: item.username}) : null}>
                 <Text style={styles.applyText}>Buy Theme</Text>
               </TouchableOpacity> }
-              {my ? null : <TouchableOpacity style={styles.applyContainer} onPress={groupId ? () => navigation.navigate('GroupChannels', {id: groupId, name: name, sending: true, theme: item.item, group: group}) 
-              :() => navigation.navigate('SendingModal', {payload: item.item, payloadUsername: null, video: false, theme: true})}>
+              {my ? null : <TouchableOpacity style={styles.applyContainer} onPress={groupId ? () => navigation.navigate('GroupChannels', {id: groupId, name: name, sending: true, theme: item, group: group}) 
+              :() => navigation.navigate('SendingModal', {payload: item, payloadUsername: null, video: false, theme: true})}>
                 <Text style={styles.applyText}>Share Theme</Text>
               </TouchableOpacity>}
-              {my ? null : !free ? item.item.stripe_metadata_userId && item.item.stripe_metadata_userId != user.uid && !reportedThemes.includes(item.item.id) ? 
-              <TouchableOpacity style={styles.applyContainer} onPress={() => navigation.navigate('ReportPage', {id: item.item.id, video: false, comment: null, cliqueId: null, post: false, comments: false, message: false, cliqueMessage: false, theme: true, reportedUser: item.item.stripe_metadata_userId})}>
+              {my ? null : !free ? item.stripe_metadata_userId && item.stripe_metadata_userId != user.uid && !profile.reportedThemes.includes(item.id) ? 
+              <TouchableOpacity style={styles.applyContainer} onPress={() => navigation.navigate('ReportPage', {id: item.id, video: false, comment: null, cliqueId: null, post: false, comments: false, message: false, cliqueMessage: false, theme: true, reportedUser: item.stripe_metadata_userId})}>
                 <Text style={styles.applyText}>Report Theme</Text>
               </TouchableOpacity>
-              : null : item.item.userId && item.item.userId != user.uid && !reportedThemes.includes(item.item.id) ? 
-              <TouchableOpacity style={styles.applyContainer} onPress={() => navigation.navigate('ReportPage', {id: item.item.id, video: false, comment: null, cliqueId: null, post: false, comments: false, message: false, cliqueMessage: false, theme: true, reportedUser: item.item.userId})}>
+              : null : item.userId && item.userId != user.uid && !profile.reportedThemes.includes(item.id) ? 
+              <TouchableOpacity style={styles.applyContainer} onPress={() => navigation.navigate('ReportPage', {id: item.id, video: false, comment: null, cliqueId: null, post: false, comments: false, message: false, cliqueMessage: false, theme: true, reportedUser: item.userId})}>
                 <Text style={styles.applyText}>Report Theme</Text>
               </TouchableOpacity>
               : null}
@@ -205,6 +208,7 @@ const styles = StyleSheet.create({
     applyText: {
       fontSize: Dimensions.get('screen').height / 54.9,
       fontFamily: 'Montserrat_500Medium',
-      padding: 7.5
+      padding: 7.5,
+      color: "#fafafa"
     },
 })

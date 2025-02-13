@@ -1,26 +1,21 @@
-import { StyleSheet, Text, View, TouchableOpacity, Image, ScrollView, Alert, ActivityIndicator, KeyboardAvoidingView } from 'react-native'
-import React, {useContext, useEffect, useState} from 'react'
+import { StyleSheet, Text, View, Alert, ActivityIndicator} from 'react-native'
+import React, {useState} from 'react'
 import ThemeHeader from '../Components/ThemeHeader';
 import { Divider } from 'react-native-paper';
-import { doc, getDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { doc,  updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import InputBox from '../Components/InputBox';
 import PreviewFooter from '../Components/PreviewFooter';
 import { useNavigation } from '@react-navigation/native';
-import * as ImagePicker from 'expo-image-picker'; 
 import useAuth from '../Hooks/useAuth';
-import { ref, uploadBytes, getDownloadURL, getStorage } from 'firebase/storage'
 import NextButton from '../Components/NextButton';
 import axios from 'axios';
 import {MODERATION_API_USER, MODERATION_API_SECRET, TEXT_MODERATION_URL} from "@env"
-import { useFonts, Montserrat_500Medium, Montserrat_600SemiBold } from '@expo-google-fonts/montserrat';
+import handleKeyPress from '../lib/handleKeyPress';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
-import themeContext from '../lib/themeContext';
 const EditScreen = ({route}) => {
-    const {id, firstName, lastName, pfp, username, bio} = route.params;
+    const {firstName, lastName, username, bio} = route.params;
     const [editedBio, setEditedBio] = useState(bio);
-    const [editedBanner, setEditedBanner] = useState();
-    const theme = useContext(themeContext)
     const [editedFirstName, setEditedFirstName] = useState(firstName);
     const [editedLastName, setEditedLastName] = useState(lastName);
     const [allowToEditLastName, setAllowToEditLastName] = useState(lastName.length == 0 ? false : true);
@@ -800,33 +795,15 @@ const EditScreen = ({route}) => {
     const sanitizedText = inputText.replace(/\n/g, ''); // Remove all new line characters
     setEditedBio(sanitizedText);
   }
-    const handleKeyPress = ({ nativeEvent }) => {
-    if (nativeEvent.key === 'Enter') {
-      // Prevent user from manually inserting new lines
-      return;
-    }
-  };
-    //console.log(editedBio.length)
-    //console.log(allowToEditOccupation)
-    const [fontsLoaded, fontError] = useFonts({
-    // your other fonts here
-    Montserrat_500Medium,
-    Montserrat_600SemiBold
-  });
-
-  if (!fontsLoaded || fontError) {
-    // Handle loading errors
-    return null;
-  }
   return (
-    <View style={[styles.container, {backgroundColor: theme.backgroundColor}]}>
+    <View style={styles.container}>
     <ThemeHeader text={"Edit Profile"} video={false}/>
       <Divider borderWidth={0.4}/>
-      {loading ? <View style={{alignItems: 'center', flex: 1, backgroundColor: theme.backgroundColor, justifyContent: 'center'}}>
-          <ActivityIndicator color={theme.theme != 'light' ? "#9EDAFF" : "#005278"} size={'large'}/> 
+      {loading ? <View style={styles.loading}>
+          <ActivityIndicator color={"#9EDAFF"} size={'large'}/> 
         </View> : 
-            <KeyboardAwareScrollView extraScrollHeight={-50}>
-      <Text style={[styles.titleText, {color: theme.color}]}>First Name</Text>
+          <KeyboardAwareScrollView extraScrollHeight={-50}>
+      <Text style={styles.titleText}>First Name</Text>
       <View>
         <InputBox text={editedFirstName} maxLength={100} value={editedFirstName} onChangeText={setEditedFirstName} containerStyle={alertFirstName ? {borderColor: 'red'} : null}/>
         {alertFirstName ?
@@ -835,37 +812,37 @@ const EditScreen = ({route}) => {
       </View>
       <Text style={styles.characterCountText}>{editedFirstName.length}/100</Text>
       {allowToEditLastName ? <>
-      <Text style={[styles.titleText, {color: theme.color}]}>Last Name</Text>
+      <Text style={styles.titleText}>Last Name</Text>
       <View>
         <InputBox text={editedLastName} maxLength={100} value={editedLastName} onChangeText={setEditedLastName}/>
       </View>
-      <Text style={[styles.characterCountText, {color: theme.color}]}>{editedLastName.length}/100</Text>
+      <Text style={styles.characterCountText}>{editedLastName.length}/100</Text>
       </>
       : <>
-      <Text style={[styles.titleText, {color: theme.color}]}>Last Name</Text>
-      <View style={{marginLeft: '5%', marginRight: '5%'}}>
+      <Text style={styles.titleText}>Last Name</Text>
+      <View style={styles.button}>
         <NextButton text={"+ Add Last Name"} onPress={addLastName}/>
       </View>
       </>}
       {allowToEditBio ? 
        <>
-      <Text style={[styles.titleText, {color: theme.color}]}>Bio</Text>
+      <Text style={styles.titleText}>Bio</Text>
       <View>
         <InputBox text={editedBio} maxLength={200} blurOnSubmit={true} key={handleKeyPress} value={editedBio} onChangeText={handleEditedBio} multiline={true}/>
       </View>
-      <Text style={[styles.characterCountText, {color: theme.color}]}>{editedBio.length}/100</Text>
+      <Text style={styles.characterCountText}>{editedBio.length}/100</Text>
       </> : 
       <>
-      <Text style={[styles.titleText, {color: theme.color}]}>Bio</Text>
-      <View style={{marginLeft: '5%', marginRight: '5%'}}>
+      <Text style={styles.titleText}>Bio</Text>
+      <View style={styles.button}>
         <NextButton text={"+ Add Bio"} onPress={addBio}/>
       </View>
       </>
       }
       </KeyboardAwareScrollView>
 }
-      <View style={{marginLeft: '5%', marginRight: '5%', marginTop: '5%', marginBottom: '5%'}}>
-        <PreviewFooter containerStyle={{backgroundColor: theme.backgroundColor, marginTop: '5%'}} text={"SAVE"} onPressCancel={() => navigation.goBack()} 
+      <View style={{margin: '5%'}}>
+        <PreviewFooter containerStyle={{marginTop: '5%'}} text={"SAVE"} onPressCancel={() => navigation.goBack()} 
         onPress={editedFirstName.length == 0 ? () => alertUser() : editedFirstName != firstName && lastName == editedLastName && editedBio == bio ? () => updateDBFirst() :
         editedFirstName == firstName && lastName != editedLastName && editedBio == bio ? () => updateDBLast() : editedFirstName == firstName && lastName == editedLastName && editedBio != bio ? 
       () => updateDBBio() : editedFirstName != firstName && lastName != editedLastName && editedBio == bio ? () => updateDBFirstLast() : editedFirstName == firstName && lastName != editedLastName && editedBio != bio ?
@@ -880,40 +857,30 @@ export default EditScreen
 
 const styles = StyleSheet.create({
     container: {
-        flex: 1,
+      flex: 1,
+      backgroundColor: "#121212"
+    },
+    loading: {
+      alignItems: 'center', 
+      flex: 1, 
+      justifyContent: 'center'
     },
     titleText: {
-        margin: '5%',
-        fontSize: 19.20,
-       fontFamily: 'Montserrat_600SemiBold',
-    },
-    headerText: {
-        margin: '5%',
-        marginTop: 0,
-        fontSize: 15.36,
-        fontFamily: 'Montserrat_500Medium',
+      margin: '5%',
+      color: "#fafafa",
+      fontSize: 19.20,
+      fontFamily: 'Montserrat_600SemiBold',
     },
     alertText: {
-        color: 'red',
-        fontSize: 12.29,
-        fontFamily: 'Montserrat_500Medium',
-        marginLeft: '5%',
-        padding: 5
-
+      color: 'red',
+      fontSize: 12.29,
+      fontFamily: 'Montserrat_500Medium',
+      marginLeft: '5%',
+      padding: 5
     },
-    supplementaryText: {
-        fontSize: 12.29,
-        fontFamily: 'Montserrat_500Medium',
-        margin: '5%'
-    },
-    addContainer: {
-        //backgroundColor: "#000",
-        height: 151,
-        width: 300,
-        //borderRadius: 90,
-        justifyContent: 'center',
-        alignItems: 'center',
-        //justifyContent:'center'
+    button: {
+      marginLeft: '5%', 
+      marginRight: '5%'
     },
     characterCountText: {
       fontSize: 12.29,
@@ -922,6 +889,7 @@ const styles = StyleSheet.create({
       padding: 10,
       textAlign: 'right',
       paddingRight: 0,
-      marginRight: '7.5%'
+      marginRight: '7.5%',
+      color: "#fafafa"
     }
 })

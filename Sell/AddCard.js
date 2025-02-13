@@ -400,7 +400,7 @@ const AddCard = ({route}) => {
     return url
     }
   const handleAddCard = async() => {
-    console.log('first')
+    
     try {
       const response = await fetch(`${BACKEND_URL}/api/endpoint`, {
         method: 'POST',

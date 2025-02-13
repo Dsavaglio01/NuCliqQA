@@ -1,9 +1,6 @@
 import { db } from './firebase';
 import { getDoc, doc } from 'firebase/firestore';
 import {BACKEND_URL} from '@env';
-import { useContext } from 'react';
-import ProfileContext from './lib/profileContext';
-const profile = useContext(ProfileContext);
 export const schedulePushCommentNotification = async(id, username, notificationToken, comment) => {
     let notis = (await getDoc(doc(db, 'profiles', id))).data().allowNotifications
       let banned = (await getDoc(doc(db, 'profiles', id))).data().banned

@@ -15,15 +15,18 @@ import themeContext from '../lib/themeContext';
 import _ from 'lodash'
 import FollowButtons from './FollowButtons';
 import CommentsModal from './Posts/Comments';
-import { ableToShareVideoFunction} from '../firebaseUtils';
+import { ableToShareVideoFunction, addSaveToPost, removeSaveFromPost} from '../firebaseUtils';
 import LikeButton from './Posts/LikeButton';
 import SaveButton from './Posts/SaveButton';
 import { LazyVideo } from './Posts/LazyVideo';
-const VideoPostComponent = ({data, home, loading, lastVisible, actualClique, blockedUsers, smallKeywords, largeKeywords, 
+import { schedulePushLikeNotification } from '../notificationFunctions';
+//import Slider from '@react-native-community/slider';
+const VideoPostComponent = ({data, fetchMoreData, home, loading, lastVisible, actualClique, blockedUsers, smallKeywords, largeKeywords, 
     ogUsername, pfp, reportedComments, reportedPosts, clique, cliqueId, username, admin, edit, caption, notificationToken}) => {
     const {user} = useAuth();
     const flatListRef = useRef(null);
     const videoRef = useRef(null);
+    const [videoStatus, setVideoStatus] = useState({position: 0, duration: 0});
     const navigation = useNavigation();
     const [requests, setRequests] = useState([]);
     const [ableToShare, setAbleToShare] = useState(true);
@@ -37,6 +40,7 @@ const VideoPostComponent = ({data, home, loading, lastVisible, actualClique, blo
     const [actualData, setActualData] = useState([]);
     const [activePostIndex, setActivePostIndex] = useState(0);
     const [commentModal, setCommentModal] = useState(false);
+    const shouldShowProgressBar = videoStatus.duration > 15000;
     useFocusEffect(
       useCallback(() => {
         setFocused(true)
@@ -131,7 +135,7 @@ const VideoPostComponent = ({data, home, loading, lastVisible, actualClique, blo
       setActualData(updatedData);
     }
       try {
-        const response = await fetch(`${BACKEND_URL}/api/likeVideoPost`, {
+        const response = await fetch(`http://10.0.0.225:4000/api/likeVideoPost`, {
       method: 'POST', // Use appropriate HTTP method (GET, POST, etc.)
       headers: {
         'Content-Type': 'application/json', // Set content type as needed
@@ -170,9 +174,6 @@ const VideoPostComponent = ({data, home, loading, lastVisible, actualClique, blo
     })
   }
   async function removeHomeSave(item) {
-      await deleteDoc(doc(db, 'profiles', user.uid, 'saves', item.id)).then(async() => await updateDoc(doc(db, 'videos', item.id), {
-      savedBy: arrayRemove(user.uid)
-    })).then(() => {
       const updatedObject = { ...item };
     updatedObject.savedBy = item.savedBy.filter((e) => e != user.uid)
     const objectIndex = actualData.findIndex(obj => obj.id === item.id);
@@ -184,7 +185,7 @@ const VideoPostComponent = ({data, home, loading, lastVisible, actualClique, blo
       // Set the new array as the state
       setActualData(updatedData);
     }
-    })
+    removeSaveFromPost(item.id, user.uid, true)
   }
   async function addCliqueSave(item) {
     const updatedObject = { ...item };
@@ -228,16 +229,7 @@ const VideoPostComponent = ({data, home, loading, lastVisible, actualClique, blo
   }
 
   async function addHomeSave(item) {
-      await updateDoc(doc(db, 'videos', item.id), {
-      savedBy: arrayUnion(user.uid)
-    }).then(async() => await setDoc(doc(db, 'profiles', user.uid, 'saves', item.id), {
-      post: item,
-      video: true,
-      timestamp: serverTimestamp()
-    }).then(() => addRecommendSave(item))
-    ).then(() => {
       const updatedObject = { ...item };
-
     // Update the array in the copied object
     updatedObject.savedBy = [...item.savedBy, user.uid];
       const objectIndex = actualData.findIndex(obj => obj.id === item.id);
@@ -248,10 +240,7 @@ const VideoPostComponent = ({data, home, loading, lastVisible, actualClique, blo
       // Set the new array as the state
       setActualData(updatedData);
     }
-    })
-    
-    
-    
+    addSaveToPost(item.id, user.uid, true)
   }
     
     function openMenu(editedItem) {
@@ -273,31 +262,74 @@ const VideoPostComponent = ({data, home, loading, lastVisible, actualClique, blo
       }
       setActualData(newData);
   }
+  const handleStatusUpdate = _.debounce((status) => {
+    /* if (status.isLoaded) {
+      setVideoStatus({
+        position: status.positionMillis,
+        duration: status.durationMillis,
+      });
+    } */
+  }, 100)
+
+  const handleSeek = async (value) => {
+    console.log(value)
+    if (videoRef.current) {
+      await videoRef.current.setPositionAsync(value);
+      
+    }
+  };
+  const handleSnap = async (index) => {
+    setActivePostIndex(0)
+    setActiveIndex(0);
+    if (index >= actualData.length - 2) {
+      fetchMoreData();
+    }
+  };
+  const handleSlidingComplete = async (value) => {
+  if (videoRef.current) {
+    await videoRef.current.setPositionAsync(value); 
+    setIsPaused(false)
+  }
+};
     const renderItem = (item, index) => {
     if (item.item.likedBy != undefined) {
       if (item.item.post != null && item.item.post.length == 1 && item.item.post[0].video) {
     return (
     <>
-        <View style={item.index == 0 ? [styles.ultimateVideoContainer, {marginTop: 0}] : styles.ultimateVideoContainer} key={item.item.id}>
-    {/* <FastImage resizeMode='stretch' source={item.item.background ? {uri: item.item.background} : require('../assets/Default_theme.jpg')} > */}
-     <TouchableOpacity activeOpacity={1} style={{flex: 1}} onLongPress={() => openMenu(item.item)}>
+        <View style={styles.ultimateVideoContainer} key={item.item.id}>
+     <TouchableOpacity onPress={() => setIsPaused(!isPaused)} activeOpacity={1} style={{flex: 1}} onLongPress={() => openMenu(item.item)}>
       <View style={styles.captionPosting}>
-            {!item.item ? <ActivityIndicator color={theme.theme != 'light' ? "#9EDAFF" : "#005278"} /> :
+            {!item.item ? <ActivityIndicator color={"#9EDAFF"} /> :
             
-            <Suspense fallback={ <ActivityIndicator color={theme.theme != 'light' ? "#9EDAFF" : "#005278"} />}>
+            <Suspense fallback={ <ActivityIndicator color={"#9EDAFF"} />}>
               <LazyVideo 
                 videoRef={videoRef}
                 style={styles.video}
                 source={item.item.post[0].post}
                 shouldPlay={item.index == activeIndex && focused && !isPaused ? true : false}
-                onPlaybackStatusUpdate={status => setStatus(() => status)}  
+                onPlaybackStatusUpdate={handleStatusUpdate}  
               />
               
             </Suspense> 
         }
-          
+          {/* <Slider
+            style={styles.slider}
+            value={videoStatus.position}
+            minimumValue={0}
+            maximumValue={videoStatus.duration}
+            onValueChange={handleSeek}
+            onSlidingComplete={handleSlidingComplete}
+            minimumTrackTintColor="#9edaff"
+            maximumTrackTintColor="#000000"
+            thumbTintColor="#9edaff"
+          /> */}
+          {/* {isPaused ? 
+            <View style={styles.playButton}>
+              <MaterialCommunityIcons name='play' size={60} color={"grey"}/>
+            </View> 
+          : null} */}
             </View>
-            <View style={item.item.caption ? [styles.videoContainer, {marginTop: '-20%'}] : [styles.videoContainer, {marginTop: '-17.5%'}]}>
+            <View style={item.item.caption ? [styles.videoContainer, {marginTop: '-40%'}] : [styles.videoContainer, {marginTop: '-35%'}]}>
             {item.item.pfp ? <FastImage source={{uri: item.item.pfp, priority: 'normal'}} style={styles.pfp}/> : 
           <FastImage source={require('../assets/defaultpfp.jpg')} style={styles.pfp}/>
           }
@@ -308,7 +340,7 @@ const VideoPostComponent = ({data, home, loading, lastVisible, actualClique, blo
             {!item.item.blockedUsers.includes(user.uid) ? item.item.loading ? <View style={styles.rightAddContainer}>
             <ActivityIndicator color={"#9edaff"}/> 
             </View> :
-            <FollowButtons actualData={actualData} updateActualData={setActualData} username={username} user={user} item={item.item} ogUsername={ogUsername} smallKeywords={smallKeywords} largeKeywords={largeKeywords} style={{marginTop: 5}}/> : null
+            <FollowButtons actualData={actualData} friendId={item.item.userId} updateActualData={setActualData} username={username} user={user} item={item.item} ogUsername={ogUsername} smallKeywords={smallKeywords} largeKeywords={largeKeywords} style={{marginTop: 5}}/> : null
    }
           </View>
             {!reportedPosts.includes(item.item.id) ? 
@@ -346,8 +378,8 @@ const VideoPostComponent = ({data, home, loading, lastVisible, actualClique, blo
           updateTempPostsCliqueAddSave={addCliqueSave} updateTempPostsCliqueRemoveSave={removeCliqueSave} 
           updateTempPostsRemoveSave={removeHomeSave}/>
           {item.item.mentions && item.item.mentions.length > 0 ?
-          <TouchableOpacity onPress={() => navigation.navigate('Mention', {mentions: item.item.mentions, friends: friends, requests: requests})}>
-            <MaterialCommunityIcons name='at' size={Dimensions.get('screen').height / 37.5} style={{alignSelf: 'center', paddingLeft: 2.5, paddingTop: 2.5}} color={"#fafafa"}/>
+          <TouchableOpacity style={{margin: '5%'}} onPress={() => navigation.navigate('Mention', {mentions: item.item.mentions, friends: friends, requests: requests})}>
+            <MaterialCommunityIcons name='at' size={Dimensions.get('screen').height / 37.5} style={styles.at} color={"#fafafa"}/>
           </TouchableOpacity>
           : null}
           </View>}
@@ -367,7 +399,7 @@ const VideoPostComponent = ({data, home, loading, lastVisible, actualClique, blo
   return (
     <View style={{flex: 1}}>
       {focusedPost != null && commentModal ? 
-    <CommentsModal commentModal={commentModal} videoStyling={true} closeCommentModal={() => setCommentModal(false)}
+    <CommentsModal actualData={actualData} handleActualData={setActualData} commentModal={commentModal} videoStyling={true} closeCommentModal={() => setCommentModal(false)}
     postNull={() => setFocusedPost(null)} user={user} username={username} reportedComments={reportedComments} focusedPost={focusedPost}
     ableToShare={ableToShare} pfp={pfp} notificationToken={notificationToken} blockedUsers={blockedUsers}/> : null}
     {actualData.length > 0 ? 
@@ -375,13 +407,13 @@ const VideoPostComponent = ({data, home, loading, lastVisible, actualClique, blo
           width={Dimensions.get('screen').width}
           data={actualData}
           vertical
-          height={Dimensions.get('screen').height * 0.8}
+
+          height={Dimensions.get('screen').height}
           ref={flatListRef}
           renderItem={renderItem}
           loop={false}
-          onSnapToItem={(index) => {setActiveIndex(index); setActivePostIndex(0);
-            }}
-          style={{minHeight: '70%'}}
+          onSnapToItem={handleSnap}
+          
           
             /> : <View style={{flex: 1, alignItems: 'center', justifyContent: 'center'}}>
               <Text style={styles.noPostText}>No Posts Yet!</Text>
@@ -407,6 +439,7 @@ const styles = StyleSheet.create({
       backgroundColor: "#121212",
       height: '100%',
       borderTopWidth: 0.25,
+      marginTop: 0
     },
     video: {
       width: '100%',
@@ -501,8 +534,25 @@ const styles = StyleSheet.create({
         borderColor: "#71797E"
     },
     username: {
-        color: "#fafafa",
-        fontSize: Dimensions.get('screen').height / 54.95, 
-        width: '80%'
-    }
+      color: "#fafafa",
+      fontSize: Dimensions.get('screen').height / 54.95, 
+      width: '80%'
+    },
+    at: {
+      alignSelf: 'center', 
+      paddingLeft: 2.5, 
+      paddingTop: 2.5
+    },
+    playButton: {
+      position: 'absolute',
+      bottom: '47.5%',
+      left: '45%'
+    },
+    slider: { 
+      position: 'absolute',
+      bottom: 75,
+      width: "98%",
+      marginLeft: '1%', 
+      height: 20 
+    },
 })

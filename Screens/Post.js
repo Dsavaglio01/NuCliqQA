@@ -1,51 +1,25 @@
-import { Image, StyleSheet, Text, View, ImageBackground, Dimensions, TouchableOpacity, Alert, FlatList, ActivityIndicator, Modal} from 'react-native'
-import React, {useRef, useState, useEffect, useContext} from 'react'
-import { useNavigation } from '@react-navigation/native';
-import { Provider, Menu, Divider } from 'react-native-paper';
-import { deleteDoc, doc, getDoc, getFirestore, updateDoc, onSnapshot, setDoc, query, collection, arrayRemove, arrayUnion, serverTimestamp } from 'firebase/firestore';
-import {MaterialCommunityIcons} from '@expo/vector-icons';
+import { StyleSheet, Text, View, ActivityIndicator} from 'react-native'
+import React, {useState, useEffect, useContext} from 'react'
+import { Provider} from 'react-native-paper';
+import { doc, getDoc } from 'firebase/firestore';
 import PostComponent from '../Components/PostComponent';
 import ThemeHeader from '../Components/ThemeHeader';
-import useAuth from '../Hooks/useAuth';
-import {BACKEND_URL} from "@env";
-import { useFonts, Montserrat_400Regular, Montserrat_700Bold, Montserrat_500Medium, Montserrat_600SemiBold } from '@expo-google-fonts/montserrat';
-//import ReportModal from '../Components/ReportModal';
-import * as Haptics from 'expo-haptics';
 import themeContext from '../lib/themeContext';
 import { db } from '../firebase'
+import VideoPostComponent from '../Components/VideoPostComponent';
+import ProfileContext from '../lib/profileContext';
 const Post = ({route}) => {
-    const {post, requests, name, groupId, edit, caption, video} = route.params;
-    //console.log(post, name)
+    const {post, name, groupId, edit, caption, video} = route.params;
     const [completePosts, setCompletePosts] = useState([]);
-    const [username, setUsername] = useState('');
-    const [visible, setVisible] = useState(false);
-    const [notificationToken, setNotificationToken] = useState(null);
-    const [forSale, setForSale] = useState(null);
-    const [background, setBackground] = useState(null);
     const [loading, setLoading] = useState(true);
-    const {user} = useAuth();
     const theme = useContext(themeContext)
-    const videoRef = useRef(null);
     const [reportModalVisible, setReportModalVisible] = useState(false);
     const [reportedItem, setReportedItem] = useState(null);
-    const [blockedUsers, setBlockedUsers] = useState([]);
-    const [secondReport, setSecondReport] = useState(false);
-    const [videoModalVisible, setVideoModalVisible] = useState(false);
-    const [postNotifications, setPostNotifications] = useState([]);
-    const [tapCount, setTapCount] = useState(0);
     const [actualGroup, setActualGroup] = useState(null);
     const [actualPfp, setActualPfp] = useState(null);
-    const [userPfp, setUserPfp] = useState(null);
     const [groupName, setGroupName] = useState('')
-    const timerRef = useRef(null);
     const [doesNotExist, setDoesNotExist] = useState(false);
-    //console.log(background)
-    //console.log(pfp)
-    //console.log(completePosts.length)
-    //console.log(post)
-    const navigation = useNavigation();
-    //console.log(groupId)
-    //console.log(completePosts<.length)
+    const profile = useContext(ProfileContext);
     useEffect(() => {
       if (route.params?.groupId)
       {
@@ -65,19 +39,13 @@ const Post = ({route}) => {
       if (!video) {
     const fetchData = async() => {
       try {
-        const [profileSnap, postSnap] = await Promise.all([
-          getDoc(doc(db, 'profiles', name)),
+        const [postSnap] = await Promise.all([
           getDoc(doc(db, 'posts', post))
         ]);
 
-        if (profileSnap.exists() && postSnap.exists()) {
-          setUsername(profileSnap.data().userName);
-          setNotificationToken(profileSnap.data().notificationToken)
-       setForSale(profileSnap.data().forSale)
-       setBackground(profileSnap.data().postBackground)
-       setBlockedUsers(profileSnap.data().blockedUsers)
+        if (postSnap.exists()) {
 
-          const postBackground = profileSnap.data().postBackground;
+          const postBackground = profile.postBackground;
           setCompletePosts([{ 
             id: postSnap.id, 
             ...postSnap.data(),
@@ -99,21 +67,16 @@ const Post = ({route}) => {
   else {
     const fetchData = async() => {
       try {
-        const [profileSnap, postSnap] = await Promise.all([
-          getDoc(doc(db, 'profiles', name)),
+        const [postSnap] = await Promise.all([
           getDoc(doc(db, 'videos', post))
         ]);
 
-        if (profileSnap.exists() && postSnap.exists()) {
-          setUsername(profileSnap.data().userName);
-          setNotificationToken(profileSnap.data().notificationToken)
-       setForSale(profileSnap.data().forSale)
-       setBackground(profileSnap.data().postBackground)
-       setBlockedUsers(profileSnap.data().blockedUsers)
+        if (postSnap.exists()) {
 
-          const postBackground = profileSnap.data().postBackground;
+          const postBackground = profile.postBackground;
           setCompletePosts([{ 
             id: postSnap.id, 
+            reportVisible: false,
             ...postSnap.data(),
             background: postBackground 
           }]);
@@ -132,79 +95,6 @@ const Post = ({route}) => {
   }
   }
   }, [name, post, video])
-    /* useEffect(() => {
-      if (name != undefined) {
-        if (!video) {
-          new Promise(resolve => {
-          const getData = async() => {
-       const docSnap =  await getDoc(doc(db, 'profiles', name))
-       setUsername(docSnap.data().userName)
-       setNotificationToken(docSnap.data().notificationToken)
-       setForSale(docSnap.data().forSale)
-       setBackground(docSnap.data().postBackground)
-       setBlockedUsers(docSnap.data().blockedUsers)
-       const postBackground = docSnap.data().postBackground
-       let unsub;
-      const fetchRequests = async() => {
-        const docSnap = await getDoc(doc(db, 'posts', post))
-        unsub = onSnapshot(doc(db, 'posts', post), (doc) => { 
-          //console.log(doc.exists())
-            if (docSnap.exists() && doc.exists()) {
-          setCompletePosts([{id: docSnap.id, ...docSnap.data(), caption: doc.data().caption, background: postBackground}])
-        }
-        else {
-          setDoesNotExist(true)
-        }
-        });
-        
-      }
-      fetchRequests();
-      
-      return unsub;
-    
-      }
-      getData();
-      resolve()
-    }).then(() => setLoading(false))
-        }
-        else if (video) {
-          new Promise(resolve => {
-          const getData = async() => {
-       const docSnap =  await getDoc(doc(db, 'profiles', name))
-       setUsername(docSnap.data().userName)
-       setNotificationToken(docSnap.data().notificationToken)
-        setForSale(docSnap.data().forSale)
-        setBackground(docSnap.data().postBackground)
-       setBlockedUsers(docSnap.data().blockedUsers)
-       const postBackground = docSnap.data().postBackground
-       let unsub;
-      const fetchRequests = async() => {
-        const docSnap = await getDoc(doc(db, 'videos', post))
-        console.log(docSnap.exists())
-        unsub = onSnapshot(doc(db, 'videos', post), (doc) => { 
-            if (docSnap.exists() && doc.exists()) {
-          setCompletePosts([{id: docSnap.id, ...docSnap.data(), caption: doc.data().caption, background: postBackground}])
-        }
-        else {
-          setDoesNotExist(true)
-        }
-        });
-        
-      }
-      fetchRequests();
-      return unsub;
-      }
-      getData();
-      resolve()
-    }).then(() => setLoading(false))
-        }
-        else {
-          null
-        }
-      
-    }
-    }, [name, groupId, post]) */
-  //console.log(post.post)
   const openMenuCallback = (dataToSend) => {
     //console.log(dataToSend)
     openMenu(dataToSend)
@@ -216,59 +106,6 @@ const Post = ({route}) => {
     setReportedItem(dataToSend.item);
     setReportModalVisible(true)
     
-  }
-  const handleVideoCallback = (dataToSend) => {
-    setVideoModalVisible(true)
-    setVideo(dataToSend)
-  }
-  /* const handleHashtagCallback = (dataToSend) => {
-    //setHashTagItem(dataToSend)
-    navigation.navigate('Home', {screen: 'HomeScreen', params: {hashtag: dataToSend, post: null, newPost: false}})
-
-  } */
-
-  
-  
-  function addRecommendLike (item) {
-    //console.log(item)
-    fetch(`${BACKEND_URL}/api/likeRecommendPost`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        postId: item.id, likedBy: item.likedBy, userId: user.uid
-      }),
-      })
-    .then(response => response.json())
-    .then(responseData => {
-      // Handle the response from the server
-      console.log(responseData);
-    })
-    .catch(error => {
-      // Handle any errors that occur during the request
-      console.error(error);
-    })
-  }
-  function addRecommendSave (item) {
-    fetch(`${BACKEND_URL}/api/saveRecommendPost`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        postId: item.id, savedBy: item.savedBy, userId: user.uid
-      }),
-      })
-    .then(response => response.json())
-    .then(responseData => {
-      // Handle the response from the server
-      console.log(responseData);
-    })
-    .catch(error => {
-      // Handle any errors that occur during the request
-      console.error(error);
-    })
   }
 
   
@@ -294,22 +131,6 @@ const Post = ({route}) => {
       }
       setCompletePosts(newData);
   }
-  const [fontsLoaded, fontError] = useFonts({
-    // your other fonts here
-    Montserrat_500Medium,
-    Montserrat_600SemiBold,
-    Montserrat_700Bold,
-    Montserrat_400Regular
-  });
-
-  if (!fontsLoaded || fontError) {
-    // Handle loading errors
-    return null;
-  }
-  //console.log(completePosts.repost)
-  //console.log(groupId)
-  //console.log(post)
-  //console.log(completePosts[0])
   return (
     <Provider>
         <View style={[styles.container, {backgroundColor: theme.backgroundColor}]}>
@@ -320,10 +141,13 @@ const Post = ({route}) => {
             <View style={{alignItems: 'center', flex: 1, justifyContent: 'center', marginBottom: '10%'}}>
           <ActivityIndicator color={theme.theme != 'light' ? "#9EDAFF" : "#005278"} size={"large"}/> 
         </View> 
-            : completePosts.length > 0 ?
-            <PostComponent videoStyling={video ? true : false} forSale={forSale} video={video} background={background} notificationToken={notificationToken} edit={edit} caption={caption} individualPost={true} blockedUsers={blockedUsers} data={[completePosts[0]]} fetchMoreData={null} home={groupId ? false : true}
-            clique={groupId ? true : false} cliqueId={groupId} username={username} cliqueIdName={groupName} cliqueIdPfp={actualPfp} actualClique={actualGroup} openPostMenuFunction={openMenuFunctionCallback} requests={requests}
+            : completePosts.length > 0 && !video ?
+            <PostComponent forSale={profile.forSale} background={profile.background} notificationToken={profile.notificationToken} edit={edit} caption={caption} individualPost={true} blockedUsers={profile.blockedUsers} data={[completePosts[0]]} fetchMoreData={null} home={groupId ? false : true}
+            clique={groupId ? true : false} cliqueId={groupId} username={profile.userName} cliqueIdName={groupName} cliqueIdPfp={actualPfp} actualClique={actualGroup} openPostMenuFunction={openMenuFunctionCallback}
         closePostMenu={closeMenuCallback} openPostMenu={openMenuCallback}/> : 
+        completePosts.length && video ? <VideoPostComponent reportedPosts={profile.reportedPosts} forSale={profile.forSale} background={profile.background} notificationToken={profile.notificationToken} edit={edit} caption={caption} individualPost={true} blockedUsers={profile.blockedUsers} data={[completePosts[0]]} fetchMoreData={null} home={groupId ? false : true}
+            clique={groupId ? true : false} cliqueId={groupId} username={profile.userName} cliqueIdName={groupName} cliqueIdPfp={actualPfp} actualClique={actualGroup} openPostMenuFunction={openMenuFunctionCallback}
+        closePostMenu={closeMenuCallback} openPostMenu={openMenuCallback}/> :
         <View style={{alignItems: 'center', flex: 1, justifyContent: 'center', marginBottom: '10%'}}> 
           <Text style={{fontSize: 15.36, fontFamily: 'Montserrat_500Medium', color: theme.color}}>Post unavailable</Text>
         </View> }

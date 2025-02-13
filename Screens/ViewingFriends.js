@@ -53,7 +53,7 @@ const ViewingFriends = ({route}) => {
     getData()
   }, [onSnapshot])
     useEffect(() => {
-    //console.log('first')
+    //
     let unsub;
 
       const fetchCards = async () => {

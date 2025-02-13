@@ -39,9 +39,10 @@ export default FirstTimeModal
 
 const styles = StyleSheet.create({
     modalImageContainer: {
-      flex: 1, 
+      flex: 1,
       justifyContent: 'center',
-      alignItems: 'center'
+      alignItems: 'center',
+      marginVertical: 220
     },
     modalView: {
     width: '90%',

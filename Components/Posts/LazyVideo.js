@@ -6,10 +6,10 @@ export const LazyVideo = React.memo(
         ref={videoRef}
         style={style}
         source={{ uri: source }}
-        useNativeControls
         volume={1.0}
         shouldPlay={shouldPlay}
         isLooping
+        useNativeControls
         onPlaybackStatusUpdate={onPlaybackStatusUpdate}
       />
     )

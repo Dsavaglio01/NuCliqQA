@@ -16,31 +16,31 @@ const MoodComponent = ({meet, following, mood, sendMeetDataBack, sendFollowingDa
     sendMoodDataBack(mood)
   }
   return (
-    <Provider>
-        <Menu 
-            visible={visible}
-            onDismiss={closeHeaderMenu}
-            contentStyle={styles.contentStyle}
-            anchor={<MaterialCommunityIcons name='chevron-down-circle-outline' size={28} color={"#fafafa"} style={styles.arrow} onPress={openHeaderMenu}/>}>
-            <Menu.Item onPress={meet ? null : () => handleOpen()} title="For You" titleStyle={meet ? {color: "#9EDAFF"} : {color: "#fafafa"}}/>
-            <Divider />
-            <Menu.Item onPress={following ? null : () => handleFollowing()} title="Following" titleStyle={!meet ? {color: "#9EDAFF"} : {color: "#fafafa"}}/>
-            <Divider />
-            <Menu.Item onPress={mood == 'Excited' ? null : () => handleMood('Excited')} title="Excited" titleStyle={!meet ? {color: "#9edaff"} : {color: "#fafafa"}}/>
-            <Divider />
-            <Menu.Item onPress={mood == 'Funny' ? null : () => handleMood('Funny')} title="Funny" titleStyle={!meet ? {color: "#9edaff"} : {color: "#fafafa"}}/>
-            <Divider />
-            <Menu.Item onPress={mood == 'Grateful' ? null : () => handleMood('Grateful')} title="Grateful" titleStyle={!meet ? {color: "#9edaff"} : {color: "#fafafa"}}/>
-            <Divider />
-            <Menu.Item onPress={mood == 'Happy' ? null : () => handleMood('Happy')} title="Happy" titleStyle={!meet ? {color: "#9edaff"} : {color: "#fafafa"}}/>
-            <Divider />
-            <Menu.Item onPress={mood == 'Mad' ? null : () => handleMood('Mad')} title="Mad" titleStyle={!meet ? {color: "#9edaff"} : {color: "#fafafa"}}/>
-            <Divider />
-            <Menu.Item onPress={mood == 'Sad' ? null : () => handleMood('Sad')} title="Sad" titleStyle={!meet ? {color: "#9edaff"} : {color: "#fafafa"}}/>
-            <Divider />
-            <Menu.Item onPress={mood == 'Scared' ? null : () => handleMood('Scared')} title="Scared" titleStyle={!meet ? {color: "#9edaff"} : {color: "#fafafa"}}/>
-        </Menu>
-    </Provider>
+    <Menu 
+        visible={visible}
+        onDismiss={closeHeaderMenu}
+        contentStyle={styles.contentStyle}
+        anchor={<MaterialCommunityIcons name='chevron-down-circle-outline' size={28} color={"#fafafa"} style={styles.arrow} onPress={openHeaderMenu}/>}>
+        <Menu.Item onPress={meet ? null : () => handleOpen()} title="For You" titleStyle={meet ? {color: "#9EDAFF"} : {color: "#fafafa"}}/>
+        <Divider />
+        <Menu.Item onPress={following ? null : () => handleFollowing()} title="Following" titleStyle={following ? {color: "#9EDAFF"} : {color: "#fafafa"}}/>
+        <Divider />
+        <Menu.Item onPress={null} title="Mood ▼" titleStyle={{color: "#fafafa"}}/>
+        <Divider />
+        <Menu.Item onPress={mood == 'Excited' ? null : () => handleMood('Excited')} title="↪ Excited 😆" titleStyle={mood == 'Excited' ? {color: "#9edaff"} : {color: "#fafafa"}}/>
+        <Divider />
+        <Menu.Item onPress={mood == 'Funny' ? null : () => handleMood('Funny')} title="↪ Funny 😂" titleStyle={mood == 'Funny' ? {color: "#9edaff"} : {color: "#fafafa"}}/>
+        <Divider />
+        <Menu.Item onPress={mood == 'Grateful' ? null : () => handleMood('Grateful')} title="↪ Grateful 🥹" titleStyle={mood == 'Grateful' ? {color: "#9edaff"} : {color: "#fafafa"}}/>
+        <Divider />
+        <Menu.Item onPress={mood == 'Happy' ? null : () => handleMood('Happy')} title="↪ Happy 😃" titleStyle={mood == 'Happy' ? {color: "#9edaff"} : {color: "#fafafa"}}/>
+        <Divider />
+        <Menu.Item onPress={mood == 'Mad' ? null : () => handleMood('Mad')} title="↪ Mad 😡" titleStyle={mood == 'Mad' ? {color: "#9edaff"} : {color: "#fafafa"}}/>
+        <Divider />
+        <Menu.Item onPress={mood == 'Sad' ? null : () => handleMood('Sad')} title="↪ Sad 😢" titleStyle={mood == 'Sad' ? {color: "#9edaff"} : {color: "#fafafa"}}/>
+        <Divider />
+        <Menu.Item onPress={mood == 'Scared' ? null : () => handleMood('Scared')} title="↪ Scared 😱" titleStyle={mood == 'Scared' ? {color: "#9edaff"} : {color: "#fafafa"}}/>
+    </Menu>
   )
 }
 

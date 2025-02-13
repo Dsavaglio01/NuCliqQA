@@ -1,7 +1,6 @@
 import { StyleSheet, Text, View, Image, Modal, TouchableOpacity, ScrollView, Dimensions, Alert, ActivityIndicator, 
   TextInput,} from 'react-native'
 import React, {useEffect, useState, useRef, useContext} from 'react'
-import { ref, getDownloadURL, getStorage, deleteObject, uploadBytesResumable} from 'firebase/storage';
 import { serverTimestamp, getDoc, doc, updateDoc, setDoc} from 'firebase/firestore';
 import { useNavigation } from '@react-navigation/native';
 import {MaterialCommunityIcons} from '@expo/vector-icons';
@@ -17,14 +16,12 @@ import { Divider, Provider } from 'react-native-paper';
 import FastImage from 'react-native-fast-image';
 import {BACKEND_URL, MODERATION_API_USER, MODERATION_API_SECRET, TEXT_MODERATION_URL, IMAGE_MODERATION_URL} from "@env"
 import ThemeHeader from '../Components/ThemeHeader';
-import { useFonts, Montserrat_500Medium } from '@expo-google-fonts/montserrat';
 import themeContext from '../lib/themeContext';
 import { db } from '../firebase'
 import ProfileContext from '../lib/profileContext';
 import { useMultiDownloadImage } from '../Hooks/useMultiDownloadImage';
 const Caption = ({route}) => {
     const {post, postArray, group, mentions, groupPfp, actualGroup, groupName, groupId, text, value, edit, editCaption, editId, blockedUsers, admin} = route.params;
-    const storage = getStorage();
     const carouselRef = useRef(null);
     const [moodModal, setMoodModal] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -41,12 +38,14 @@ const Caption = ({route}) => {
     const [newPostArray, setNewPostArray] = useState([]);
     const [finalMentions, setFinalMentions] = useState([]);
     const profile = useContext(ProfileContext);
-     const {addImage, addVideo} = useMultiDownloadImage();
-    useEffect(() => {
+    //console.log(`Caption: ${caption}`)
+    const {addImage, addVideo} = useMultiDownloadImage({user: user, caption: caption ?? '', actualPostArray: actualPostArray, setNewPostArray: setNewPostArray});
+    /* useEffect(() => {
       if (route.params?.editCaption) {
+        console.log('bruh')
         setCaption(editCaption)
       }
-    }, [route.params?.editCaption])
+    }, [route.params?.editCaption]) */
     useEffect(() => {
       if (route.params?.mentions) {
         setFinalMentions(mentions)
@@ -61,7 +60,6 @@ const Caption = ({route}) => {
         setActualPostArray(postArray)
       }
     }, [route.params?.postArray])
-
   const updateCurrentUser = () => {
     setLoading(true)
     if (actualPostArray.length > 1 || (actualPostArray.length == 1 && !actualPostArray[0].text)) {
@@ -398,163 +396,12 @@ const Caption = ({route}) => {
       setUploading(true);
         actualPostArray.map(async(item) => {
           if (item.image) {
-            addImage()
+            addImage(item)
           }
           else {
-            addVideo()
+            addVideo(item)
           }
         })
-    }
-    const checkVideo = (url, reference, item) => {
-      fetch(`${BACKEND_URL}/api/videoModeration`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        video: url,
-      }),
-      })
-    .then(responseData => responseData.json())
-    .then(response => {
-     Promise.all(response.data.frames.map(async(ele) => {
-        if(ele.nudity.hasOwnProperty('none')) {
-              delete ele.nudity['none']
-            }
-          if (ele.nudity.hasOwnProperty('context')) {
-               delete ele.nudity.context
-            }
-            if (ele.nudity.hasOwnProperty('erotica')) {
-              if (ele.nudity.erotica >= 0.68) {
-                Alert.alert('Unable to Post', `Post Goes Against Our Guidelines`, [
-                {
-                  text: 'Cancel',
-                  onPress: () => deleteObject(reference).then(() => {setUploading(false); setLoading(false);}).catch((error) => {
-                  throw error;
-                  
-                }),
-                  style: 'cancel',
-                },
-                {text: 'OK', onPress: () => deleteObject(reference).then(() => {setUploading(false); setLoading(false);}).catch((error) => {
-                  throw error;
-                  
-                })},
-              ]);
-              throw null;
-              }
-              else {
-                delete ele.nudity.erotica
-              }
-              //console.log(response.data.nudity.suggestive)
-            }
-            if (ele.drugs > 0.9 || ele.gore.prob > 0.9 || containsNumberGreaterThan(getValuesFromImages(Object.values(ele.nudity)), 0.95)
-            || containsNumberGreaterThan(Object.values(ele.offensive), 0.9) || ele.recreational_drugs > 0.9 || ele.medical_drugs > 0.9 || ele.scam > 0.9 ||
-            ele.skull.prob > 0.9 || ele.weapon > 0.9 || ele.weapon_firearm > 0.9 || ele.weapon_knife > 0.9) {
-              Alert.alert('Unable to Post', 'This Post Goes Against Our Guidelines', [
-                {
-                  text: 'Cancel',
-                  onPress: () => deleteObject(reference).then(() => {setUploading(false); setLoading(false)}).catch((error) => {
-                  console.error(error)
-                }),
-                  style: 'cancel',
-                },
-                {text: 'OK', onPress: () => deleteObject(reference).then(() => {setUploading(false); setLoading(false)}).catch((error) => {
-                  console.error(error)
-                })},
-              ]);
-              throw 'error';
-            }
-                  })).then(async() => {
-                      if (caption.length > 0) {
-                    data = new FormData();
-                        data.append('text', caption);
-                        data.append('lang', 'en');
-                        data.append('mode', 'rules');
-                        data.append('api_user', `${MODERATION_API_USER}`);
-                        data.append('api_secret', `${MODERATION_API_SECRET}`);
-                        axios({
-                        url: `${TEXT_MODERATION_URL}`,
-                        method:'post',
-                        data: data,
-                        })
-                        .then(async function (response) {
-                          if (response.data) {
-                                    if (response.data.link.matches.length > 0) {
-                                        linkUsernameAlert()
-                                    }
-                                 
-                                   else if (response.data.profanity.matches.length > 0 && response.data.profanity.matches.some(obj => obj.intensity === 'high')) {
-                  
-                    profanityUsernameAlert()
-                
-                }
-                                    
-                                    else { 
-                                      const response = await fetch(actualPostArray[0].thumbnail)
-                                      //console.log(response)
-                                      const blob = await response.blob();
-                                      //console.log(blob)
-                                      const filename = `posts/${user.uid}postThumbnail${Date.now()}.jpg`
-
-                                      var storageRef = ref(storage, filename)
-                                      try {
-                                          await storageRef;
-                                      } catch (error) {
-                                          console.log(error)
-                                      }
-                                      await uploadBytesResumable(storageRef, blob).then(() => {
-                                        const starsRef = ref(storage, filename);
-                                          getDownloadURL(starsRef).then((thumbUrl) => {
-                                            const updatedArray = actualPostArray.map((obj) => ({ ...obj }));
-                                      
-                                      
-                                      updatedArray[actualPostArray.findIndex(e => e.thumbnail == item.thumbnail)].thumbnail = thumbUrl
-                                      updatedArray[0].post = url
-                                      setNewPostArray(updatedArray) 
-                                      }).catch((e) => console.error(e))
-                                      })
-                                      
-                                     
-                        } 
-                      }
-                    })
-                  } 
-                  else {
-             const response = await fetch(actualPostArray[0].thumbnail)
-                                      //console.log(response)
-                                      const blob = await response.blob();
-                                      //console.log(blob)
-                                      const filename = `posts/${user.uid}postThumbnail${Date.now()}.jpg`
-
-                                      var storageRef = ref(storage, filename)
-                                      try {
-                                          await storageRef;
-                                      } catch (error) {
-                                          console.log(error)
-                                      }
-                                      await uploadBytesResumable(storageRef, blob).then(() => {
-                                        const starsRef = ref(storage, filename);
-                                      getDownloadURL(starsRef).then((thumbUrl) => {
-                                        const updatedArray = actualPostArray.map((obj) => ({ ...obj }));
-                                  //console.log(postArray)
-                                  updatedArray[actualPostArray.findIndex(e => e.thumbnail == item.thumbnail)].thumbnail = thumbUrl
-                                  updatedArray[0].post = url
-                                  setNewPostArray(updatedArray) 
-                                      }).catch((e) => console.error(e))
-                                      })
-                  }
-                    })
-            .catch(function (error) {
-            // handle error
-            if (error.response) console.log(error.response.data);
-            else console.log(error.message);
-      });
-      
-    })
-    .catch(error => {
-      // Handle any errors that occur during the request
-      console.error(error);
-    })
     }
    
 
@@ -563,18 +410,14 @@ const Caption = ({route}) => {
         
         if ((newPostArray.filter((item) => item.image == true).every(obj => obj['post'].includes('https://firebasestorage.googleapis.com')) && newPostArray.length == actualPostArray.length) || (newPostArray.filter((item) => item.text).every(obj => obj['visible'] == true) && newPostArray.length == actualPostArray.length)) {
             const doFunction = async() => {
-          //
-          //let cloudUrl = 'https://us-central1-nucliq-c6d24.cloudfunctions.net/uploadPost'
     try {
-    //await fetch(`{
-    //)
-    const response = await fetch(`${BACKEND_URL}/api/uploadPost`, {
+    const response = await fetch(`http://10.0.0.225:4000/api/uploadPost`, {
       method: 'POST', // Use appropriate HTTP method (GET, POST, etc.)
       headers: {
         'Content-Type': 'application/json', // Set content type as needed
       },
       body: JSON.stringify({ data: {caption: caption, blockedUsers: blockedUsers, newPostArray: newPostArray, forSale: profile.forSale, value: value, finalMentions: finalMentions, pfp: profile.pfp, notificationToken: profile.notificationToken,
-        background: profile.postBackground, user: user.uid, username: profile.username, value: profile.private}}), // Send data as needed
+        background: profile.postBackground, user: user.uid, username: profile.userName, value: profile.private}}), // Send data as needed
     })
     const data = await response.json();
     //console.log(data)
@@ -598,14 +441,14 @@ const Caption = ({route}) => {
                                   report: false,
                                   requestUser: user.uid,
                                   requestNotificationToken: item.notificationToken,
-                                  likedBy: profile.username,
+                                  likedBy: profile.userName,
                                   timestamp: serverTimestamp()
                                     }).then(async() => 
       await setDoc(doc(db, 'profiles', item.id, 'mentions', data.docRefId), {
       id: data.docRefId,
       video: true,
       timestamp: serverTimestamp()
-    })).then(() => scheduleMentionNotification(item.id, profile.username, item.notificationToken))})
+    })).then(() => scheduleMentionNotification(item.id, profile.userName, item.notificationToken))})
   }
   else if (finalMentions.length > 0) {
     setFinished(true)
@@ -626,13 +469,13 @@ const Caption = ({route}) => {
                                   report: false,
                                   requestUser: user.uid,
                                   requestNotificationToken: item.notificationToken,
-                                  likedBy: profile.username,
+                                  likedBy: profile.userName,
                                   timestamp: serverTimestamp()
                                     }).then(async() => 
       await setDoc(doc(db, 'profiles', item.id, 'mentions', data.docRefId), {
       id: data.docRefId,
       timestamp: serverTimestamp()
-    })).then(() => scheduleMentionNotification(item.id, profile.username, item.notificationToken))})
+    })).then(() => scheduleMentionNotification(item.id, profile.userName, item.notificationToken))})
   }
   else {
     setFinished(true)
@@ -654,165 +497,7 @@ const Caption = ({route}) => {
 
       }
     }, [newPostArray])
-    function containsNumberGreaterThan(array, threshold) {
-      return array.some(function(element) {
-        return element > threshold;
-      });
-    }
-    const getValuesFromImages = (list) => {
-      //console.log(list)
-      let newList = filterByType(list, 'object')
-      //console.log(newList)
-      let tempList = filterByType(list, 'number')
-      tempList.forEach((obj) => {
-        //console.log(obj)
-        filterByType(Object.values(obj), 'object').forEach((e) => {
-          newList.push(e)
-        })
-        filterByType(Object.values(obj), 'number').forEach((e) => {
-          if (e.hasOwnProperty('none')) {
-            delete e['none']
-            Object.values(e).forEach((element) => {
-              newList.push(element)
-            })
-          }
-
-        })
-        //newList.push(filterByType(Object.values(obj), 'object'))
-      })
-      //console.log(newList)
-      return newList
-    }
-    //console.log(postArray)
     
-    function filterByType(arr, type) {
-      return arr.filter(function(item) {
-        return typeof item !== type;
-      });
-    }
-    const CheckMultiplePfp = async(url, reference, item) => {
-      axios.get(`${IMAGE_MODERATION_URL}`, {
-            params: {
-                'url': url,
-                'models': 'nudity-2.0,wad,offensive,scam,gore,qr-content',
-                'api_user': `${MODERATION_API_USER}`,
-                'api_secret': `${MODERATION_API_SECRET}`,
-            }
-            })
-            .then(async function (response) {
-              console.log(response.data)
-            if(response.data.nudity.hasOwnProperty('none')) {
-              delete response.data.nudity['none']
-            }
-            if (response.data.nudity.hasOwnProperty('context')) {
-              delete response.data.nudity.context
-            }
-            if (response.data.nudity.hasOwnProperty('erotica')) {
-              if (response.data.nudity.erotica >= 0.5) {
-                console.log('first')
-                Alert.alert('Unable to Post', `Post #${item.id} Goes Against Our Guidelines`, [
-                {
-                  text: 'Cancel',
-                  onPress: () => deleteObject(reference).then(() => {setUploading(false); setLoading(false);}).catch((error) => {
-                  throw error;
-                  
-                }),
-                  style: 'cancel',
-                },
-                {text: 'OK', onPress: () => deleteObject(reference).then(() => {setUploading(false); setLoading(false);}).catch((error) => {
-                  throw error;
-                  
-                })},
-              ]);
-              throw null;
-              }
-              else {
-                delete response.data.nudity.erotica
-              }
-              //console.log(response.data.nudity.suggestive)
-            }
-            //console.log(response.data.nudity)
-            //console.log(response.data.nudity.hasOwnProperty('none'))
-            if (response.data.drugs > 0.9 || response.data.gore.prob > 0.9 || containsNumberGreaterThan(getValuesFromImages(Object.values(response.data.nudity)), 0.95)
-            || containsNumberGreaterThan(Object.values(response.data.offensive), 0.9) || response.data.recreational_drugs > 0.9 || response.data.medical_drugs > 0.9 || response.data.scam > 0.9 ||
-            response.data.skull.prob > 0.9 || response.data.weapon > 0.9 || response.data.weapon_firearm > 0.9 || response.data.weapon_knife > 0.9) {
-              
-              Alert.alert('Unable to Post', `Post #${item.id} Goes Against Our Guidelines`, [
-                {
-                  text: 'Cancel',
-                  onPress: () => deleteObject(reference).then(() => {setUploading(false); setLoading(false);}).catch((error) => {
-                  throw error;
-                  
-                }),
-                  style: 'cancel',
-                },
-                {text: 'OK', onPress: () => deleteObject(reference).then(() => {setUploading(false); setLoading(false);}).catch((error) => {
-                  throw error;
-                  
-                })},
-              ]);
-              throw null;
-            }
-            else {
-              if (caption.length > 0) {
-                    data = new FormData();
-                        data.append('text', caption);
-                        data.append('lang', 'en');
-                        data.append('mode', 'rules');
-                        data.append('api_user', `${MODERATION_API_USER}`);
-                        data.append('api_secret', `${MODERATION_API_SECRET}`);
-                        axios({
-                          url: `${TEXT_MODERATION_URL}`,
-                          method:'post',
-                          data: data,
-                        })
-                        .then(async function (response) {
-                          if (response.data) {
-                                    if (response.data.link.matches.length > 0) {
-                                        linkUsernameAlert()
-                                    }
-                                
-                                    else if (response.data.profanity.matches.length > 0 && response.data.profanity.matches.some(obj => obj.intensity === 'high')) {
-                  
-                    profanityUsernameAlert()
-                
-                }
-                                    else { 
-                                      
-                                        const updatedArray = actualPostArray.map((obj) => ({ ...obj }));
-                                  
-                                  
-                                  updatedArray[actualPostArray.findIndex(e => e.post === item.post)].post = url
-                                  //console.log(updatedArray)
-                                  
-                                  setNewPostArray(prevState => [updatedArray[actualPostArray.findIndex(e => e.post === item.post)], ...prevState])
-                                      
-                                      
-                        } 
-                      }
-                    })
-                  } 
-                  else {
-                    //console.log(url)
-              const updatedArray = actualPostArray.map((obj) => ({ ...obj }));
-                                  //console.log(postArray)
-                                  
-                                  updatedArray[actualPostArray.findIndex(e => e.post === item.post)].post = url
-                                  //console.log(updatedArray)
-                                  
-                                  setNewPostArray(prevState => [updatedArray[actualPostArray.findIndex(e => e.post === item.post)], ...prevState])
-                  }
-                    }
-                    })
-            .catch(function (error) {
-            // handle error
-            if (error.response) console.log(error.response.data);
-            else console.log(error.message);
-            });
-    }
-    //console.log(postArray)
-    //console.log(newPostArray)
-    //console.log(newPost)
   const renderItems = ({item, index}) => {
     //console.log(item)
     return (
@@ -835,20 +520,8 @@ const Caption = ({route}) => {
     }
       </View>
     )
-    //console.log(item)
     
   }
-  const [fontsLoaded, fontError] = useFonts({
-    // your other fonts here
-    Montserrat_500Medium,
-  });
-
-  if (!fontsLoaded || fontError) {
-    // Handle loading errors
-    return null;
-  }
-  //console.log(group)
-  console.log(newPostArray)
    return (
     <Provider>
     <View style={[styles.container, {backgroundColor: theme.backgroundColor}]}>
@@ -1067,7 +740,7 @@ const Caption = ({route}) => {
       {!edit ? 
       <View style={{flexDirection: 'column'}}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginLeft: 20, width: '90%'}}>
-          <TouchableOpacity onPress={!edit && !uploading ? () => navigation.navigate('MentionPreview', {groupName: groupName, userName: profile.username, actualGroup: actualGroup, groupPfp: groupPfp, blockedUsers: blockedUsers, admin: admin, postArray: actualPostArray, group: group, groupId: groupId, value: value, edit: false, oGmentions: finalMentions}): null}>
+          <TouchableOpacity onPress={!edit && !uploading ? () => navigation.navigate('MentionPreview', {groupName: groupName, userName: profile.userName, actualGroup: actualGroup, groupPfp: groupPfp, blockedUsers: blockedUsers, admin: admin, postArray: actualPostArray, group: group, groupId: groupId, value: value, edit: false, oGmentions: finalMentions}): null}>
             {!finalMentions && !edit || finalMentions.length == 0 && !edit ? <Text style={{fontFamily: 'Montserrat_500Medium', fontSize: 15.36, color: theme.color}}>T@g</Text> : 
             <View style={{flexDirection: 'row'}} >
             {finalMentions.map((item, index) => {

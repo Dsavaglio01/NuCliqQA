@@ -1,108 +1,42 @@
 import { FlatList, StyleSheet, Text, View, Alert, TextInput, KeyboardAvoidingView} from 'react-native'
-import React, { useState, useMemo, useEffect} from 'react'
+import React, { useState, useMemo, useEffect, useContext} from 'react'
 import useAuth from '../Hooks/useAuth';
 import { db } from '../firebase';
-import { onSnapshot, query, collection, where, orderBy, limit, getDoc, setDoc, doc, addDoc, serverTimestamp, updateDoc, arrayUnion } from 'firebase/firestore';
+import { collection, getDoc, setDoc, doc, addDoc, serverTimestamp, updateDoc, arrayUnion } from 'firebase/firestore';
 import FastImage from 'react-native-fast-image';
 import {MaterialCommunityIcons} from '@expo/vector-icons'
 import { useNavigation } from '@react-navigation/native';
 import { TouchableOpacity } from 'react-native-gesture-handler';
-import {BACKEND_URL} from '@env';
 import NextButton from './NextButton';
+import ProfileContext from '../lib/profileContext';
+import { fetchLimitedFriends, fetchLimitedFriendsInfo } from '../firebaseUtils';
+import { schedulePushThemeNotification, schedulePushPostNotification } from '../notificationFunctions';
 const SendingModal = ({route}) => {
     const {video, payload, payloadUsername, theme} = route.params;
     const [friends, setFriends] = useState([]);
     const [alert, setAlert] = useState(false);
     const [completeFriends, setCompleteFriends] = useState([]);
     const navigation = useNavigation();
-    
     const [caption, setCaption] = useState('');
-    const [following, setFollowing] = useState([])
-    const [followers, setFollowers] = useState([]);
     const [actuallySending, setActuallySending] = useState(false);
     const [person, setPerson] = useState(null);
-    const [sendingFriend, setSendingFriend] = useState(null);
     const [friendsInfo, setFriendsInfo] = useState([]);
     const [ableToShare, setAbleToShare] = useState(true);
-    const [lastVisible, setLastVisible] = useState(null);
+    const profile = useContext(ProfileContext);
     const {user} = useAuth();
-     async function schedulePushThemeNotification(item, friendId, firstName, lastName, notificationToken) {
-      //console.log(firstName, lastName, notificationToken)
-      let notis = (await getDoc(doc(db, 'profiles', item.id))).data().allowNotifications
-      const deepLink = `nucliqv1://PersonalChat?person=${item}&friendId=${friendId}`;
-     let banned = (await getDoc(doc(db, 'profiles', item.id))).data().banned
-      if (notis && !banned) {
-        fetch(`${BACKEND_URL}/api/sentThemeNotification`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        firstName: firstName, lastName: lastName, pushToken: notificationToken, "content-available": 1, data: {routeName: 'PersonalChat', person: item, friendId: friendId, deepLink: deepLink}
-      }),
-      })
-    .then(response => response.json())
-    .then(responseData => {
-      // Handle the response from the server
-      console.log(responseData);
-    })
-    .catch(error => {
-      // Handle any errors that occur during the request
-      console.error(error);
-    })
-  }
-    }
-    async function schedulePushPostNotification(item, friendId, firstName, lastName, username, notificationToken) {
-      let notis = (await getDoc(doc(db, 'profiles', item.id))).data().allowNotifications
-      const deepLink = `nucliqv1://PersonalChat?person=${item}&friendId=${friendId}`;
-      let banned = (await getDoc(doc(db, 'profiles', item.id))).data().banned
-      if (notis && !banned) {
-        fetch(`${BACKEND_URL}/api/postNotification`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        firstName: firstName, lastName: lastName, username: username, pushToken: notificationToken, "content-available": 1, data: {routeName: 'PersonalChat', person: item, friendId: friendId, deepLink: deepLink}
-      }),
-      })
-    .then(response => response.json())
-    .then(responseData => {
-      // Handle the response from the server
-      console.log(responseData);
-    })
-    .catch(error => {
-      // Handle any errors that occur during the request
-      console.error(error);
-    })
-  }
-    }
     useMemo(() => {
-      
-      Promise.all(friends.map(async(item) => await getDoc(doc(db, 'friends', item.friendId))))
-      .then(snapshots => {
-        setCompleteFriends(snapshots.map(snapshot => ({id: snapshot.id, ...snapshot.data()})))
-      })
-      .catch(error => {
-        // Handle errors
-      });
+      const fetchFriends = async() => {
+        const completeFriendsArray = await fetchLimitedFriendsInfo(friends);
+        setCompleteFriends(completeFriendsArray)
+      } 
+      fetchFriends();
     }, [friends])
     useEffect(() => {
-        const getData = async() => {
-           const docSnap = await getDoc(doc(db, 'profiles', user.uid))
-           setFollowing(docSnap.data().following)
-           setFollowers(docSnap.data().followers)
-        }
-        getData()
-    }, [])
-    //console.log(followers)
-    useEffect(() => {
-        if (alert){
+      if (alert){
         Alert.alert("Message Sent", "Your message has been sent!", [
-      
-      {text: 'OK', onPress: () => {navigation.goBack(); setAlert(false)}},
-    ])
-}
+          {text: 'OK', onPress: () => {navigation.goBack(); setAlert(false)}},
+        ])
+      }
     }, [alert])
     function addPostToChatter() {
       if (ableToShare) {
@@ -138,7 +72,7 @@ const SendingModal = ({route}) => {
       active: true,
       lastMessageTimestamp: serverTimestamp()
     }
-    )).then(() => setActuallySending(false)).then(() => setAlert(true)).then(() => schedulePushPostNotification(person, friendId[0].id, firstName, lastName, payload.username, person.notificationToken))
+    )).then(() => setActuallySending(false)).then(() => setAlert(true)).then(() => schedulePushPostNotification(person, friendId[0].id, profile.firstName, profile.lastName, payload.username, person.notificationToken))
         } 
         else if (item.checked == true && payload && !video && !theme) {
           const friendId = completeFriends.filter((element) => element.id.includes(item.id))
@@ -169,7 +103,7 @@ const SendingModal = ({route}) => {
       active: true,
       lastMessageTimestamp: serverTimestamp()
     }
-    )).then(() => setActuallySending(false)).then(() => setAlert(true)).then(() => schedulePushPostNotification(person, friendId[0].id, firstName, lastName, payload.username, person.notificationToken))
+    )).then(() => setActuallySending(false)).then(() => setAlert(true)).then(() => schedulePushPostNotification(person, friendId[0].id, profile.firstName, profile.lastName, payload.username, person.notificationToken))
         } 
       else if (item.checked == true && theme && payload) {
         const friendId = completeFriends.filter((element) => element.id.includes(item.id))
@@ -201,7 +135,7 @@ const SendingModal = ({route}) => {
       active: true,
       lastMessageTimestamp: serverTimestamp()
     }
-    )).then(() => setActuallySending(false)).then(() => setAlert(true)).then(() => schedulePushThemeNotification(person, friendId[0].id,firstName, lastName, person.notificationToken))
+    )).then(() => setActuallySending(false)).then(() => setAlert(true)).then(() => schedulePushThemeNotification(person, friendId[0].id, profile.firstName, profile.lastName, person.notificationToken))
       }
       }))
       
@@ -212,23 +146,14 @@ const SendingModal = ({route}) => {
       
       
     }
-    //console.log(followers)
     useMemo(()=> {
       setFriends([])
-      let unsub;
-      const fetchCards = async () => {
-        unsub = onSnapshot(query(collection(db, 'profiles', user.uid, 'friends'), where('actualFriend', '==', true), orderBy('lastMessageTimestamp', 'desc'), limit(20)), (snapshot) => {
-          setFriends(snapshot.docs.filter((doc => followers.includes(doc.id) && following.includes(doc.id))).map((doc)=> ( {
-            id: doc.id,
-            ...doc.data()
-          })))
-           setLastVisible(snapshot.docs[snapshot.docs.length - 1])
-        })
-       
-      } 
-      fetchCards();
-      return unsub;
-    }, [followers, following]);
+      const fetchData = async() => {
+        const { friendsArray } = await fetchLimitedFriends(user.uid, profile.followers, profile.following)
+        setFriends(friendsArray)
+      }
+      fetchData();
+    }, [profile]);
 
     useMemo(() => {
       if (friends.length > 0) {
@@ -256,13 +181,11 @@ const SendingModal = ({route}) => {
       //console.log(result[0].friendId)
       if (list[index].checked) {
         setActuallySending(true)
-        setSendingFriend(result[0].friendId)
         setPerson(list[index])
       }
       else {
         if (list.every(obj => !obj.checked)) {
           setActuallySending(false)
-        setSendingFriend(null)
         }
         
       }
@@ -284,10 +207,10 @@ const SendingModal = ({route}) => {
     }
   return (
     <View style={styles.container}>
-        <View style={styles.headerContainer}>
-            <Text style={styles.header}>Share With: </Text>
-            <MaterialCommunityIcons name='close' size={30} color={"#fafafa"} style={{marginLeft: 'auto'}} onPress={() => navigation.goBack()}/>
-        </View>
+      <View style={styles.headerContainer}>
+        <Text style={styles.header}>Share With: </Text>
+        <MaterialCommunityIcons name='close' size={30} color={"#fafafa"} style={{marginLeft: 'auto'}} onPress={() => navigation.goBack()}/>
+      </View>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}  keyboardVerticalOffset={Platform.OS === 'ios' ? 20 : 0} style={{flex: 1}}>
         {friendsInfo.length > 0 ? 
           <FlatList 
@@ -306,13 +229,15 @@ const SendingModal = ({route}) => {
           </View>
           {actuallySending ?
             <View style={styles.addCommentSecondContainer}>
-              <View style={{flexDirection: 'column', marginHorizontal: '5%', width: '90%'}}>
-                    <TextInput style={[styles.input, {borderColor: "#fafafa", color: "#fafafa", padding: 20, marginLeft: '-5%', width: '110%'}]} autoFocus={true} returnKeyType='send' placeholder={"Add message..."} placeholderTextColor={"#fafafa"} maxLength={200} value={caption} onChangeText={setCaption}/>
-                  <View style={{marginBottom: 10}}>
-                    <NextButton text={"Send"} onPress={() => addPostToChatter()}/>
-                    </View>
-                  </View> 
-                </View> : null}
+              <View style={styles.inputContainer}>
+                <TextInput style={styles.input} autoFocus={true} returnKeyType='send' placeholder={"Add message..."} placeholderTextColor={"#fafafa"}
+                  maxLength={200} value={caption} onChangeText={setCaption}/>
+                <View style={{marginBottom: 10}}>
+                  <NextButton text={"Send"} onPress={() => addPostToChatter()}/>
+                </View>
+              </View> 
+            </View> 
+          : null}
         </KeyboardAvoidingView>
     </View>
   )
@@ -351,10 +276,19 @@ const styles = StyleSheet.create({
       borderColor: "#fafafa",
       width: '100%',
     },
+    inputContainer: {
+      flexDirection: 'column', 
+      marginHorizontal: '5%', 
+      width: '90%'
+    },
     input: {
       borderTopWidth: 0.25,
-      padding: 15,
       marginTop: 0,
+      borderColor: "#fafafa", 
+      color: "#fafafa", 
+      padding: 20, 
+      marginLeft: '-5%', 
+      width: '110%'
     },
     noPostsText: {
       fontFamily: 'Montserrat_500Medium',

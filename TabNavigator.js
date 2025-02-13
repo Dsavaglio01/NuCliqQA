@@ -101,6 +101,7 @@ import MyGroups from './Group/MyGroups';
 import FilterPost from './Screens/FilterPost';
 import SendingModal from './Components/SendingModal';
 import EditImage from './Screens/EditImage';
+import SubscriptionPage from './Settings/SubscriptionPage';
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 const TabNavigator = () => {
@@ -173,6 +174,7 @@ const ProfileStack = () => {
         <Stack.Screen name="Caption" component={Caption}/>
         <Stack.Screen name='MultiPost' component={MultiPost} />
         <Stack.Screen name="GroupList" component={GroupList}/>
+        <Stack.Screen name='Subscription' component={SubscriptionPage} />
         <Stack.Screen name='AccountInfo' component={AccountInfo} />
         <Stack.Screen name='AccountInfoTemp' component={AccountInfoTemp} />
         <Stack.Screen name='ForgotPassword' component={ForgotPassword}/>

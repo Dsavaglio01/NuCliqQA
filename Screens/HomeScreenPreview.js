@@ -36,7 +36,7 @@ const HomeScreenPreview = ({route}) => {
             <FastImage source={profile.pfp ?  {uri: profile.pfp, priority: 'normal'} : require('../assets/defaultpfp.jpg')} 
               style={styles.pfp}/>
             <View style={styles.titleHeader}>
-              <Text style={styles.addText}>@{profile.username}</Text>
+              <Text style={styles.addText}>@{profile.userName}</Text>
             </View>
           </View>
           <View style={styles.post}>
@@ -70,7 +70,7 @@ const HomeScreenPreview = ({route}) => {
           </View>
         </View>
           <View style={[styles.captionContainer, {backgroundColor: "#121212"}]}>
-            <Text style={[styles.firstName, {color: theme.color}]}>{`${profile.username}- Example Caption`}</Text>
+            <Text style={[styles.firstName, {color: theme.color}]}>{`${profile.userName}- Example Caption`}</Text>
             <Text style={[styles.postText, {color: theme.color}]}>Today</Text>
         </View>
       </View>

@@ -17,15 +17,17 @@ import Pinchable from 'react-native-pinchable'
 import FollowButtons from './FollowButtons';
 import getDateAndTime from '../lib/getDateAndTime';
 import CommentsModal from './Posts/Comments';
-import { fetchUsernames, ableToShareFunction, ableToShareCliqueFunction, fetchFriends} from '../firebaseUtils';
+import { fetchUsernames, ableToShareFunction, ableToShareCliqueFunction, fetchFriends, addLikeToPost, removeLikeFromPost, 
+  removeSaveFromPost, addSaveToPost, buyThemeFunction} from '../firebaseUtils';
 import LikeButton from './Posts/LikeButton';
 import RepostModal from './Posts/RepostModal';
 import SaveButton from './Posts/SaveButton';
 import handleKeyPress from '../lib/handleKeyPress';
 import { PaginationDot } from './Posts/PaginationDot';
+import { schedulePushLikeNotification } from '../notificationFunctions';
 const PostComponent = ({data, forSale, background, home, loading, lastVisible, actualClique, cliqueIdPfp, 
   cliqueIdName, post, blockedUsers, smallKeywords, largeKeywords, ogUsername, pfp, reportedComments, clique, cliqueId, username, 
-  admin, edit, caption, notificationToken}) => {
+  admin, edit, caption, notificationToken, fetchMoreData}) => {
     const {user} = useAuth();
     const snapDirection = 'left'
     const flatListRef = useRef(null);
@@ -126,12 +128,7 @@ const PostComponent = ({data, forSale, background, home, loading, lastVisible, a
         // Set the new array as the state
         setActualData(updatedData);
       }
-      await updateDoc(doc(db, 'posts', item.id), {
-      likedBy: arrayUnion(user.uid)
-    }).then(async() => await setDoc(doc(db, 'profiles', user.uid, 'likes', item.id), {
-      post: item.id,
-      timestamp: serverTimestamp()
-    }))
+      await addLikeToPost(item.id, user.uid)
     }
     else if (!likedBy.includes(user.uid) && !updatedObject.likedBy.includes(user.uid)) {
       updatedObject.likedBy = [...item.likedBy, user.uid];
@@ -168,13 +165,6 @@ const PostComponent = ({data, forSale, background, home, loading, lastVisible, a
 
     // Update the array in the copied object
       if (item.username == username && !likedBy.includes(user.uid) && !updatedObject.likedBy.includes(user.uid)) {
-        await setDoc(doc(db, 'profiles', user.uid, 'likes', item.id), {
-      post: item.id,
-      timestamp: serverTimestamp()
-    }).then(async() =>
-      await updateDoc(doc(db, 'posts', item.id), {
-      likedBy: arrayUnion(user.uid)
-    })).then(() => {
         updatedObject.likedBy = [...item.likedBy, user.uid];
       const objectIndex = actualData.findIndex(obj => obj.id === item.id);
     if (objectIndex !== -1) {
@@ -184,7 +174,7 @@ const PostComponent = ({data, forSale, background, home, loading, lastVisible, a
       // Set the new array as the state
       setActualData(updatedData);
     }
-  })
+    await addLikeToPost(item.id, user.uid)
     }
     else if (!likedBy.includes(user.uid) && !updatedObject.likedBy.includes(user.uid)) {
       updatedObject.likedBy = [...item.likedBy, user.uid];
@@ -197,7 +187,7 @@ const PostComponent = ({data, forSale, background, home, loading, lastVisible, a
       setActualData(updatedData);
     }
       try {
-        const response = await fetch(`${BACKEND_URL}/api/likePost`, {
+        const response = await fetch(`http://10.0.0.225:4000/api/likePost`, {
       method: 'POST', // Use appropriate HTTP method (GET, POST, etc.)
       headers: {
         'Content-Type': 'application/json', // Set content type as needed
@@ -221,11 +211,7 @@ const PostComponent = ({data, forSale, background, home, loading, lastVisible, a
   }
   }
   async function removeHomeLike(item) {
-      await updateDoc(doc(db, 'posts', item.id), {
-      likedBy: arrayRemove(user.uid)
-    }).then(async() => await deleteDoc(doc(db, 'profiles', user.uid, 'likes', item.id))).then(() => {
-      const updatedObject = { ...item };
-
+    const updatedObject = { ...item };
     // Update the array in the copied object
     updatedObject.likedBy = item.likedBy.filter((e) => e != user.uid)
     const objectIndex = actualData.findIndex(obj => obj.id === item.id);
@@ -236,12 +222,9 @@ const PostComponent = ({data, forSale, background, home, loading, lastVisible, a
       // Set the new array as the state
       setActualData(updatedData);
     }
-    })
+    removeLikeFromPost(item.id, user.uid)
   }
   async function removeHomeSave(item) {
-      await deleteDoc(doc(db, 'profiles', user.uid, 'saves', item.id)).then(async() => await updateDoc(doc(db, 'posts', item.id), {
-      savedBy: arrayRemove(user.uid)
-    })).then(() => {
       const updatedObject = { ...item };
     updatedObject.savedBy = item.savedBy.filter((e) => e != user.uid)
     const objectIndex = actualData.findIndex(obj => obj.id === item.id);
@@ -253,9 +236,7 @@ const PostComponent = ({data, forSale, background, home, loading, lastVisible, a
       // Set the new array as the state
       setActualData(updatedData);
     }
-    })
-    
-    
+    removeSaveFromPost(item.id, user.uid, false)
   }
   async function addCliqueSave(item) {
     const updatedObject = { ...item };
@@ -282,7 +263,7 @@ const PostComponent = ({data, forSale, background, home, loading, lastVisible, a
   //console.log(username)
   async function addDoubleCliqueLike(item, likedBy) {
     setTapCount(tapCount + 1);
-    //console.log('first')
+    //
     if (tapCount === 0) {
       timerRef.current = setTimeout(() => {
         // If no second tap occurs within the timer, treat it as a single tap
@@ -444,14 +425,7 @@ const PostComponent = ({data, forSale, background, home, loading, lastVisible, a
 
   }
 
-  async function addHomeSave(item) {
-      await updateDoc(doc(db, 'posts', item.id), {
-      savedBy: arrayUnion(user.uid)
-    }).then(async() => await setDoc(doc(db, 'profiles', user.uid, 'saves', item.id), {
-      post: item,
-      timestamp: serverTimestamp()
-    }).then(() => addRecommendSave(item))
-    ).then(() => {
+  async function addHomeSave(item, savedBy) {
       const updatedObject = { ...item };
 
     // Update the array in the copied object
@@ -464,8 +438,14 @@ const PostComponent = ({data, forSale, background, home, loading, lastVisible, a
       // Set the new array as the state
       setActualData(updatedData);
     }
-    })
+    addSaveToPost(item.id, user.uid, false)
   }
+  const handleSnap = async (index) => {
+    setActivePostIndex(0)
+    if (index >= actualData.length - 2) {
+      fetchMoreData();
+    }
+  };
   const CustomMentionText = (props) => {
  const arr = props.text.split(' ');
   const reducer = (acc, cur, index) => {
@@ -490,7 +470,7 @@ const PostComponent = ({data, forSale, background, home, loading, lastVisible, a
       const docSnap = await getDocs(q)
       docSnap.forEach((item) => {
         if (item.id != undefined) {
-        //console.log('first')
+        //
         setCommentModal(false)
         setFocusedPost(null)
         if (item.id == user.uid) {
@@ -525,13 +505,8 @@ const PostComponent = ({data, forSale, background, home, loading, lastVisible, a
     </Text>
   );
     }
-  async function buyThemeFunction(image) {
-    const freeQuerySnapshot = await getDocs(query(collection(db, 'freeThemes'), where('images', 'array-contains', image)));
-    freeQuerySnapshot.forEach((doc) => {
-      if (doc.exists()) {
-        navigation.navigate('SpecificTheme', {productId: doc.id, free: true, purchased: false})
-      }
-    });
+  async function buyTheme(image) {
+    await buyThemeFunction(image, navigation)
   }
     const renderItems = ({item, index}) => {
     return (
@@ -585,7 +560,7 @@ const PostComponent = ({data, forSale, background, home, loading, lastVisible, a
             <View style={styles.rightAddContainer}>
             <ActivityIndicator color={"#9edaff"}/> 
             </View>
-            : <FollowButtons actualData={actualData} updateActualData={setActualData} username={username} user={user} item={item.item} ogUsername={ogUsername} smallKeywords={smallKeywords} largeKeywords={largeKeywords} style={styles.addContainer}/> : null
+            : <FollowButtons actualData={actualData} friendId={item.item.userId} updateActualData={setActualData} username={username} user={user} item={item.item} ogUsername={ogUsername} smallKeywords={smallKeywords} largeKeywords={largeKeywords} style={styles.addContainer}/> : null
    }
           </View> 
           : <View style={styles.postHeader}>
@@ -601,7 +576,7 @@ const PostComponent = ({data, forSale, background, home, loading, lastVisible, a
           <Carousel
           width={340}
           data={item.item.post}
-         
+          
           //mode='vertical-stack'
           modeConfig={{
             snapDirection,
@@ -610,7 +585,7 @@ const PostComponent = ({data, forSale, background, home, loading, lastVisible, a
           onSnapToItem={(newIndex) => setActivePostIndex(newIndex)}
           renderItem={renderItems}
           
-            />
+          />
             
           </GestureHandlerRootView>
           <View style={styles.paginationContainer}>
@@ -657,7 +632,7 @@ const PostComponent = ({data, forSale, background, home, loading, lastVisible, a
         <View style={[[styles.rightArrow, {borderLeftColor: theme.backgroundColor}], {borderLeftArrow: theme.backgroundColor}]} />
         {item.item.background && item.item.postBought ? 
       
-      <TouchableOpacity style={styles.buyThemeContainer} onPress={!post ? () => buyThemeFunction(item.item.background, item.item.userId) : null}>
+      <TouchableOpacity style={styles.buyThemeContainer} onPress={!post ? () => buyTheme(item.item.background, item.item.userId) : null}>
         <FontAwesome name='photo' size={22.5} style={{alignSelf: 'center'}}/>
       </TouchableOpacity>: null}
         </FastImage>
@@ -674,6 +649,7 @@ const PostComponent = ({data, forSale, background, home, loading, lastVisible, a
    }
    else if (item.item.post != null && item.item.post.length == 1 && !item.item.repost) {
     //console.log(edit, caption)
+    //console.log(item.item.userId)
       return (
         <>
         <View style={item.index == 0 ? styles.firstUltimateContainer : styles.ultimateContainer} key={item.item.id}>
@@ -693,7 +669,7 @@ const PostComponent = ({data, forSale, background, home, loading, lastVisible, a
             {!item.item.blockedUsers.includes(user.uid) ? item.item.loading ? <View style={styles.rightAddContainer}>
             <ActivityIndicator color={"#9edaff"}/> 
             </View> :
-            <FollowButtons actualData={actualData} updateActualData={setActualData} username={username} user={user} item={item.item} ogUsername={ogUsername} smallKeywords={smallKeywords} largeKeywords={largeKeywords} style={styles.addContainer}/> : null
+            <FollowButtons actualData={actualData} friendId={item.item.userId} updateActualData={setActualData} username={username} user={user} item={item.item} ogUsername={ogUsername} smallKeywords={smallKeywords} largeKeywords={largeKeywords} style={styles.addContainer}/> : null
    }
           </View> 
           : null}
@@ -755,7 +731,7 @@ const PostComponent = ({data, forSale, background, home, loading, lastVisible, a
         </View>
         {item.item.background && item.item.postBought ? 
       
-      <TouchableOpacity style={styles.buyThemeContainer} onPress={!post ? () => buyThemeFunction(item.item.background, item.item.userId) : null}>
+      <TouchableOpacity style={styles.buyThemeContainer} onPress={!post ? () => buyTheme(item.item.background, item.item.userId) : null}>
         <FontAwesome name='photo' size={22.5} style={{alignSelf: 'center'}}/>
       </TouchableOpacity>: null}
         </FastImage>
@@ -787,7 +763,7 @@ const PostComponent = ({data, forSale, background, home, loading, lastVisible, a
             {!item.item.blockedUsers.includes(user.uid) ? item.item.loading ? <View style={styles.rightAddContainer}>
             <ActivityIndicator color={"#9edaff"}/> 
             </View> :
-            <FollowButtons actualData={actualData} updateActualData={setActualData} username={username} user={user} item={item.item} ogUsername={ogUsername} smallKeywords={smallKeywords} largeKeywords={largeKeywords} style={styles.addContainer}/> : null
+            <FollowButtons actualData={actualData} friendId={item.item.userId} updateActualData={setActualData} username={username} user={user} item={item.item} ogUsername={ogUsername} smallKeywords={smallKeywords} largeKeywords={largeKeywords} style={styles.addContainer}/> : null
    }
           </View> 
           <Text style={styles.standardPostText}>{item.item.caption}</Text>
@@ -833,7 +809,7 @@ const PostComponent = ({data, forSale, background, home, loading, lastVisible, a
   
         {item.item.background && item.item.postBought ? 
       
-      <TouchableOpacity style={styles.buyThemeContainer} onPress={!post ? () => buyThemeFunction(item.item.background, item.item.userId) : null}>
+      <TouchableOpacity style={styles.buyThemeContainer} onPress={!post ? () => buyTheme(item.item.background, item.item.userId) : null}>
        <FontAwesome name='photo' size={22.5} style={{alignSelf: 'center'}}/>
       </TouchableOpacity>: null}
         </FastImage>
@@ -854,10 +830,10 @@ const PostComponent = ({data, forSale, background, home, loading, lastVisible, a
     <View style={{flex: 1}}>
       <RepostModal repostModal={repostModal} closeRepostModal={() => setRepostModal(false)} repostItem={repostItem} 
           handleKeyPress={handleKeyPress} user={user} ableToShare={ableToShare} blockedUsers={blockedUsers} forSale={forSale} 
-          notificationToken={notificationToken} username={username} background={background} pfp={pfp}/>
+          notificationToken={notificationToken} username={ogUsername} background={background} pfp={pfp}/>
       {focusedPost != null && commentModal ? 
-    <CommentsModal commentModal={commentModal} videoStyling={false} closeCommentModal={() => setCommentModal(false)}
-    postNull={() => setFocusedPost(null)} user={user} username={username} reportedComments={reportedComments} focusedPost={focusedPost}
+    <CommentsModal actualData={actualData} handleActualData={setActualData} commentModal={commentModal} videoStyling={false} closeCommentModal={() => setCommentModal(false)}
+    postNull={() => setFocusedPost(null)} user={user} username={ogUsername} reportedComments={reportedComments} focusedPost={focusedPost}
     ableToShare={ableToShare} pfp={pfp} notificationToken={notificationToken} blockedUsers={blockedUsers}/> : null}
     {actualData.length > 0 ? 
           <Carousel
@@ -868,8 +844,7 @@ const PostComponent = ({data, forSale, background, home, loading, lastVisible, a
           ref={flatListRef}
           renderItem={renderItem}
           loop={false}
-          onSnapToItem={(index) => { setActivePostIndex(0);
-            }}
+          onSnapToItem={handleSnap}
           style={{minHeight: '70%'}}
           
             /> : <View style={styles.noPostContainer}>

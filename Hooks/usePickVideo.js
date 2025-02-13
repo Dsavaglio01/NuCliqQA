@@ -12,6 +12,7 @@ export const usePickVideo = () => {
         const { uri } = await VideoThumbnails.getThumbnailAsync(
             item,
         );
+        console.log(uri)
         setData([{id: index, image: false, video: true, thumbnail: uri, post: item, visible: false}])
         setTimeout(() => {
             setLoading(false)
