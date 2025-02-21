@@ -9,6 +9,8 @@ import { schedulePushFriendNotification, schedulePushRequestFriendNotification }
 import RequestContext from '../lib/requestContext';
 import ProfileContext from '../lib/profileContext';
 import RealProfileContext from '../lib/realProfileContext';
+import { activePerson } from '../firebaseUtils';
+import showToast from '../lib/toastService';
 function FollowButtons({user, item, style, actualData, updateActualData, preview, viewing, friendId}) {
     const requests = useContext(RequestContext);
     const profile = useContext(ProfileContext);
@@ -57,7 +59,13 @@ function FollowButtons({user, item, style, actualData, updateActualData, preview
                 // Update the array in the copied object
                 updatedObject.loading = false
                 actualDataFunction(updatedObject, item)
-                schedulePushRequestFriendNotification(item.userId, profile.userName, item.notificationToken)
+                if (activePerson(item.userId).active) {
+                    showToast('Friend Request', `${activePerson(item.userId).userName} requested to be your friend!`, `${activePerson(item.userId).pfp}`)
+                }
+                else {
+                    schedulePushRequestFriendNotification(item.userId, profile.userName, item.notificationToken)
+                }
+                
             }
             else if (data.friend) {
                 const updatedObject = { ...item };
@@ -66,7 +74,13 @@ function FollowButtons({user, item, style, actualData, updateActualData, preview
                 
                 updatedObject.loading = false
                 actualDataFunction(updatedObject, item)
-                schedulePushFriendNotification(item.userId, profile.userName, item.notificationToken)
+                if (activePerson(item.userId).active) {
+                    showToast('Adding Friend', `${activePerson(item.userId).userName} Added you as Friend!`, `${activePerson(item.userId).pfp}`)
+                }
+                else {
+                    schedulePushFriendNotification(item.userId, profile.userName, item.notificationToken)
+                }
+                
             }
         } catch (error) {
             console.error('Error:', error);
@@ -116,7 +130,7 @@ function FollowButtons({user, item, style, actualData, updateActualData, preview
         const data = await response.json();
         if (data.done) {
         const updatedObject = { ...item };
-
+        console.log(item)
         // Update the array in the copied object
         updatedObject.loading = false
         const objectIndex = actualData.findIndex(obj => obj.id === item.id);
@@ -133,11 +147,11 @@ function FollowButtons({user, item, style, actualData, updateActualData, preview
     }},
     }]);
     }
-    
+    console.log(realProfile.following)
   return (
-    <TouchableOpacity style={style} onPress={viewing ? preview ? null : user.uid != null ? realProfile.following.filter(e => e === item.id).length > 0 ? () => removeFriend(item.id, friendId) 
+    <TouchableOpacity style={style} onPress={viewing ? preview ? null : user.uid != null ? realProfile.following.filter(e => e === item.id).length > 0 ? () => removeFriend(item, friendId) 
         : item.id == user.uid || requests.filter(e => e.id === item.id).length > 0 ? null : () => addFriend(item) : null :
-        user.uid != null ? realProfile.following.filter(e => e === item.userId).length > 0 ? () => removeFriend(item.userId, friendId) 
+        user.uid != null ? realProfile.following.filter(e => e === item.userId).length > 0 ? () => removeFriend(item, friendId) 
         : item.userId == user.uid || requests.filter(e => e.id === item.userId).length > 0 ? null : () => addFriend(item): null}>
         {viewing ? requests.filter(e => e.id === item.id).length > 0 ? <RequestedIcon color={"#9EDAFF"} width={65} height={32} /> : 
         realProfile.following.filter(e => e === item.id).length > 0 ? <FollowingIcon color={"#9EDAFF"} width={70} height={32} />

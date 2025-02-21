@@ -15,11 +15,12 @@ import themeContext from '../lib/themeContext';
 import _ from 'lodash'
 import FollowButtons from './FollowButtons';
 import CommentsModal from './Posts/Comments';
-import { ableToShareVideoFunction, addSaveToPost, removeSaveFromPost} from '../firebaseUtils';
+import { ableToShareVideoFunction, addSaveToPost, removeSaveFromPost, activePerson} from '../firebaseUtils';
 import LikeButton from './Posts/LikeButton';
 import SaveButton from './Posts/SaveButton';
 import { LazyVideo } from './Posts/LazyVideo';
 import { schedulePushLikeNotification } from '../notificationFunctions';
+
 //import Slider from '@react-native-community/slider';
 const VideoPostComponent = ({data, fetchMoreData, home, loading, lastVisible, actualClique, blockedUsers, smallKeywords, largeKeywords, 
     ogUsername, pfp, reportedComments, reportedPosts, clique, cliqueId, username, admin, edit, caption, notificationToken}) => {
@@ -144,7 +145,13 @@ const VideoPostComponent = ({data, fetchMoreData, home, loading, lastVisible, ac
     })
     const data = await response.json();
     if (data.done) {
-      schedulePushLikeNotification(item.userId, username, item.notificationToken)
+      const friend = activePerson(item.userId)
+      if (friend.active) {
+          showToast(`${friend.userName}`, 'Liked your vid', `${friend.pfp}`)
+        }
+        else {
+          schedulePushLikeNotification(item.userId, username, item.notificationToken)
+        }
     }
       }
       catch (e) {

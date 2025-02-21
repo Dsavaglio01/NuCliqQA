@@ -33,9 +33,6 @@ const PurchaseCredits = ({route}) => {
     const [paymentMethodID, setPaymentMethodID] = useState(null);
     const [lastFour, setLastFour] = useState([]);
     const [useOtherCard, setUseOtherCard] = useState(false);
-    const apiKey = 'appl_tOwaJICCeXruxNvJnLjlxFMHUha'; // Replace with your actual key
-
-    Purchases.configure({ apiKey: apiKey });
     useEffect(() => {
     // Get current available packages
     const getPackages = async () => {

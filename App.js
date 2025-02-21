@@ -4,6 +4,7 @@ import React, {useRef, useState,  useEffect} from "react";
 import { StyleSheet, AppState, DeviceEventEmitter, Alert} from "react-native";
 import { NavigationContainer, DarkTheme, DefaultTheme, useNavigationContainerRef } from '@react-navigation/native';
 import {LogBox} from 'react-native';
+import { View, Text } from 'react-native';
 import * as Notifications from 'expo-notifications'
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Provider } from 'react-native-paper';
@@ -26,8 +27,8 @@ import { Montserrat_600SemiBold, Montserrat_400Regular, Montserrat_500Medium, Mo
 import { ProfileProvider } from './lib/profileContext';
 import { RequestProvider } from './lib/requestContext';
 import { RealProfileProvider } from './lib/realProfileContext';
-
-    
+import Toast, {BaseToast, ErrorToast} from 'react-native-toast-message';
+import FastImage from 'react-native-fast-image';
 LogBox.ignoreAllLogs()
 
 
@@ -70,6 +71,38 @@ export default function App() {
         listener.remove()
       }
     }, [darkmode])
+    const toastConfig = {
+  success: ({ text1, text2, props }) => (
+    <View
+      style={{
+        width: '95%',
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 12,
+        backgroundColor: 'rgba(30, 30, 30, 0.9)', // Semi-transparent dark
+        borderRadius: 12,
+        marginTop: 10,
+        marginHorizontal: 10,
+        shadowColor: '#000',
+        shadowOpacity: 0.2,
+        shadowOffset: { width: 0, height: 2 },
+      }}
+    >
+        <FastImage
+          source={props.imageUri ? { uri: props.imageUri } : require('./assets/defaultpfp.jpg')}
+          style={{ width: 40, height: 40, borderRadius: 20, marginRight: 10 }}
+        />
+
+      {/* Notification Text */}
+      <View style={{ flex: 1 }}>
+        <Text style={{ color: '#fff', fontSize: 15, fontWeight: 'bold' }}>
+          {text1}
+        </Text>
+        <Text style={{ color: '#ccc', fontSize: 13 }}>{text2}</Text>
+      </View>
+    </View>
+  ),
+};
     const requestTrackingPermission = async () => {
   console.log('Requesting tracking permission');
   const { status } = await TrackingTransparency.requestTrackingPermissionsAsync();
@@ -333,6 +366,7 @@ if (isReady && navigationReady && user && reportedContent.length < 10 && firstNa
         </AuthProvider>
     </Provider>
     </themeContext.Provider>
+    <Toast config={toastConfig}/>
     </GestureHandlerRootView>
   )
 }

@@ -211,8 +211,6 @@ export const getRealProfileDetails = (userId) => {
   if (!userId) {
     throw new Error("Error: 'userId' is undefined.");
   }
-
-  return new Promise((resolve, reject) => {
     const unsub = onSnapshot(doc(db, "profiles", userId), (doc) => {
       if (doc.exists()) {
         resolve(doc.data()); // Resolve with actual data
@@ -227,7 +225,6 @@ export const getRealProfileDetails = (userId) => {
 
     // Return unsubscribe function so it can be used if needed
     return () => unsub();
-  });
 };
 
 
@@ -1139,158 +1136,82 @@ export const sendMessage = async(friendId, newMessage, person, user, firstName, 
   }
 
 }
-export const fetchActualNotifications = async(group, id, notifications) => {
-  let newData = [];
-  const tempList = [];
-  //console.log(notifications.length)
-  await Promise.all(notifications.map(async(item) => {
-      let firstVideoSnap = null
-      let firstPostSnap = null
-      let postSnap = null
-      let videoSnap = null;
-      if (group) {
-        firstVideoSnap = await getDoc(doc(db, 'groups', id, 'videos', item.item))
-        firstPostSnap = await getDoc(doc(db, 'groups', id, 'posts', item.item))
-        postSnap = await getDoc(doc(db, 'groups', id, 'posts', item.postId))
-        videoSnap = await getDoc(doc(db, 'groups', id, 'videos', item.postId))
-      }
-      else if (!item.friend && !item.comment) {
-        firstVideoSnap = await getDoc(doc(db, 'videos', item.item))
-        firstPostSnap = await getDoc(doc(db, 'posts', item.item))
-        postSnap = await getDoc(doc(db, 'posts', item.postId))
-        videoSnap = await getDoc(doc(db, 'videos', item.postId))
-      }
-      const docSnap = await getDoc(doc(db, 'profiles', item.requestUser))
-      if (!item.friend) {
-        const freeDataSnap = await getDoc(doc(db, 'freeThemes', item.postId))
-        const groupSnap = await getDoc(doc(db, 'groups', item.postId))
-      }
-      
-      if (item.like && !item.video) {    
-        console.log('e')
-        if (postSnap.exists() && docSnap.exists()) {
-          //console.log('first')
-          if (!newData.includes(postSnap.id)) {
-            tempList.push({item, postInfo: {id: postSnap.id, ...postSnap.data()}, info: docSnap.data()})
-            newData.push(postSnap.id)
-          }
-        }
-      }
-      else if (item.like && item.video) {
-        console.log('d')
-        if (firstVideoSnap.exists() && docSnap.exists()) {
-          if (!newData.includes(firstVideoSnap.id)) {
-            tempList.push({item, postInfo: {id: firstVideoSnap.id, ...firstVideoSnap.data()}, info: docSnap.data()})
-            newData.push(firstVideoSnap.id)
-          }
-        }
-      }
-      else if (item.report) {
-        console.log('c')
-        if (item.comments) {
-          tempList.push({item})
-        }
-        else if (item.post && !item.video) {
-          if (postSnap.exists()) {
-            tempList.push({item, postInfo: {id: postSnap.id, ...postSnap.data()}})
-          }
-        }
-        else if (item.post && item.video) {
-          if (videoSnap.exists()) {
-            tempList.push({item, postInfo: {id: videoSnap.id, ...videoSnap.data()}})
-          }
-        }
-        else if (item.message) {
-          tempList.push({item})
-        }
-        else if (item.theme) {
-          if (freeDataSnap.exists() && docSnap.exists()) {
-            tempList.push({item, postInfo: {id: freeDataSnap.id, ...freeDataSnap.data()}, info: docSnap.data(), free: true})
-          }
-        }
-      }
-      else if (item.comment && !item.video) {
-        console.log('b')
-        if (postSnap.exists() && docSnap.exists()) {
-          tempList.push({item, postInfo: {id: postSnap.id, ...postSnap.data()}, info: docSnap.data()})
-        }
-      } 
-      else if (item.comment && item.video) {
-        console.log('a')
-        if (videoSnap.exists() && docSnap.exists()) {
-          tempList.push({item, postInfo: {id: videoSnap.id, ...videoSnap.data()}, info: docSnap.data()})
-        }
-      }
-      else if (item.reply && !item.video) {
-        console.log('f')
-        if (postSnap.exists() && docSnap.exists()) {
-          console.log(postSnap.exists())
-          tempList.push({item, postInfo: {id: postSnap.id, ...postSnap.data()}, info: docSnap.data()})
-        }
-      }
-      else if (item.reply && item.video) {
-        console.log('fds')
-        if (videoSnap.exists() && docSnap.exists()) {
-          tempList.push({item, postInfo: {id: videoSnap.id, ...videoSnap.data()}, info: docSnap.data()})
-        }
-      }
-      else if (item.acceptRequest) {
-        console.log('fk')
-        if (docSnap.exists()) {
-          tempList.push({item, info: {id: docSnap.id, ...docSnap.data()}})
-        }
-      }
-      else if (item.request) {
-        console.log('first')
-        if (docSnap.exists()) {
-          tempList.push({item, info: {id: docSnap.id, ...docSnap.data()}})
-        }
-      }
-      else if (item.friend) {
-        console.log('klkl')
-        if (docSnap.exists()) {
-          tempList.push({item, info: {id: docSnap.id, ...docSnap.data()}})
-        }
-      }
-      else if (item.mention && !item.video) {
-      if (postSnap.exists() && docSnap.exists()) {
-        tempList.push({item, postInfo: {id: postSnap.id, ...postSnap.data()}, info: docSnap.data()})
-      }
+export const fetchActualNotifications = async (group, id, notifications) => {
+  let tempList = [];
+
+  // Collect all postIds, videoIds, profileIds, groupIds, and themeIds for batch fetching
+  let postIds = new Set();
+  let videoIds = new Set();
+  let profileIds = new Set();
+  let groupIds = new Set();
+  let freeThemeIds = new Set();
+
+  notifications.forEach((item) => {
+    if (group) {
+      videoIds.add(item.item);
+      postIds.add(item.item);
+      postIds.add(item.postId);
+      videoIds.add(item.postId);
+    } else if (!item.friend && !item.comment) {
+      videoIds.add(item.item);
+      postIds.add(item.postId);
+      videoIds.add(item.postId);
     }
-    else if (item.mention && item.video) {
-      if (videoSnap.exists() && docSnap.exists()) {
-        tempList.push({item, postInfo: {id: videoSnap.id, ...videoSnap.data()}, info: docSnap.data()})
-      }
+    if (item.requestUser) profileIds.add(item.requestUser);
+    if (!item.friend) freeThemeIds.add(item.postId);
+    if (item.remove || item.ban) groupIds.add(item.postId);
+  });
+  // Batch fetch all required documents
+  const fetchBatchDocs = async (collectionName, ids) => {
+    if (ids.size === 0) return {};
+    const ref = collection(db, collectionName);
+    const q = query(ref, where(documentId(), 'in', Array.from(ids)));
+    const snapshot = await getDocs(q);
+    let dataMap = {};
+    snapshot.forEach((doc) => {
+      dataMap[doc.id] = doc.data();
+    });
+    return dataMap;
+  };
+
+  const [posts, videos, profiles, groups, freeThemes] = await Promise.all([
+    fetchBatchDocs('posts', postIds),
+    fetchBatchDocs('videos', videoIds),
+    fetchBatchDocs('profiles', profileIds),
+    fetchBatchDocs('groups', groupIds),
+    fetchBatchDocs('freeThemes', freeThemeIds),
+  ]);
+
+  // Process notifications after fetching all required data
+  notifications.forEach((item) => {
+    let postData = posts[item.postId] || null;
+    let videoData = videos[item.postId] || null;
+    let profileData = profiles[item.requestUser] || null;
+    let freeThemeData = freeThemes[item.postId] || null;
+    let groupData = groups[item.postId] || null;
+
+    if (item.like) {
+      if (item.video && videoData) tempList.push({ item, postInfo: { id: item.postId, ...videoData }, info: profileData });
+      else if (postData) tempList.push({ item, postInfo: { id: item.postId, ...postData }, info: profileData });
+    } else if (item.comment) {
+      if (item.video && videoData) tempList.push({ item, postInfo: { id: item.postId, ...videoData }, info: profileData });
+      else if (postData) tempList.push({ item, postInfo: { id: item.postId, ...postData }, info: profileData });
+    } else if (item.report) {
+      tempList.push({ item, postInfo: postData || videoData || null });
+    } else if (item.friend || item.request || item.acceptRequest) {
+      if (profileData) tempList.push({ item, info: { id: item.requestUser, ...profileData } });
+    } else if (item.mention || item.postMention || item.repost) {
+      if (postData || videoData) tempList.push({ item, postInfo: { id: item.postId, ...(postData || videoData) }, info: profileData });
+    } else if (item.remove || item.ban) {
+      if (groupData && profileData) tempList.push({ item, postInfo: { id: item.postId, ...groupData }, info: profileData });
+    } else if (item.theme && freeThemeData) {
+      tempList.push({ item, postInfo: { id: item.postId, ...freeThemeData }, info: profileData, free: true });
     }
-    else if (item.postMention && !item.video) {
-      if (postSnap.exists() && docSnap.exists()) {
-        tempList.push({item, postInfo: {id: postSnap.id, ...postSnap.data()}, info: docSnap.data()})
-      }
-    }
-    else if (item.postMention && item.video) {
-      if (videoSnap.exists() && docSnap.exists()) {
-        tempList.push({item, postInfo: {id: videoSnap.id, ...videoSnap.data()}, info: docSnap.data()})
-      }
-    }
-    else if (item.repost) {
-      if (postSnap.exists() && docSnap.exists()) {
-        tempList.push({item, postInfo: {id: postSnap.id, ...postSnap.data()}, info: docSnap.data()})
-      }
-    }
-    else if (item.remove || item.ban) {
-      if (groupSnap.exists() && docSnap.exists()) {
-        tempList.push({item, postInfo: {id: groupSnap.id, ...groupSnap.data()}, info: docSnap.data()})
-      }
-    }
-    else if (item.theme) {
-      if (freeDataSnap.exists() && docSnap.exists()) {
-        tempList.push({item, postInfo: {id: freeDataSnap.id, ...freeDataSnap.data()}, info: docSnap.data(), free: true})
-      }
-    }
-    
-    }))
-    return tempList
-}
+  });
+
+  return tempList;
+};
+
 export const deleteCheckedNotifications = async(userId, group, id) => {
   try {
   if (group) {
@@ -1621,4 +1542,8 @@ export const applyTheme = async(userId, theme, selling, profile, posts, both, se
   catch (error) {
     console.error(error)
   }
+}
+export const activePerson = async(personId) => {
+  const docSnap = await getDoc(doc(db, 'profiles', personId))
+  return docSnap.data()
 }

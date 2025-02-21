@@ -18,13 +18,15 @@ import FollowButtons from './FollowButtons';
 import getDateAndTime from '../lib/getDateAndTime';
 import CommentsModal from './Posts/Comments';
 import { fetchUsernames, ableToShareFunction, ableToShareCliqueFunction, fetchFriends, addLikeToPost, removeLikeFromPost, 
-  removeSaveFromPost, addSaveToPost, buyThemeFunction} from '../firebaseUtils';
+  removeSaveFromPost, addSaveToPost, buyThemeFunction,
+  activePerson} from '../firebaseUtils';
 import LikeButton from './Posts/LikeButton';
 import RepostModal from './Posts/RepostModal';
 import SaveButton from './Posts/SaveButton';
 import handleKeyPress from '../lib/handleKeyPress';
 import { PaginationDot } from './Posts/PaginationDot';
-import { schedulePushLikeNotification } from '../notificationFunctions';
+import { schedulePushLikeNotification, schedulePushLikeRepostNotification} from '../notificationFunctions';
+import showToast from '../lib/toastService';
 const PostComponent = ({data, forSale, background, home, loading, lastVisible, actualClique, cliqueIdPfp, 
   cliqueIdName, post, blockedUsers, smallKeywords, largeKeywords, ogUsername, pfp, reportedComments, clique, cliqueId, username, 
   admin, edit, caption, notificationToken, fetchMoreData}) => {
@@ -150,7 +152,14 @@ const PostComponent = ({data, forSale, background, home, loading, lastVisible, a
     })
     const data = await response.json();
     if (data.done) {
-      schedulePushLikeNotification(item.userId, username, item.notificationToken)
+      const friend = activePerson(item.userId)
+      if (friend.active) {
+        showToast(`${friend.userName}`, 'Liked your post', `${friend.pfp}`)
+      }
+      else {
+        schedulePushLikeNotification(item.userId, username, item.notificationToken)
+      }
+      
     }
       }
       catch (e) {
@@ -196,11 +205,22 @@ const PostComponent = ({data, forSale, background, home, loading, lastVisible, a
     })
     const data = await response.json();
     if (data.done) {
+      const friend = activePerson(item.userId)
       if (item.repost) {
-         schedulePushLikeRepostNotification(item.userId, username, item.notificationToken)
+        if (friend.active) {
+          showToast(`${friend.userName}`, 'Liked your re-vibe', `${friend.pfp}`)
+        }
+        else {
+          schedulePushLikeRepostNotification(item.userId, username, item.notificationToken)
+        }
       }
       else {
-         schedulePushLikeNotification(item.userId, username, item.notificationToken)
+        if (friend.active) {
+          showToast(`${friend.userName}`, 'Liked your post', `${friend.pfp}`)
+        }
+        else {
+          schedulePushLikeNotification(item.userId, username, item.notificationToken)
+        }
       }
     }
       }
@@ -591,11 +611,12 @@ const PostComponent = ({data, forSale, background, home, loading, lastVisible, a
           <View style={styles.paginationContainer}>
             {item.item.post.map((e, index) => (
               <PaginationDot 
-                            key={index} 
-                            isActive={index === activePostIndex} 
-                        />
+                key={index} 
+                isActive={index === activePostIndex} 
+              />
             ))}
           </View>
+
             </View>
            <View style={styles.postFooter}>
               <View style={styles.buttonContainer}>

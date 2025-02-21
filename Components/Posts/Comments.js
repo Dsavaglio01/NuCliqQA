@@ -20,11 +20,14 @@ import ProfileContext from '../../lib/profileContext';
 import { db } from '../../firebase';
 import { getDoc, doc } from 'firebase/firestore';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 function clamp(val, min, max) {
   return Math.min(Math.max(val, min), max);
 }
 
 const { width, height } = Dimensions.get('screen');
+let row = [];
+let prevOpenedRow;
 const CommentsModal = ({commentModal, closeCommentModal, deleteReply, postNull, user, reportedComments, username, focusedPost, ableToShare,
     blockedUsers, pfp, notificationToken, videoStyling, actualData, handleActualData
 }) => {
@@ -44,8 +47,6 @@ const CommentsModal = ({commentModal, closeCommentModal, deleteReply, postNull, 
       // Your logic for fetching more data
       fetchMoreCommentData()
     }, 500);
-    let row = [];
-    let prevOpenedRow;
     const [reportCommentModal, setReportCommentModal] = useState(false);
     const [comments, setComments] = useState([]);
     const [newComment, setNewComment] = useState('');
@@ -62,7 +63,7 @@ const CommentsModal = ({commentModal, closeCommentModal, deleteReply, postNull, 
     const [lastCommentVisible, setLastCommentVisible] = useState(null);
     const translationY = useSharedValue(0);
     const prevTranslationY = useSharedValue(0);
-
+    const isLoaded = useRef(false);
     const animatedStyles = useAnimatedStyle(() => ({
       transform: [
         { translateY: translationY.value },
@@ -74,14 +75,14 @@ const CommentsModal = ({commentModal, closeCommentModal, deleteReply, postNull, 
       prevTranslationY.value = translationY.value;
     })
     .onUpdate((event) => {
-      const maxTranslateY = height / 2 - 150;
+      const maxTranslateY = height / 2 - 400;
       translationY.value = clamp(
         prevTranslationY.value + event.translationY,
         0,
         maxTranslateY
       );
     }).onEnd(() => {
-    if (translationY.value >= height / 2 - 150) {
+    if (translationY.value >= height / 2 - 400) {
       // Activate your function here
       {handleClose(); 
         setReportCommentModal(false); 
@@ -99,21 +100,26 @@ const CommentsModal = ({commentModal, closeCommentModal, deleteReply, postNull, 
       }
     }, [replyToReplyFocus]);
     useEffect(() => {
-      const loadComments = async() => {
-        if (videoStyling) {
-          const { comments, lastVisible } = await fetchComments(focusedPost, blockedUsers, 'videos')
-          setComments(comments)
+        const loadComments = async() => {
+          if (isLoaded.current) return;
+          const cachedKey = videoStyling ? 'commentVideos' : 'commentPosts';
+          const cachedComments = await AsyncStorage.getItem(cachedKey);
+
+          if (cachedComments) {
+            setComments(JSON.parse(cachedComments));
+            isLoaded.current = true; // Mark as loaded
+            return; // Skip fetching if cache exists
+          }
+          const { comments: newComments, lastVisible } = await fetchComments(
+            focusedPost, blockedUsers, videoStyling ? 'videos' : 'posts'
+          );
+          setComments(newComments);
+          AsyncStorage.setItem(cachedKey, JSON.stringify(newComments));
           setLastCommentVisible(lastVisible);
+          isLoaded.current = true;
         }
-        else {
-          const { comments, lastVisible } = await fetchComments(focusedPost, blockedUsers, 'posts')
-          setComments(comments)
-          setLastCommentVisible(lastVisible);
-        }
-        }
-       
         loadComments();
-    }, [])
+    }, [comments])
     const handleNewComment = (inputText) => {
     const sanitizedText = inputText.replace(/\n/g, ''); // Remove all new line characters
     setNewComment(sanitizedText);
@@ -1215,12 +1221,11 @@ async function addLike(item) {
             <Animated.View style={[styles.modalContainer, animatedStyles]}>
                 <View style={styles.modalView}>
                    <View style={styles.container}>
-                    <View style={styles.line}/>
       {reportCommentModal ? <Text style={styles.headerText}>Report</Text> : <Text style={styles.headerText}>Comments</Text> }
-       {/* <TouchableOpacity style={{marginLeft: 'auto'}} onPress={() => {handleClose(); setReportCommentModal(false); handlePost();
+       <TouchableOpacity style={{marginLeft: 'auto'}} onPress={() => {handleClose(); setReportCommentModal(false); handlePost();
         setComments([]); setNewComment(''); setReplyFocus(false); setReplyToReplyFocus(false)}}>
             <MaterialCommunityIcons name='close' size={25} style={styles.close} color={"#fafafa"}/>
-        </TouchableOpacity> */}
+        </TouchableOpacity>
         
         {reportCommentModal ? 
         <ReportModal />
@@ -1299,12 +1304,12 @@ async function addLike(item) {
                  {pfp != undefined ? <FastImage source={{uri: pfp, priority: 'normal'}} style={{height: 35, width: 35, borderRadius: 25}}/> :
           <FastImage source={require('../../assets/defaultpfp.jpg')} style={{height: 35, width: 35, borderRadius: 25}}/>}
                 {replyToReplyFocus ?
-                    <TextInput ref={textInputRef} multiline onKeyPress={handleKeyPress} placeholder={tempReplyName != undefined ? `Reply To ${tempReplyName}` : 'Reply To'} maxLength={200} placeholderTextColor={"#fafafa"} autoFocus={replyToReplyFocus} style={styles.addCommentText} value={reply} onChangeText={handleReply} returnKeyType="send" onSubmitEditing={addNewReplyToReply}/>
+                    <TextInput ref={textInputRef} multiline onKeyPress={handleKeyPress} placeholder={tempReplyName != undefined ? `Reply To ${tempReplyName}` : 'Reply To'} maxLength={200} placeholderTextColor={"#fafafa"} autoFocus={false} style={styles.addCommentText} value={reply} onChangeText={handleReply} returnKeyType="send" onSubmitEditing={addNewReplyToReply}/>
                  : replyFocus ? 
                 
-                    <TextInput ref={textInputRef} multiline onKeyPress={handleKeyPress} placeholder={tempReplyName != undefined ? `Reply To ${tempReplyName}` : 'Reply To'} maxLength={200} placeholderTextColor={"#fafafa"} autoFocus={replyFocus} style={styles.addCommentText} value={reply} onChangeText={handleReply} returnKeyType="send" onSubmitEditing={addNewReply}/>
+                    <TextInput ref={textInputRef} multiline onKeyPress={handleKeyPress} placeholder={tempReplyName != undefined ? `Reply To ${tempReplyName}` : 'Reply To'} maxLength={200} placeholderTextColor={"#fafafa"} autoFocus={false} style={styles.addCommentText} value={reply} onChangeText={handleReply} returnKeyType="send" onSubmitEditing={addNewReply}/>
                 : 
-                    <TextInput ref={textInputRef} onKeyPress={handleKeyPress} autoFocus multiline placeholder='Add Comment...' maxLength={200} style={styles.addCommentText} placeholderTextColor={"#fafafa"} value={newComment} onChangeText={handleNewComment}/>
+                    <TextInput ref={textInputRef} onKeyPress={handleKeyPress} multiline placeholder='Add Comment...' maxLength={200} style={styles.addCommentText} placeholderTextColor={"#fafafa"} value={newComment} onChangeText={handleNewComment}/>
                 }
                 {!singleCommentLoading ?
                 <View style={{marginLeft: 'auto'}}>
@@ -1332,13 +1337,13 @@ export default CommentsModal
 
 const styles = StyleSheet.create({
     modalContainer: {
-        marginTop: '20%',
-        height: '100%',
+        marginTop: '70%',
+        height: '70%',
         backgroundColor: "#121212"
     },
     modalView: {
         width: '100%',
-        height: '100%',
+        height: '50%',
     flexGrow: 1,
     backgroundColor: '#121212',
     borderRadius: 0,

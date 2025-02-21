@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View, TouchableOpacity, FlatList, ActivityIndicator} from 'react-native'
 import React, { useContext } from 'react'
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import useAuth from '../Hooks/useAuth';
 import { MaterialCommunityIcons} from '@expo/vector-icons'
 import themeContext from '../lib/themeContext';
@@ -8,6 +8,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Divider } from 'react-native-paper';
 import NotificationComponent from '../Components/NotificationComponent';
 import { fetchFirstNotifications, deleteCheckedNotifications, fetchActualNotifications } from '../firebaseUtils';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 const NotificationScreen = () => {
     const [completeNotificationsDone, setCompleteNotificationsDone] = useState(false);
     const [notificationDone, setNotificationDone] = useState(false);
@@ -17,6 +18,7 @@ const NotificationScreen = () => {
     const [loading, setLoading] = useState(true);
     const {user} = useAuth();
     const modeTheme = useContext(themeContext)
+    const isLoaded = useRef(false);
     useEffect(() => {
       const deleteNotification = async() => {
         await deleteCheckedNotifications(user.uid, false, null)
@@ -26,21 +28,31 @@ const NotificationScreen = () => {
     useEffect(() => {
       setNotificationDone(false)
       const fetchNotifications = async() => {
+        if (isLoaded.current) return;
         const tempList = await fetchFirstNotifications(user.uid, false, null)
         setNotifications(tempList)
       }
       fetchNotifications();
       setTimeout(() => {
         setNotificationDone(true)
-      }, 1000);
+      }, 500);
     }, [])
     useMemo(() => {
       if (notificationDone) {
         const getNotifications = async() => {
+          const cachedNotifications = await AsyncStorage.getItem('Notifications');
+          if (cachedNotifications) {
+            setCompleteNotifications(JSON.parse(cachedNotifications));
+            isLoaded.current = true; // Mark as loaded
+            return; // Skip fetching if cache exists
+          }
           const templist = await fetchActualNotifications(false, null, notifications)
+          AsyncStorage.setItem('Notifications', JSON.stringify(templist))
           setCompleteNotifications(templist)
+          AsyncStorage.setItem('Notifications', JSON.stringify(completeNotifications));
           setLoading(false)
           setCompleteNotificationsDone(true)
+          isLoaded.current = true;
         }
         getNotifications();
       }

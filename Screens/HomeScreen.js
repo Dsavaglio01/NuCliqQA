@@ -17,6 +17,7 @@ import SearchComponent from '../Components/SearchComponent';
 import profileContext from '../lib/profileContext';
 import MoodComponent from '../Components/MoodComponent';
 import StoriesArray from '../Components/StoriesArray';
+import showToast from '../lib/toastService';
 const HomeScreen = ({route}) => {
   const profile = useContext(profileContext)
   const {user} = useAuth();
@@ -42,6 +43,8 @@ const HomeScreen = ({route}) => {
   const [activeIndex, setActiveIndex] = useState(0);
   const [messageNotifications, setMessageNotifications] = useState([]);
   const [nonMessageNotifications, setNonMessageNotifications] = useState([]);
+  showToast('Friend Request', 'EdwinD has requested to follow you.')
+
 useEffect(() => {
     const loadStory = async() => {
       const {story} = await fetchStory(user)

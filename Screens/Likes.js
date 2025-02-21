@@ -110,8 +110,6 @@ const Likes = ({route}) => {
       
     }).then(async() => await updateDoc(doc(db, 'profiles', user.uid), {
       following: arrayRemove(friendId)
-    })).then(async() => await updateDoc(doc(db, 'usernames', user.uid), {
-      friend: increment(-1)
     }))},
               ]);
     

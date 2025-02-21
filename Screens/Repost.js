@@ -85,60 +85,6 @@ const Repost = ({route}) => {
     setVideoModalVisible(true)
     setVideo(dataToSend)
   }
-  /* const handleHashtagCallback = (dataToSend) => {
-    //setHashTagItem(dataToSend)
-    navigation.navigate('Home', {screen: 'HomeScreen', params: {hashtag: dataToSend, post: null, newPost: false}})
-
-  } */
-  async function schedulePushLikeNotification(id, username, notificationToken) {
-    //console.log(username)
-    //console.log(notificationToken)
-    let notis = (await getDoc(doc(db, 'profiles', id))).data().allowNotifications
-    if (groupId) {
-        if (postNotifications.includes(user.uid)) {
-          fetch(`${BACKEND_URL}/api/likeNotification`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        username: username, pushToken: notificationToken
-      }),
-      })
-    .then(response => response.json())
-    .then(responseData => {
-      // Handle the response from the server
-      console.log(responseData);
-    })
-    .catch(error => {
-      // Handle any errors that occur during the request
-      console.error(error);
-    })
-        }
-      }
-    else if (notis) {
-      //console.log(notificationToken)
-      fetch(`${BACKEND_URL}/api/likeNotification`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        username: username, pushToken: notificationToken, "content-available": 1
-      }),
-      })
-    .then(response => response.json())
-    .then(responseData => {
-      // Handle the response from the server
-      console.log(responseData);
-    })
-    .catch(error => {
-      // Handle any errors that occur during the request
-      console.error(error);
-    })
-    }
-      
-  }
   
   
   function addRecommendLike (item) {
