@@ -26,7 +26,7 @@ const Settings = ({route}) => {
     async function privateFunction(newValue) {
     setPrivacyEnabled(newValue);  // Update the UI immediately
     try {
-        await fetch(`${BACKEND_URL}/api/privacy`, {
+        await fetch(`http://10.0.0.225:4000/api/privacy`, {
             method: 'POST', // Use appropriate HTTP method (GET, POST, etc.)
             headers: {
             'Content-Type': 'application/json', // Set content type as needed

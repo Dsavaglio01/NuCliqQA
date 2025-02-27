@@ -18,7 +18,7 @@ const NotificationComponent = ({clique, item, index, user, filterCompleteNotific
     async function acceptRequest(item) {
         const newUser = generateId(item.item.requestUser, user.uid)
             try {
-                const response = await fetch(`${BACKEND_URL}/api/acceptRequestInd`, {
+                const response = await fetch(`http://10.0.0.225:4000/api/acceptRequestInd`, {
                 method: 'POST', // Use appropriate HTTP method (GET, POST, etc.)
                 headers: {
                     'Content-Type': 'application/json', // Set content type as needed

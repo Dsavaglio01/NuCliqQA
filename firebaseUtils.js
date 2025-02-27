@@ -1136,6 +1136,16 @@ export const sendMessage = async(friendId, newMessage, person, user, firstName, 
   }
 
 }
+export const fetchGroup = (groupId, setGroup) => {
+  if (!groupId) {
+    throw new Error("Error: 'groupId' is undefined.");
+  }
+  const q = doc(db, "groups", groupId);
+  const unsubscribe = onSnapshot(q, (doc) => {
+    setGroup({id: doc.id, ...doc.data()})
+  });
+  return unsubscribe;
+}
 export const fetchActualNotifications = async (group, id, notifications) => {
   let tempList = [];
 
@@ -1152,13 +1162,17 @@ export const fetchActualNotifications = async (group, id, notifications) => {
       postIds.add(item.item);
       postIds.add(item.postId);
       videoIds.add(item.postId);
-    } else if (!item.friend && !item.comment) {
+    } else if (!item.friend && !item.comment && !item.report) {
       videoIds.add(item.item);
       postIds.add(item.postId);
       videoIds.add(item.postId);
     }
-    if (item.requestUser) profileIds.add(item.requestUser);
-    if (!item.friend) freeThemeIds.add(item.postId);
+    else if (item.comment) {
+      postIds.add(item.postId);
+      videoIds.add(item.postId);
+    }
+    if (item.requestUser && !item.report) profileIds.add(item.requestUser);
+    if (!item.friend && item.theme) freeThemeIds.add(item.postId);
     if (item.remove || item.ban) groupIds.add(item.postId);
   });
   // Batch fetch all required documents
@@ -1173,7 +1187,6 @@ export const fetchActualNotifications = async (group, id, notifications) => {
     });
     return dataMap;
   };
-
   const [posts, videos, profiles, groups, freeThemes] = await Promise.all([
     fetchBatchDocs('posts', postIds),
     fetchBatchDocs('videos', videoIds),
@@ -1181,7 +1194,6 @@ export const fetchActualNotifications = async (group, id, notifications) => {
     fetchBatchDocs('groups', groupIds),
     fetchBatchDocs('freeThemes', freeThemeIds),
   ]);
-
   // Process notifications after fetching all required data
   notifications.forEach((item) => {
     let postData = posts[item.postId] || null;
@@ -1189,17 +1201,23 @@ export const fetchActualNotifications = async (group, id, notifications) => {
     let profileData = profiles[item.requestUser] || null;
     let freeThemeData = freeThemes[item.postId] || null;
     let groupData = groups[item.postId] || null;
-
+    console.log(freeThemeData)
     if (item.like) {
       if (item.video && videoData) tempList.push({ item, postInfo: { id: item.postId, ...videoData }, info: profileData });
       else if (postData) tempList.push({ item, postInfo: { id: item.postId, ...postData }, info: profileData });
     } else if (item.comment) {
       if (item.video && videoData) tempList.push({ item, postInfo: { id: item.postId, ...videoData }, info: profileData });
       else if (postData) tempList.push({ item, postInfo: { id: item.postId, ...postData }, info: profileData });
-    } else if (item.report) {
+    } else if (item.report && !item.message) {
       tempList.push({ item, postInfo: postData || videoData || null });
-    } else if (item.friend || item.request || item.acceptRequest) {
-      if (profileData) tempList.push({ item, info: { id: item.requestUser, ...profileData } });
+    } else if (item.report && item.message) {
+      tempList.push({ item })
+    } else if (item.report && item.theme && freeThemeData) {
+      console.log('jfk')
+      tempList.push({ item, postInfo: freeThemeData})
+    }
+     else if (item.friend || item.request || item.acceptRequest) {
+      if (profileData) console.log(profileData); tempList.push({ item, info: { id: item.requestUser, ...profileData } });
     } else if (item.mention || item.postMention || item.repost) {
       if (postData || videoData) tempList.push({ item, postInfo: { id: item.postId, ...(postData || videoData) }, info: profileData });
     } else if (item.remove || item.ban) {
@@ -1208,7 +1226,6 @@ export const fetchActualNotifications = async (group, id, notifications) => {
       tempList.push({ item, postInfo: { id: item.postId, ...freeThemeData }, info: profileData, free: true });
     }
   });
-
   return tempList;
 };
 

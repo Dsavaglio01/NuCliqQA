@@ -1219,6 +1219,7 @@ async function addLike(item) {
     <GestureHandlerRootView>
     <GestureDetector gesture={pan}>
             <Animated.View style={[styles.modalContainer, animatedStyles]}>
+              <KeyboardAvoidingView style={{alignItems: 'flex-end', flex: 1}} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
                 <View style={styles.modalView}>
                    <View style={styles.container}>
       {reportCommentModal ? <Text style={styles.headerText}>Report</Text> : <Text style={styles.headerText}>Comments</Text> }
@@ -1297,7 +1298,7 @@ async function addLike(item) {
     <View style={{backgroundColor: 'transparent'}}>
     {/* <Text style={styles.characterCountText}>{replyToReplyFocus || replyFocus  ? reply.length : newComment.length}/200</Text> */}
     </View>
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    
       
       <View behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.addCommentSecondContainer}>
               <View style={{flexDirection: 'row', marginTop: '5%', marginHorizontal: '5%', width: '90%'}}>
@@ -1322,9 +1323,10 @@ async function addLike(item) {
                 }
                 </View>
             </View>
-    </KeyboardAvoidingView> 
+    
     </>: null}
                 </View>
+                </KeyboardAvoidingView> 
             </Animated.View>
             </GestureDetector>
     </GestureHandlerRootView>

@@ -28,7 +28,6 @@ const NotificationScreen = () => {
     useEffect(() => {
       setNotificationDone(false)
       const fetchNotifications = async() => {
-        if (isLoaded.current) return;
         const tempList = await fetchFirstNotifications(user.uid, false, null)
         setNotifications(tempList)
       }
@@ -40,19 +39,14 @@ const NotificationScreen = () => {
     useMemo(() => {
       if (notificationDone) {
         const getNotifications = async() => {
-          const cachedNotifications = await AsyncStorage.getItem('Notifications');
-          if (cachedNotifications) {
-            setCompleteNotifications(JSON.parse(cachedNotifications));
-            isLoaded.current = true; // Mark as loaded
-            return; // Skip fetching if cache exists
-          }
+          
           const templist = await fetchActualNotifications(false, null, notifications)
-          AsyncStorage.setItem('Notifications', JSON.stringify(templist))
+          //AsyncStorage.setItem('Notifications', JSON.stringify(templist))
           setCompleteNotifications(templist)
-          AsyncStorage.setItem('Notifications', JSON.stringify(completeNotifications));
+          //AsyncStorage.setItem('Notifications', JSON.stringify(completeNotifications));
           setLoading(false)
           setCompleteNotificationsDone(true)
-          isLoaded.current = true;
+          //isLoaded.current = true;
         }
         getNotifications();
       }

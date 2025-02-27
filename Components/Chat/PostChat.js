@@ -12,7 +12,7 @@ import toggleSave from '../../lib/toggleSave';
 import * as Haptics from 'expo-haptics';
 import handleMessagePress from '../../lib/handleMessagePress';
 import ChatBubble from 'react-native-chat-bubble';
-const PostChat = ({item, user, person, lastMessageId, postNull,
+const PostChat = React.memo(({item, user, person, lastMessageId, postNull,
   readBy, newMessages, updateNewMessages, reportedContent, friendId, updateLastMessageId}) => {
     const [animatedValue] = useState(new Animated.Value(0))
     const navigation = useNavigation();
@@ -236,7 +236,7 @@ const PostChat = ({item, user, person, lastMessageId, postNull,
             {lastMessageId == item.id && readBy.includes(item.toUser) && item.user == user.uid && <Text style={styles.readReceipt}>Read</Text>}
           </View>
   )
-}
+})
 
 export default PostChat
 

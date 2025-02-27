@@ -147,7 +147,7 @@ function FollowButtons({user, item, style, actualData, updateActualData, preview
     }},
     }]);
     }
-    console.log(realProfile.following)
+    console.log(requests)
   return (
     <TouchableOpacity style={style} onPress={viewing ? preview ? null : user.uid != null ? realProfile.following.filter(e => e === item.id).length > 0 ? () => removeFriend(item, friendId) 
         : item.id == user.uid || requests.filter(e => e.id === item.id).length > 0 ? null : () => addFriend(item) : null :

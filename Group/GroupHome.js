@@ -9,7 +9,7 @@ import { ScrollView } from 'react-native-gesture-handler';
 import RequestedIcon from '../Components/RequestedIcon';
 import { db } from '../firebase';
 import ProfileContext from '../lib/profileContext';
-import { fetchCliqueData, fetchGroupNotifications } from '../firebaseUtils';
+import { fetchCliqueData, fetchGroupNotifications, fetchGroup } from '../firebaseUtils';
 import { useSinglePickImage } from '../Hooks/useSinglePickImage';
 const GroupHome = ({route}) => {
     const { name} = route.params;
@@ -95,20 +95,16 @@ const GroupHome = ({route}) => {
       }
     }, [group, onSnapshot])
     useEffect(()=> {
-      const docRef = doc(db, "groups", name);
-      let unsub;
-      const docSnap = () => {
-        unsub = onSnapshot(docRef, (doc) => {
-          if (doc.exists()) {
-            setGroup({id: doc.id, ...doc.data()})
-          }
-          else {
-            setIsDead(true)
-          }
-        });
-      } 
-      docSnap()
-      return unsub;
+      let unsubscribe;
+      if (name) {
+        unsubscribe = fetchGroup(name, setGroup);
+        setLoading(false);
+      }
+      return () => {
+        if (unsubscribe) {
+          return unsubscribe
+        }
+      };
     }, [name]);
     useEffect(() => {
       if (group.members.length > 0) {
@@ -203,18 +199,17 @@ const GroupHome = ({route}) => {
               {prevRoute?.name ? 
                 <MaterialCommunityIcons name='chevron-left' color={"#fafafa"} size={37.5} style={styles.left} onPress={() => navigation.goBack()}/> : null}
                 <View style={styles.logo}>
-                  <FastImage source={require('../assets/DarkMode5.png')} style={{height: 27.5, width: 68.75}}/>
+                  <FastImage source={require('../assets/DarkMode5.png')} style={styles.logoImage}/>
                 </View>
             </View>      
           </View>
           <View style={styles.deadContainer}>
             <Text style={styles.unavailableText}>Sorry, cliq is unavailable</Text>
-            <MaterialCommunityIcons name='emoticon-sad-outline' color={"#fafafa"} size={50} style={{alignSelf: 'center', marginTop: '10%'}}/>
+            <MaterialCommunityIcons name='emoticon-sad-outline' color={"#fafafa"} size={50} style={styles.sad}/>
             </View>
               </> : 
               loading ? 
-              <View style={{flex: 1,
-              justifyContent: 'center', alignItems: 'center'}}>
+              <View style={styles.loading}>
               <ActivityIndicator color={"#9edaff"} size={"large"}/> 
               </View>
               :
@@ -225,12 +220,12 @@ const GroupHome = ({route}) => {
           {prevRoute?.name ? 
           <MaterialCommunityIcons name='chevron-left' size={37.5} color={"#fafafa"} style={styles.left} onPress={() => navigation.goBack()}/> : null}
           <View style={styles.logo}>
-             <FastImage source={require('../assets/DarkMode5.png')} style={{height: 27.5, width: 68.75}}/>
+             <FastImage source={require('../assets/DarkMode5.png')} style={styles.logoImage}/>
           </View>
             
         </View>
             { group ?
-              group.members.includes(user.uid) ? <View style={{flexDirection: 'row', alignSelf: 'center', marginTop: 20, justifyContent: 'space-between', width: 70, marginRight: '5%'}}>
+              group.members.includes(user.uid) ? <View style={styles.titleHeader}>
                     {notifications ? 
               <TouchableOpacity style={{alignSelf: 'center'}} 
               onPress={() => navigation.navigate('GroupNotifications', {id: group.id, group: group, person: user.uid, pfp: group.banner, name: group.name, sending: false, notifications: true})}>
@@ -254,22 +249,24 @@ const GroupHome = ({route}) => {
           <FastImage source={background && !imageBackground ? {uri: background} : imageBackground ? {uri: imageBackground} 
           : require('../assets/defaultpfp.jpg')} style={styles.profileCircle} /> 
               : <FastImage source={require('../assets/defaultpfp.jpg')} style={styles.profileCircle} /> }
-        {group != undefined ? group.admins.includes(user.uid) ? <MaterialCommunityIcons name='image-edit' size={30} style={{position: 'absolute', top: 170, left: 360}} color="#f5f5f5" onPress={() => pickImage()}/> : <></> : <ActivityIndicator color={"#9EDAFF"} />}
-        <View style={{marginLeft: '5%', marginRight: '5%', flex: 1}}>
-        <View style={{backgroundColor: "#121212", marginLeft: '-5%', marginRight: '-5%'}}>
+        {group != undefined ? group.admins.includes(user.uid) ? <MaterialCommunityIcons name='image-edit' size={30} style={styles.imageEdit} color="#f5f5f5" onPress={() => pickImage()}/> : <></> : <ActivityIndicator color={"#9EDAFF"} />}
+        <View style={styles.main}>
+        <View style={styles.mainContainer}>
           <View style={styles.headerHeader}>
             {group ? <Text style={styles.type}>{group.groupSecurity ? group.groupSecurity.charAt(0).toUpperCase() + group.groupSecurity.slice(1) : null} Cliq</Text> : <></>}
             <Text style={styles.type}>|</Text>
-            {group ? group.members.length == 1 ? <Text style={styles.type}>{group.members.length} Member</Text> 
-            : <Text style={styles.type}>{group.members.length > 999 && group.members.length < 1000000 ? `${group.members.length / 1000}k` : group.members.length > 999999 ? `${group.members.length / 1000000}m` : group.members.length} Members</Text> : null}
+            <TouchableOpacity onPress={() => navigation.navigate('GroupMembers', {groupId: group.id, members: group.members.slice(0, 100), name: group.name, admins: group.admins})}>
+              {group ? group.members.length == 1 ? <Text style={styles.type}>{group.members.length} Member</Text> 
+              : <Text style={styles.type}>{group.members.length > 999 && group.members.length < 1000000 ? `${group.members.length / 1000}k` : group.members.length > 999999 ? `${group.members.length / 1000000}m` : group.members.length} Members</Text> : null}
+            </TouchableOpacity>
           </View>
 
         {group ? 
         <>
-        <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingBottom: 10, marginLeft: '5%', width: '90%'}}>
+        <View style={styles.body}>
           {
             group.banner ?
-            <FastImage source={{uri: group.banner}} style={{height: 42, width: 42, borderRadius: 8}}/> : null
+            <FastImage source={{uri: group.banner}} style={styles.banner}/> : null
           }
         <Text style={styles.name}>{group.name}</Text> 
         
@@ -312,7 +309,7 @@ const GroupHome = ({route}) => {
           </TouchableOpacity>
           </View> : <ActivityIndicator color={"#9edaff"} /> : <ActivityIndicator color={"#9edaff"}/>}
         
-          <View style={{margin: '5%', flexDirection: 'column'}} >
+          <View style={styles.optionContainer} >
             <TouchableOpacity style={styles.buttonHeaders} onPress={group ? () => navigation.navigate('GroupPosts', {group: group, admin: group.admins.includes(user.uid) ? true : false, username: profile.userName, blockedUsers: profile.blockedUsers}): null}>
               <Text style={styles.buttonText}>{group.name} Posts</Text>
               <MaterialCommunityIcons name='chevron-right' size={25} color={"#fafafa"} style={{marginLeft: 'auto'}}/>
@@ -321,10 +318,6 @@ const GroupHome = ({route}) => {
               <Text style={styles.buttonText}>{group.name} Vidz</Text>
               <MaterialCommunityIcons name='chevron-right' size={25} color={"#fafafa"} style={{marginLeft: 'auto'}}/>
             </TouchableOpacity >
-            <TouchableOpacity style={styles.buttonHeaders} onPress={() => navigation.navigate('GroupMembers', {groupId: group.id, members: group.members.slice(0, 100), name: group.name, admins: group.admins})}>
-              <Text style={styles.buttonText}>{group.name} Members</Text>
-              <MaterialCommunityIcons name='chevron-right' size={25} color={"#fafafa"} style={{marginLeft: 'auto'}}/>
-            </TouchableOpacity>
             {messageNotifications.length > 0 ? <View style={[styles.greenDot, {position: 'relative', top: 7.5, zIndex: 3, left: '95%', height: 13, width: 13, borderRadius: 10}] }/> : null}
             <TouchableOpacity style={messageNotifications.length > 0 ? [styles.buttonHeaders, {marginTop: -2}] : styles.buttonHeaders} onPress={group.members.includes(user.uid) ? () => navigation.navigate('GroupNotifications', {id: group.id, pfp: group.banner, group: group, name: group.name, notifications: false}) : () => channelAlert()}>
               <Text style={styles.buttonText}>{group.name} Chats</Text>
@@ -362,6 +355,10 @@ const styles = StyleSheet.create({
   logo: {
     marginTop: '12.5%', 
     marginLeft: '5%'
+  },
+  logoImage: {
+    height: 27.5, 
+    width: 68.75
   },
   headerHeader: {
     flexDirection: 'row',
@@ -471,6 +468,55 @@ const styles = StyleSheet.create({
     padding: 10, 
     fontFamily: 'Montserrat_500Medium', 
     color: "#fafafa"
+  },
+  imageEdit: {
+    position: 'absolute', 
+    top: 170, 
+    left: 360
+  },
+  main: {
+    marginLeft: '5%', 
+    marginRight: '5%', 
+    flex: 1
+  },
+  mainContainer: {
+    backgroundColor: "#121212",
+    marginLeft: '-5%', 
+    marginRight: '-5%'
+  },
+  sad: {
+    alignSelf: 'center', 
+    marginTop: '10%'
+  },
+  loading: {
+    flex: 1, 
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  titleHeader: {
+    flexDirection: 'row', 
+    alignSelf: 'center', 
+    marginTop: 20, 
+    justifyContent: 'space-between', 
+    width: 70, 
+    marginRight: '5%'
+  },
+  body: {
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    paddingBottom: 10, 
+    marginLeft: '5%', 
+    width: '90%'
+  },
+  banner: {
+    height: 42, 
+    width: 42, 
+    borderRadius: 8
+  },
+  optionContainer: {
+    margin: '5%', 
+    flexDirection: 'column'
   }
 
 })

@@ -12,7 +12,7 @@ import toggleSave from '../../lib/toggleSave';
 import * as Clipboard from 'expo-clipboard';
 import handleMessagePress from '../../lib/handleMessagePress';
 import MessageImageModal from './MessageImageModal';
-const TextChat = ({item, user, person, lastMessageId, readBy, newMessages, updateNewMessages, reportedContent, friendId, updateLastMessageId}) => {
+const TextChat = React.memo(({item, user, person, lastMessageId, readBy, newMessages, updateNewMessages, reportedContent, friendId, updateLastMessageId}) => {
     const [animatedValue] = useState(new Animated.Value(0))
     const navigation = useNavigation();
     const [tapCount, setTapCount] = useState(0);
@@ -190,7 +190,7 @@ const TextChat = ({item, user, person, lastMessageId, readBy, newMessages, updat
                 </View>}
        </View>
   )
-}
+})
 
 export default TextChat
 

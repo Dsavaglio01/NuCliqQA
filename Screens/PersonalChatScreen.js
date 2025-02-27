@@ -314,6 +314,7 @@ useEffect(() => {
     })
     return unsub;
   }, [onSnapshot])
+  console.log(`New messages: ${newMessages.length}`)
   return (
     <View style={styles.container}>
       {newMessages.length >= 0 ? 

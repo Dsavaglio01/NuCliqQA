@@ -11,7 +11,7 @@ import toggleCopy from '../../lib/toggleCopy';
 import toggleSave from '../../lib/toggleSave';
 import handleMessagePress from '../../lib/handleMessagePress';
 import * as Haptics from 'expo-haptics'
-const ThemeChat = ({item, user, person, lastMessageId, themeNull, readBy, newMessages, updateNewMessages, reportedContent, friendId, updateLastMessageId}) => {
+const ThemeChat = React.memo(({item, user, person, lastMessageId, themeNull, readBy, newMessages, updateNewMessages, reportedContent, friendId, updateLastMessageId}) => {
     const [animatedValue] = useState(new Animated.Value(0))
     const navigation = useNavigation();
     const timerRef = useRef(null);
@@ -136,6 +136,7 @@ const ThemeChat = ({item, user, person, lastMessageId, themeNull, readBy, newMes
             {lastMessageId == item.id && readBy.includes(item.toUser) && item.user == user.uid && <Text style={styles.readReceipt}>Read</Text>}
             </View> 
              :
+             <View style={{flexDirection: 'column'}}>
             <View style={item.user == user.uid ? styles.user : styles.notUser}>
                 {item.user != user.uid && ( // Only show image for non-user messages
                     <FastImage source={person.pfp ? { uri: person.pfp } : require('../../assets/defaultpfp.jpg')} // Replace with actual image URL
@@ -165,6 +166,7 @@ const ThemeChat = ({item, user, person, lastMessageId, themeNull, readBy, newMes
                         <Ionicons name="heart" size={20} color={item.liked ? 'red' : 'grey'} /> 
                     </TouchableOpacity>
                 </Animated.View>
+              </View>
                 {item.message.text.length > 0 ? 
             <View style={item.user == user.uid ? styles.user : styles.notUser}>
                 {item.user != user.uid && ( // Only show image for non-user messages
@@ -216,10 +218,11 @@ const ThemeChat = ({item, user, person, lastMessageId, themeNull, readBy, newMes
               </View> 
           : null}
             {lastMessageId == item.id && readBy.includes(item.toUser) && item.user == user.uid && <Text style={styles.readReceipt}>Read</Text>}
+        
         </View>}
     </>
   )
-}
+})
 
 export default ThemeChat
 
@@ -311,7 +314,9 @@ const styles = StyleSheet.create({
         borderRadius: 10,
         backgroundColor: "gray",
         marginRight: '5%',
-        marginLeft: '5%',
+        marginLeft: '15%',
+        width: '50%',
+
         marginBottom: '2.5%'
     },
     copyText: {
