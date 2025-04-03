@@ -12,7 +12,8 @@ import toggleSave from '../../lib/toggleSave';
 import * as Clipboard from 'expo-clipboard';
 import handleMessagePress from '../../lib/handleMessagePress';
 import MessageImageModal from './MessageImageModal';
-const TextChat = React.memo(({item, user, person, lastMessageId, readBy, newMessages, updateNewMessages, reportedContent, friendId, updateLastMessageId}) => {
+const TextChat = React.memo(({item, user, person, lastMessageId, readBy, newMessages, updateNewMessages, reportedContent, friendId, 
+    updateLastMessageId, subscription}) => {
     const [animatedValue] = useState(new Animated.Value(0))
     const navigation = useNavigation();
     const [tapCount, setTapCount] = useState(0);
@@ -121,7 +122,7 @@ const TextChat = React.memo(({item, user, person, lastMessageId, readBy, newMess
                   <MaterialCommunityIcons name='content-copy' size={20} style={{alignSelf: 'center'}} color={"#fafafa"}/>
                 </TouchableOpacity>
                 <Divider color={"#fafafa"}/>
-                {item.user == user.uid ? 
+                {item.user == user.uid && subscription ? 
                     <>
                         <TouchableOpacity style={styles.copyTextContainer} onPress={() => deleteMessage(item, newMessages, friendId, updateNewMessages, updateLastMessageId)}>
                         <Text allowFontScaling={false} style={[styles.copyText, {color: "#fafafa"}]}>Delete Message</Text>

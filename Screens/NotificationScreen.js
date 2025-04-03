@@ -8,7 +8,6 @@ import { useNavigation } from '@react-navigation/native';
 import { Divider } from 'react-native-paper';
 import NotificationComponent from '../Components/NotificationComponent';
 import { fetchFirstNotifications, deleteCheckedNotifications, fetchActualNotifications } from '../firebaseUtils';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 const NotificationScreen = () => {
     const [completeNotificationsDone, setCompleteNotificationsDone] = useState(false);
     const [notificationDone, setNotificationDone] = useState(false);
@@ -41,12 +40,9 @@ const NotificationScreen = () => {
         const getNotifications = async() => {
           
           const templist = await fetchActualNotifications(false, null, notifications)
-          //AsyncStorage.setItem('Notifications', JSON.stringify(templist))
           setCompleteNotifications(templist)
-          //AsyncStorage.setItem('Notifications', JSON.stringify(completeNotifications));
           setLoading(false)
           setCompleteNotificationsDone(true)
-          //isLoaded.current = true;
         }
         getNotifications();
       }

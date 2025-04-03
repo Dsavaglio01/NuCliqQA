@@ -18,6 +18,7 @@ import PostChat from '../Components/Chat/PostChat';
 import TextChat from '../Components/Chat/TextChat';
 import ChatInput from '../Components/Chat/ChatInput';
 import ChatHeader from '../Components/Chat/ChatHeader';
+import { fetchMorePersonalMessages, fetchPersonalMessages } from '../firebaseUtils';
 const PersonalChatScreen = ({route}) => {
   const {person, friendId} = route.params;
   const [loading, setLoading] = useState(true) 
@@ -33,6 +34,7 @@ const PersonalChatScreen = ({route}) => {
   const [isInitialLoad, setIsInitialLoad] = useState(true); // To track if it's the first render
   const hasScrolled = useRef(false);
   const theme = useContext(themeContext)
+  const [unsubscribe, setUnsubscribe] = useState(null);
   const [reportedContent, setReportedContent] = useState([]);
   const [friends, setFriends] = useState(0);
   const {user} = useAuth()
@@ -94,58 +96,45 @@ const PersonalChatScreen = ({route}) => {
   
   //console.log(friendId)
   useEffect(() => {
-    let unsub;
+  return () => {
+    if (unsubscribe) {
+      unsubscribe(); // Cleanup Firestore listener on unmount
+    }
+  };
+}, [unsubscribe]);
+  useEffect(() => {
+  const fetchMessages = async () => {
+    if (friendId) {
+      setLoading(true);
+      await fetchPersonalMessages(friendId, setMessages, setLastVisible, setUnsubscribe);
+      setLoading(false);
+    }
+  };
 
-      const fetchCards = async () => {
-  
-        unsub = onSnapshot(query(collection(db, 'friends', friendId, 'chats'), orderBy('timestamp', 'desc'), limit(25)), (snapshot) => {
-          //console.log(snapshot)
-          setMessages(snapshot.docs.map((doc)=> ( {
-            id: doc.id,
-            ...doc.data(),
-            copyModal: false,
-            saveModal: false
-          })))
-          setLastVisible(snapshot.docs[snapshot.docs.length-1])
-        })
-      } 
+  fetchMessages();
 
-      fetchCards();
-      return unsub;
-  }, [])
+  return () => {
+    if (unsubscribe) {
+      unsubscribe(); // Properly clean up listener
+    }
+  };
+}, [friendId]);
+
   function fetchMoreData() {
-    
-      if (lastVisible != undefined) {
-        
-    let unsub;
-      const fetchCards = async () => {
-        unsub = onSnapshot(query(collection(db, 'friends', friendId, 'chats'), orderBy('timestamp', 'desc'), startAfter(lastVisible), limit(25)), (snapshot) => {
-          const newData = [];
-          setMessages(snapshot.docs.map((doc)=> {
-            newData.push({
-              id: doc.id,
-            ...doc.data(),
-            copyModal: false,
-            saveModal: false
-            })
-            
-          }))
-          if (newData.length > 0) {
-        setLoading(true)
-            setMessages([...messages, ...newData])
-          setLastVisible(snapshot.docs[snapshot.docs.length-1])
-          }
-          
-          
-        })
-      } 
-      setTimeout(() => {
-        setLoading(false)
-      }, 1000);
-      fetchCards();
-      return unsub;
+    if (lastVisible != undefined) {
+      let unsubscribe;
+      // Call the utility function and pass state setters as callbacks
+      unsubscribe = fetchMorePersonalMessages(friendId, messages, setMessages, setLastVisible, lastVisible)
+      // Handle loading state
+      setLoading(false);
+      // Clean up the listener when the component unmounts
+      return () => {
+        if (unsubscribe) {
+          return unsubscribe;
+        }
+      }
     }
-    }
+  }
   useEffect(() => {
     let unsub;
     //const reportedMessages = (await getDoc(doc(db, 'profiles', user.uid))).data().reportedMessages
@@ -364,15 +353,15 @@ useEffect(() => {
         {
             return (
               item.message.theme != undefined ? 
-              <ThemeChat themeNull={item.message.theme== null ? true: false} item={item} user={user} person={person} lastMessageId={lastMessageId} readBy={readBy} 
+              <ThemeChat subscription={(profile.subscription || profile.subscription2)} themeNull={item.message.theme== null ? true: false} item={item} user={user} person={person} lastMessageId={lastMessageId} readBy={readBy} 
                 newMessages={newMessages} updateNewMessages={setNewMessages} reportedContent={reportedContent} friendId={friendId} 
                 updateLastMessageId={setLastMessageId}/> 
             :
             item.message.post == undefined && item.message.text !== "" ? 
-            <TextChat item={item} user={user} person={person} lastMessageId={lastMessageId} readBy={readBy} newMessages={newMessages} updateLastMessageId={setLastMessageId}
+            <TextChat subscription={(profile.subscription || profile.subscription2)} item={item} user={user} person={person} lastMessageId={lastMessageId} readBy={readBy} newMessages={newMessages} updateLastMessageId={setLastMessageId}
                 updateNewMessages={setNewMessages} reportedContent={reportedContent} friendId={friendId}/> :
           item.message.post != undefined ? 
-              <PostChat postNull={item.message.post == null ? true : false} item={item} user={user} person={person} 
+              <PostChat subscription={(profile.subscription || profile.subscription2)} postNull={item.message.post == null ? true : false} item={item} user={user} person={person} 
                 lastMessageId={lastMessageId} readBy={readBy} newMessages={newMessages} updateLastMessageId={setLastMessageId}
                 updateNewMessages={setNewMessages} reportedContent={reportedContent} friendId={friendId}/>  
           : <></>

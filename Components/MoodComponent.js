@@ -2,7 +2,7 @@ import { StyleSheet } from 'react-native'
 import React, { useState } from 'react'
 import { Provider, Menu, Divider} from 'react-native-paper'
 import {MaterialCommunityIcons} from '@expo/vector-icons';
-const MoodComponent = ({meet, following, mood, sendMeetDataBack, sendFollowingDataBack, sendMoodDataBack}) => {
+const MoodComponent = ({meet, following, mood, subscription, sendMeetDataBack, sendFollowingDataBack, sendMoodDataBack}) => {
   const [visible, setVisible] = useState(false);
   const openHeaderMenu = () => setVisible(true)
   const closeHeaderMenu = () => setVisible(false)
@@ -24,6 +24,8 @@ const MoodComponent = ({meet, following, mood, sendMeetDataBack, sendFollowingDa
         <Menu.Item onPress={meet ? null : () => handleOpen()} title="For You" titleStyle={meet ? {color: "#9EDAFF"} : {color: "#fafafa"}}/>
         <Divider />
         <Menu.Item onPress={following ? null : () => handleFollowing()} title="Following" titleStyle={following ? {color: "#9EDAFF"} : {color: "#fafafa"}}/>
+        {subscription ?
+        <>
         <Divider />
         <Menu.Item onPress={null} title="Mood ▼" titleStyle={{color: "#fafafa"}}/>
         <Divider />
@@ -40,6 +42,7 @@ const MoodComponent = ({meet, following, mood, sendMeetDataBack, sendFollowingDa
         <Menu.Item onPress={mood == 'Sad' ? null : () => handleMood('Sad')} title="↪ Sad 😢" titleStyle={mood == 'Sad' ? {color: "#9edaff"} : {color: "#fafafa"}}/>
         <Divider />
         <Menu.Item onPress={mood == 'Scared' ? null : () => handleMood('Scared')} title="↪ Scared 😱" titleStyle={mood == 'Scared' ? {color: "#9edaff"} : {color: "#fafafa"}}/>
+          </> : null}
     </Menu>
   )
 }

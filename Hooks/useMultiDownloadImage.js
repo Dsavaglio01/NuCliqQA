@@ -5,7 +5,7 @@ import { IMAGE_MODERATION_URL, MODERATION_API_SECRET, MODERATION_API_USER, BACKE
 import handleContentModeration from "../lib/handelImageModerations";
 import handleVideoContentModeration from "../lib/handleVideoModeration";
 
-export const useMultiDownloadImage = ({fileName, user, caption, actualPostArray, setNewPostArray}) => {
+export const useMultiDownloadImage = ({fileName, mood, user, caption, actualPostArray, setNewPostArray}) => {
   //console.log(caption)
   const [downloadLoading, setDownloadLoading] = useState(false);
   const storage = getStorage();
@@ -52,7 +52,7 @@ export const useMultiDownloadImage = ({fileName, user, caption, actualPostArray,
       const starsRef = ref(storage, post);
       const url = await getDownloadURL(starsRef);
       setUrl(url)
-      await handleContentModeration({url: url, caption: caption, IMAGE_MODERATION_URL: IMAGE_MODERATION_URL, 
+      await handleContentModeration({url: url, caption: caption, IMAGE_MODERATION_URL: IMAGE_MODERATION_URL, mood: mood, 
         MODERATION_API_USER: MODERATION_API_USER, MODERATION_API_SECRET: MODERATION_API_SECRET, TEXT_MODERATION_URL: TEXT_MODERATION_URL,
         actualPostArray: actualPostArray, setNewPostArray: setNewPostArray, reference: starsRef, item: item})
     } catch (error) {

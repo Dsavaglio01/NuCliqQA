@@ -700,7 +700,9 @@ const PostComponent = ({data, forSale, background, home, loading, lastVisible, a
         style={[{ height: Dimensions.get('screen').height / 2.75, width: Dimensions.get('screen').width / 1.2, borderRadius: 8, alignSelf: 'center'}]}/>
         </Pinchable> : 
    <CustomMentionText text={item.item.post[0].value} />}
+          {item.item.mood && item.item.mood.length > 0 ? <Text style={styles.mood}>{item.item.mood}</Text> : null}
             </View>
+            
           {item.item.post[0].image || item.item.post[0].text ?
           <>
            <View style={styles.postFooter}>
@@ -1090,5 +1092,12 @@ const styles = StyleSheet.create({
       flex: 1, 
       alignItems: 'center', 
       justifyContent: 'center'
+    },
+    mood: {
+      color: "#fafafa",
+      fontFamily: 'Montserrat_500Medium',
+      fontSize: 15.36,
+      padding: 5,
+      paddingLeft: 10
     }
 })

@@ -18,6 +18,7 @@ import ThemeComponent from '../Components/Themes/ThemeComponent'
 import FooterComponent from '../Components/Themes/FooterComponent'
 import { fetchPurchasedThemes, fetchMorePurchasedThemes, fetchMyThemes, fetchMoreMyThemes, fetchFreeThemes, fetchThemeSearches,
   fetchMoreFreeThemes } from '../firebaseUtils'
+import ProfileContext from '../lib/profileContext'
 const All = ({route}) => {
   const {name, groupId, goToMy, registers, goToPurchased} = route.params;
   const [searching, setSearching] = useState(false);
@@ -53,6 +54,7 @@ const All = ({route}) => {
   const [sortIncreasingPrice, setIncreasingPrice] = useState(false);
   const [sortDecreasingPrice, setDecreasingPrice] = useState(false);
   const [sortVisible, setSortVisible] = useState(false)
+  const profile = useContext(ProfileContext);
   const [registrationModal, setRegistrationModal] = useState(false);
   const openSortMenu = () => setSortVisible(true);
   const closeSortMenu = () => setSortVisible(false)
@@ -260,17 +262,17 @@ const All = ({route}) => {
   useMemo(() => {
     const getThemes = async() => {
     if (user.uid && free && mostPopular) {
-      const { tempPosts, lastFreeVisible } = await fetchFreeThemes('bought_count', 'desc');
+      const { tempPosts, lastFreeVisible } = await fetchFreeThemes('bought_count', 'desc', user.uid);
       setFreeTempPosts(tempPosts);
       setLastVisible(lastFreeVisible);
     }
     else if (user.uid && free && sortIncreasingDate) {
-      const { tempPosts, lastFreeVisible } = await fetchFreeThemes('timestamp', 'desc');
+      const { tempPosts, lastFreeVisible } = await fetchFreeThemes('timestamp', 'desc', user.uid);
       setFreeTempPosts(tempPosts);
       setLastVisible(lastFreeVisible);
     }
     else if (user.uid && free && sortDecreasingDate) {
-      const { tempPosts, lastFreeVisible } = await fetchFreeThemes('timestamp', 'asc');
+      const { tempPosts, lastFreeVisible } = await fetchFreeThemes('timestamp', 'asc', user.uid);
       setFreeTempPosts(tempPosts);
       setLastVisible(lastFreeVisible);
     }
@@ -279,17 +281,17 @@ const All = ({route}) => {
   }, [mostPopular, free, user?.uid, sortIncreasingDate, sortDecreasingDate])
   async function fetchMoreFreeData () {
     if (mostPopular && lastVisible != undefined) {
-      const { tempPosts, lastFreeVisible } = await fetchMoreFreeThemes('bought_count', 'desc', lastVisible);
+      const { tempPosts, lastFreeVisible } = await fetchMoreFreeThemes('bought_count', 'desc', lastVisible, user.uid);
       setFreeTempPosts([...freeTempPosts, ...tempPosts])
       setLastVisible(lastFreeVisible);
     }
     else if (sortIncreasingDate && lastVisible != undefined) {
-      const { tempPosts, lastFreeVisible } = await fetchMoreFreeThemes('timestamp', 'desc', lastVisible);
+      const { tempPosts, lastFreeVisible } = await fetchMoreFreeThemes('timestamp', 'desc', lastVisible, user.uid);
       setFreeTempPosts([...freeTempPosts, ...tempPosts])
       setLastVisible(lastFreeVisible);
     }
     else if (sortDecreasingDate && lastVisible != undefined) {
-      const { tempPosts, lastFreeVisible } = await fetchMoreFreeThemes('timestamp', 'asc', lastVisible);
+      const { tempPosts, lastFreeVisible } = await fetchMoreFreeThemes('timestamp', 'asc', lastVisible, user.uid);
       setFreeTempPosts([...freeTempPosts, ...tempPosts])
       setLastVisible(lastFreeVisible);
     }
@@ -617,7 +619,8 @@ const All = ({route}) => {
       <>
       <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'}}>
       <View style={styles.titleContainer}>
-          <TouchableOpacity style={styles.logInButton} onPress={() => navigation.navigate('CreateTheme', {avatar: false})}>
+          <TouchableOpacity style={styles.logInButton} onPress={profile.subscription ? () => navigation.navigate('CreateTheme', 
+          {avatar: false}) : () => navigation.navigate('SubscriptionPage')}>
             <MaterialCommunityIcons name='plus' size={20} color={"#121212"} style={{alignSelf: 'center', paddingLeft: 10}}/>
             <Text style={styles.alreadyText}>{"Create Theme"}</Text>
         </TouchableOpacity>

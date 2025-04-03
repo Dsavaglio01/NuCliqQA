@@ -11,7 +11,7 @@ import _ from 'lodash'
 import themeContext from '../lib/themeContext';
 import FirstTimeModal from '../Components/FirstTimeModal';
 import { fetchNotifications, fetchPublicPostsExcludingBlockedUsers, fetchStory, getChangingProfileDetails, fetchUserFeedPosts, 
-  fetchMorePublicPostsExcludingBlockedUsers } from '../firebaseUtils';
+  fetchMorePublicPostsExcludingBlockedUsers, fetchPublicMoodPostsExcludingBlockedUsers, fetchMorePublicMoodPostsExcludingBlockedUsers} from '../firebaseUtils';
 import PostComponent from '../Components/PostComponent';
 import SearchComponent from '../Components/SearchComponent';
 import profileContext from '../lib/profileContext';
@@ -159,6 +159,11 @@ useEffect(() => {
         setTempPosts(posts);
         setFollowingCount(followingCount + 7);
       }
+      else if (mood && reloadPage) {
+        const { posts, lastVisible } = await fetchPublicMoodPostsExcludingBlockedUsers(mood, profile.blockedUsers)
+        setTempPosts(posts);
+        setLastVisible(lastVisible);
+      }
 
       setLoading(false);
       setPostDone(true);
@@ -195,6 +200,11 @@ useEffect(() => {
         setTempPosts([...tempPosts, ...posts]);
         setFollowingCount(followingCount + 7);
     }
+    else if (lastVisible != undefined && mood) {
+        const { posts, lastVisible: newLastVisible } = await fetchMorePublicMoodPostsExcludingBlockedUsers(mood, profile.blockedUsers, lastVisible);
+        setTempPosts([...tempPosts, ...posts]);
+        setLastVisible(newLastVisible);
+    }
     
   }
   return (
@@ -217,7 +227,7 @@ useEffect(() => {
             <MaterialCommunityIcons name='bell-outline' size={29} color={theme.color} style={styles.bellButtons} onPress={() => navigation.navigate('NotificationScreen')}/>
             }
             <View style={{marginLeft: '5%'}}> 
-              <MoodComponent meet={meet} following={following} mood={mood} sendMeetDataBack={sendMeetDataBack} sendFollowingDataBack={sendFollowingDataBack} sendMoodDataBack={sendMoodDataBack}/>
+              <MoodComponent meet={meet} subscription={profile.subscription || profile.subscription2} following={following} mood={mood} sendMeetDataBack={sendMeetDataBack} sendFollowingDataBack={sendFollowingDataBack} sendMoodDataBack={sendMoodDataBack}/>
             </View>
           </View>
         </View>

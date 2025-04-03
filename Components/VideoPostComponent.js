@@ -23,7 +23,7 @@ import { schedulePushLikeNotification } from '../notificationFunctions';
 
 //import Slider from '@react-native-community/slider';
 const VideoPostComponent = ({data, fetchMoreData, home, loading, lastVisible, actualClique, blockedUsers, smallKeywords, largeKeywords, 
-    ogUsername, pfp, reportedComments, reportedPosts, clique, cliqueId, username, admin, edit, caption, notificationToken}) => {
+    ogUsername, pfp, reportedComments, reportedPosts, clique, cliqueId, username, admin, edit, caption, notificationToken, viewing}) => {
     const {user} = useAuth();
     const flatListRef = useRef(null);
     const videoRef = useRef(null);
@@ -304,8 +304,11 @@ const VideoPostComponent = ({data, fetchMoreData, home, loading, lastVisible, ac
     return (
     <>
         <View style={styles.ultimateVideoContainer} key={item.item.id}>
-     <TouchableOpacity onPress={() => setIsPaused(!isPaused)} activeOpacity={1} style={{flex: 1}} onLongPress={() => openMenu(item.item)}>
+          
+     <TouchableOpacity activeOpacity={1} style={{flex: 1}} onLongPress={() => openMenu(item.item)}>
+      
       <View style={styles.captionPosting}>
+        
             {!item.item ? <ActivityIndicator color={"#9EDAFF"} /> :
             
             <Suspense fallback={ <ActivityIndicator color={"#9EDAFF"} />}>
@@ -336,7 +339,8 @@ const VideoPostComponent = ({data, fetchMoreData, home, loading, lastVisible, ac
             </View> 
           : null} */}
             </View>
-            <View style={item.item.caption ? [styles.videoContainer, {marginTop: '-40%'}] : [styles.videoContainer, {marginTop: '-35%'}]}>
+            <View style={item.item.caption && viewing ? [styles.videoContainer, {marginTop: '-35%'}] : item.item.caption && !viewing ? [styles.videoContainer, {marginTop: '-45%'}] :
+            !item.item.caption && viewing ? [styles.videoContainer, {marginTop: '-25%'}] : [styles.videoContainer, {marginTop: '-35%'}]}>
             {item.item.pfp ? <FastImage source={{uri: item.item.pfp, priority: 'normal'}} style={styles.pfp}/> : 
           <FastImage source={require('../assets/defaultpfp.jpg')} style={styles.pfp}/>
           }
@@ -392,6 +396,8 @@ const VideoPostComponent = ({data, fetchMoreData, home, loading, lastVisible, ac
           </View>}
         
         </TouchableOpacity>
+        {viewing ? 
+        <MaterialCommunityIcons onPress={() => navigation.goBack()} name='chevron-left' color={"#fafafa"} size={40} style={{position: 'relative', bottom: 750}}/> : null}
         </View>
         {loading && lastVisible && item.index == actualData.length - 1 ? <View style={styles.loadingContainer}>
             <ActivityIndicator color={theme.theme != 'light' ? "#9EDAFF" : "#005278"}/> 
@@ -420,9 +426,9 @@ const VideoPostComponent = ({data, fetchMoreData, home, loading, lastVisible, ac
           renderItem={renderItem}
           loop={false}
           onSnapToItem={handleSnap}
+          style={{minHeight: '70%'}}
           
-          
-            /> : <View style={{flex: 1, alignItems: 'center', justifyContent: 'center'}}>
+            /> : <View style={styles.noPostContainer}>
               <Text style={styles.noPostText}>No Posts Yet!</Text>
               <View style={{margin: '5%'}}>
                 <NextButton text={"Be the first to create a post!"} textStyle={{fontSize: 15.36}} onPress={cliqueId ? () => navigation.navigate('NewPost', {group: true, cliqueId: cliqueId, actualGroup: actualClique, postArray: [], blockedUsers: blockedUsers, admin: admin, username: ogUsername}) : 
@@ -450,7 +456,8 @@ const styles = StyleSheet.create({
     },
     video: {
       width: '100%',
-      height: '100%',
+      marginTop: '-5%',
+      height: '105%',
       backgroundColor: "#121212"
     },
     rightAddContainer: {

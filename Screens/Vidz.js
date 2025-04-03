@@ -213,7 +213,7 @@ useEffect(() => {
       <View style={styles.container}>
         <FirstTimeModal isFirstTime={isFirstTime} vidz={true} closeFirstTimeModal={() => setIsFirstTime(false)}/>
         {postDone && user && tempPosts.length > 0 ? <>
-        <VideoPostComponent fetchMoreData={handlePostScroll} data={tempPosts} home={true} loading={loading} lastVisible={lastVisible} actualClique={null}
+        <VideoPostComponent viewing={false} fetchMoreData={handlePostScroll} data={tempPosts} home={true} loading={loading} lastVisible={lastVisible} actualClique={null}
         blockedUsers={profile.blockedUsers} openPostMenu={null} clique={false} cliqueId={null} pfp={profile.pfp} ogUsername={profile.userName} 
         admin={false} edit={false} caption={null} notificationToken={profile.notificationToken} smallKeywords={profile.smallKeywords} 
         largeKeywords={profile.largeKeywords} reportedPosts={reportedPosts} reportedComments={reportedComments}/>

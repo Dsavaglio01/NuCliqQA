@@ -26,13 +26,7 @@ const Likes = ({route}) => {
     const [loading, setLoading] = useState(true);
     const [username, setUsername] = useState('');
     const {user} = useAuth();
-    const handleSearchCallback = (dataToSend) => {
-      //console.log(dataToSend)
-      setSearching(dataToSend)
-    }
-    const handleGroupCallback = (dataToSend) => {
-    setFilteredGroup(dataToSend)
-  }
+
   useEffect(()=> {
       const getRequest = async() => {
         const docSnap = await getDoc(doc(db, 'profiles', user.uid))
@@ -42,104 +36,7 @@ const Likes = ({route}) => {
       } 
       getRequest()
     }, []);
-    async function schedulePushRequestFriendNotification(id, username, notificationToken) {
-      let notis = (await getDoc(doc(db, 'profiles', id))).data().allowNotifications
-      if (notis) {
-      fetch(`${BACKEND_URL}/api/requestedNotification`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        username: username, pushToken: notificationToken, data: {routeName: 'NotificationScreen', deepLink: 'nucliqv1://NotificationScreen'} 
-      }),
-      })
-    .then(response => response.json())
-    .then(responseData => {
-      // Handle the response from the server
-      console.log(responseData);
-    })
-    .catch(error => {
-      // Handle any errors that occur during the request
-      console.error(error);
-    })
-  }
-  }
-  async function schedulePushFriendNotification(id, username, notificationToken) {
-    let notis = (await getDoc(doc(db, 'profiles', id))).data().allowNotifications
-      if (notis) {
-      fetch(`${BACKEND_URL}/api/friendNotification`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        username: username, pushToken: notificationToken, data: {routeName: 'NotificationScreen', deepLink: 'nucliqv1://NotificationScreen'} 
-      }),
-      })
-    .then(response => response.json())
-    .then(responseData => {
-      // Handle the response from the server
-      console.log(responseData);
-    })
-    .catch(error => {
-      // Handle any errors that occur during the request
-      console.error(error);
-    })
-  }
-  }
-    async function removeFriend(friendId) {
-      let newFriend = generateId(friendId, user.uid)
-    Alert.alert('Are you sure you want to unfollow?', 'If you unfollow, you will be unable to message them and they will be unable to message you.', [
-                {
-                  text: 'Cancel',
-                  onPress: () => console.log('Cancel Pressed'),
-                  style: 'cancel',
-                },
-                {text: 'OK', onPress: async() => await updateDoc(doc(db, 'profiles', user.uid, 'friends', friendId), {
-      actualFriend: false,
-      previousFriend: true
-    }).then(async() => {
-      const docRef = doc(db, 'friends', newFriend);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        await updateDoc(doc(db, 'friends', newFriend), {
-          active: false
-        })
-      }
-      
-    }).then(async() => await updateDoc(doc(db, 'profiles', user.uid), {
-      following: arrayRemove(friendId)
-    }))},
-              ]);
-    
-  }
-  async function addFriend(item) {
-    //console.log(item.id)
-    let newFriend = generateId(item.id, user.uid)
- 
-    let url = 'https://us-central1-nucliq-c6d24.cloudfunctions.net/addFriendTwo'
-    try {
-    const response = await fetch(url, {
-      method: 'POST', // Use appropriate HTTP method (GET, POST, etc.)
-      headers: {
-        'Content-Type': 'application/json', // Set content type as needed
-      },
-      body: JSON.stringify({ data: {item: item, newFriend: newFriend, user: user.uid}}), // Send data as needed
-    });
-    if (response.ok) {
-      const data = await response.json();
-      console.log('Cloud Function response:', data);
-      // Process the response from your Cloud Function
-    } else {
-      console.error('Error calling Cloud Function:', response.status);
-    }
-  } catch (error) {
-    console.error('Error:', error);
-  }
 
-    
-  }
   
     useEffect(() => {
         if (route.params?.postLikes.length > 0) {

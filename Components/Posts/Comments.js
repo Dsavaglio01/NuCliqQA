@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View, Modal, TouchableOpacity, TouchableHighlight, FlatList, Keyboard, 
-  ActivityIndicator, KeyboardAvoidingView, TextInput, Alert,
+  ActivityIndicator, KeyboardAvoidingView, TextInput, Alert, TouchableWithoutFeedback,
   Dimensions} from 'react-native'
 import Animated, {useSharedValue, useAnimatedStyle, runOnJS} from 'react-native-reanimated';
 import React, { useRef, useState, useEffect, useCallback, useContext } from 'react'
@@ -20,7 +20,9 @@ import ProfileContext from '../../lib/profileContext';
 import { db } from '../../firebase';
 import { getDoc, doc } from 'firebase/firestore';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { activePerson } from '../../firebaseUtils';
+import { getComments, saveComments } from '../../utils/asyncStorage';
+import showToast from '../../lib/toastService';
 function clamp(val, min, max) {
   return Math.min(Math.max(val, min), max);
 }
@@ -102,8 +104,7 @@ const CommentsModal = ({commentModal, closeCommentModal, deleteReply, postNull, 
     useEffect(() => {
         const loadComments = async() => {
           if (isLoaded.current) return;
-          const cachedKey = videoStyling ? 'commentVideos' : 'commentPosts';
-          const cachedComments = await AsyncStorage.getItem(cachedKey);
+          const cachedComments = await getComments(focusedPost.id)
 
           if (cachedComments) {
             setComments(JSON.parse(cachedComments));
@@ -114,7 +115,7 @@ const CommentsModal = ({commentModal, closeCommentModal, deleteReply, postNull, 
             focusedPost, blockedUsers, videoStyling ? 'videos' : 'posts'
           );
           setComments(newComments);
-          AsyncStorage.setItem(cachedKey, JSON.stringify(newComments));
+          await saveComments(focusedPost.id, newComments.slice(0, 50))
           setLastCommentVisible(lastVisible);
           isLoaded.current = true;
         }
@@ -252,7 +253,13 @@ if (!ableToShare) {
       setReply('')
       setReplyToReplyFocus(false)
       setSingleCommentLoading(false)
-      schedulePushCommentReplyNotification(commentSnap.data().user, profile.userName, commentSnap.data().notificationToken, reply)
+      if (activePerson(commentSnap.data().user).active) {
+        showToast(`${activePerson(commentSnap.data().user).userName}`, `replied to your comment: ${reply}`, `${activePerson(commentSnap.data().user).pfp}`)
+      }
+      else {
+        schedulePushCommentReplyNotification(commentSnap.data().user, profile.userName, commentSnap.data().notificationToken, reply)
+      }
+      
     }
   } catch (e) {
     console.error(e);
@@ -394,7 +401,12 @@ if (!ableToShare) {
       setReply('')
       setReplyToReplyFocus(false)
       setSingleCommentLoading(false)
-      schedulePushCommentReplyNotification(commentSnap.data().user, username, commentSnap.data().notificationToken, reply)
+      if (activePerson(commentSnap.data().user).active) {
+        showToast(`${activePerson(commentSnap.data().user).userName}`, `replied to your comment: ${reply}`, `${activePerson(commentSnap.data().user).pfp}`)
+      }
+      else {
+        schedulePushCommentReplyNotification(commentSnap.data().user, username, commentSnap.data().notificationToken, reply)
+      }
     }
   } catch (e) {
     console.error(e);
@@ -536,7 +548,12 @@ if (!ableToShare) {
      setReply('')
      setReplyFocus(false)
      setSingleCommentLoading(false)
-     schedulePushCommentReplyNotification(commentSnap.data().user, profile.userName, commentSnap.data().notificationToken, reply)
+     if (activePerson(commentSnap.data().user).active) {
+        showToast(`${activePerson(commentSnap.data().user).userName}`, `replied to your comment: ${reply}`, `${activePerson(commentSnap.data().user).pfp}`)
+      }
+      else {
+        schedulePushCommentReplyNotification(commentSnap.data().user, profile.userName, commentSnap.data().notificationToken, reply)
+      }
     }
   }
   catch (e) {
@@ -681,7 +698,12 @@ if (!ableToShare) {
       setReply('')
       setReplyFocus(false)
       setSingleCommentLoading(false)
-      schedulePushCommentReplyNotification(commentSnap.data().user, username, commentSnap.data().notificationToken, reply)
+      if (activePerson(commentSnap.data().user).active) {
+        showToast(`${activePerson(commentSnap.data().user).userName}`, `replied to your comment: ${reply}`, `${activePerson(commentSnap.data().user).pfp}`)
+      }
+      else {
+        schedulePushCommentReplyNotification(commentSnap.data().user, username, commentSnap.data().notificationToken, reply)
+      }
     }
   }
     catch (e) {
@@ -855,7 +877,13 @@ if (!ableToShare) {
       }
       setNewComment('')
         setSingleCommentLoading(false)
-        schedulePushCommentNotification(focusedPost.userId, username, focusedPost.notificationToken, newComment)
+        if (activePerson(focusedPost.userId).active) {
+          showToast(`${activePerson(focusedPost.userId).userName}`, `commented on your post: ${newComment}`, `${activePerson(focusedPost.userId).pfp}`)
+        }
+        else {
+          schedulePushCommentNotification(focusedPost.userId, username, focusedPost.notificationToken, newComment)
+        }
+        
     }
         }
                           catch (e) {
@@ -953,7 +981,12 @@ if (!ableToShare) {
       }
       setNewComment('')
       setSingleCommentLoading(false)
-      schedulePushCommentNotification(focusedPost.userId, username, focusedPost.notificationToken, newComment)
+      if (activePerson(focusedPost.userId).active) {
+          showToast(`${activePerson(focusedPost.userId).userName}`, `commented on your video: ${newComment}`, `${activePerson(focusedPost.userId).pfp}`)
+        }
+        else {
+          schedulePushCommentNotification(focusedPost.userId, username, focusedPost.notificationToken, newComment)
+        }
     } 
   } catch (e) {
     console.error(e);
@@ -1216,121 +1249,176 @@ async function addLike(item) {
   return (
     
    <Modal visible={commentModal} animationType="slide" transparent onRequestClose={() => handleClose()}>
-    <GestureHandlerRootView>
-    <GestureDetector gesture={pan}>
-            <Animated.View style={[styles.modalContainer, animatedStyles]}>
-              <KeyboardAvoidingView style={{alignItems: 'flex-end', flex: 1}} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-                <View style={styles.modalView}>
-                   <View style={styles.container}>
-      {reportCommentModal ? <Text style={styles.headerText}>Report</Text> : <Text style={styles.headerText}>Comments</Text> }
-       <TouchableOpacity style={{marginLeft: 'auto'}} onPress={() => {handleClose(); setReportCommentModal(false); handlePost();
-        setComments([]); setNewComment(''); setReplyFocus(false); setReplyToReplyFocus(false)}}>
-            <MaterialCommunityIcons name='close' size={25} style={styles.close} color={"#fafafa"}/>
-        </TouchableOpacity>
-        
-        {reportCommentModal ? 
-        <ReportModal />
-        : null}
-        {focusedPost.caption.length > 0 && !reportCommentModal ? 
-        <>
-        <Divider />
-        <View style={styles.userContainer}>
-          <FastImage source={focusedPost.pfp ? {uri: focusedPost.pfp} : require('../../assets/defaultpfp.jpg')} style={styles.pfp}/>
-          <View style={{flexWrap: 'wrap'}}>
-            <Text style={styles.usernameText} numberOfLines={1}>{focusedPost.username}</Text>
-            <Text style={styles.captionText}>{focusedPost.caption}</Text>
-          </View>
-          
-        </View>
-        <Divider /> 
-        </>
-        : null }
-        
-        {!reportCommentModal && comments.length == 0 && !commentsLoading ? 
-        
-        <>
-        <TouchableHighlight onPress={Keyboard.dismiss} underlayColor={'transparent'} style={{flex: 1}}>
-            <>
-        <View style={styles.noCommentsContainer}>
-            <Text style={styles.noCommentsText}>No Comments Yet</Text>
-            <Text style={styles.firstCommentsText}>Be the First to Comment!</Text>
-        </View>
-            
-        </>
-        </TouchableHighlight>
-        </>
-        : !reportCommentModal ?
-                <>
-            <FlatList 
-                data={comments.slice().sort((a, b) => b.timestamp - a.timestamp)}
-                renderItem={(v) =>
-          renderComments(v, () => {
-            deleteItem(v);
-          })}
-                keyExtractor={item => item.id}
-                ListFooterComponent={<View style={{paddingBottom: 30}}/>}
-                style={{height: '40%'}}
-                onScroll={handleScroll}
-            />
-            {commentsLoading && !reportCommentModal ? <View style={{justifyContent: 'flex-end', alignItems: 'center', marginBottom: '5%'}}>
-              <ActivityIndicator color={"#9EDAFF"}/> 
-            </View>
-          
-          : null}
-            
-            </>
-   : !reportCommentModal ?
-              <FlatList 
-                data={filtered}
-                renderItem={renderFriends}
-                keyExtractor={item => item.id}
-                ListFooterComponent={<View style={{paddingBottom: 30}}/>}
-                style={{height: '40%'}}
-                
-            />
-                
-            : null
-            }
-    
-    </View>
-    {!reportCommentModal ? 
-    <>
-    <View style={{backgroundColor: 'transparent'}}>
-    {/* <Text style={styles.characterCountText}>{replyToReplyFocus || replyFocus  ? reply.length : newComment.length}/200</Text> */}
-    </View>
-    
-      
-      <View behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.addCommentSecondContainer}>
-              <View style={{flexDirection: 'row', marginTop: '5%', marginHorizontal: '5%', width: '90%'}}>
-                 {pfp != undefined ? <FastImage source={{uri: pfp, priority: 'normal'}} style={{height: 35, width: 35, borderRadius: 25}}/> :
-          <FastImage source={require('../../assets/defaultpfp.jpg')} style={{height: 35, width: 35, borderRadius: 25}}/>}
-                {replyToReplyFocus ?
-                    <TextInput ref={textInputRef} multiline onKeyPress={handleKeyPress} placeholder={tempReplyName != undefined ? `Reply To ${tempReplyName}` : 'Reply To'} maxLength={200} placeholderTextColor={"#fafafa"} autoFocus={false} style={styles.addCommentText} value={reply} onChangeText={handleReply} returnKeyType="send" onSubmitEditing={addNewReplyToReply}/>
-                 : replyFocus ? 
-                
-                    <TextInput ref={textInputRef} multiline onKeyPress={handleKeyPress} placeholder={tempReplyName != undefined ? `Reply To ${tempReplyName}` : 'Reply To'} maxLength={200} placeholderTextColor={"#fafafa"} autoFocus={false} style={styles.addCommentText} value={reply} onChangeText={handleReply} returnKeyType="send" onSubmitEditing={addNewReply}/>
-                : 
-                    <TextInput ref={textInputRef} onKeyPress={handleKeyPress} multiline placeholder='Add Comment...' maxLength={200} style={styles.addCommentText} placeholderTextColor={"#fafafa"} value={newComment} onChangeText={handleNewComment}/>
+  <KeyboardAvoidingView 
+    behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+    keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 70} 
+    style={{ flex: 1, marginTop: '12%' }}
+  >
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <GestureDetector gesture={pan}>
+          <Animated.View style={[styles.modalContainer, animatedStyles]}>
+            <View style={styles.modalView}>
+              <View style={styles.container}>
+                {reportCommentModal ? 
+                  <Text style={styles.headerText}>Report</Text> : 
+                  <Text style={styles.headerText}>Comments</Text> 
                 }
-                {!singleCommentLoading ?
-                <View style={{marginLeft: 'auto'}}>
-                <NextButton text={"Send"} textStyle={{paddingHorizontal: 0}} onPress={(newComment.length > 0 || reply.length > 0) ? replyToReplyFocus ? () => addNewReplyToReply() : replyFocus ? () => addNewReply() : () => addNewComment() : null}/>
-                </View>
-                : 
-                <View style={{marginLeft: 'auto', alignItems: 'center', marginTop: '2.5%'}}>
-                <ActivityIndicator color={"#9EDAFF"} style={{alignSelf: 'center'}}/>
-                </View>
-                }
-                </View>
+                <TouchableOpacity 
+                  style={{ marginLeft: 'auto' }} 
+                  onPress={() => { 
+                    handleClose(); 
+                    setReportCommentModal(false); 
+                    handlePost(); 
+                    setComments([]); 
+                    setNewComment(''); 
+                    setReplyFocus(false); 
+                    setReplyToReplyFocus(false);
+                  }}
+                >
+                  <MaterialCommunityIcons 
+                    name='close' 
+                    size={25} 
+                    style={styles.close} 
+                    color={"#fafafa"}
+                  />
+                </TouchableOpacity>
+
+                {reportCommentModal ? <ReportModal /> : null}
+
+                {focusedPost.caption.length > 0 && !reportCommentModal ? (
+                  <>
+                    <Divider />
+                    <View style={styles.userContainer}>
+                      <FastImage 
+                        source={focusedPost.pfp ? {uri: focusedPost.pfp} : require('../../assets/defaultpfp.jpg')} 
+                        style={styles.pfp}
+                      />
+                      <View style={{ flexWrap: 'wrap' }}>
+                        <Text style={styles.usernameText} numberOfLines={1}>
+                          {focusedPost.username}
+                        </Text>
+                        <Text style={styles.captionText}>
+                          {focusedPost.caption}
+                        </Text>
+                      </View>
+                    </View>
+                    <Divider />
+                  </>
+                ) : null}
+
+                {!reportCommentModal && comments.length === 0 && !commentsLoading ? (
+                  <TouchableHighlight 
+                    onPress={Keyboard.dismiss} 
+                    underlayColor={'transparent'} 
+                    style={{ flex: 1 }}
+                  >
+                    <View style={styles.noCommentsContainer}>
+                      <Text style={styles.noCommentsText}>No Comments Yet</Text>
+                      <Text style={styles.firstCommentsText}>Be the First to Comment!</Text>
+                    </View>
+                  </TouchableHighlight>
+                ) : !reportCommentModal ? (
+                  <>
+                    <FlatList 
+                      data={comments.slice().sort((a, b) => b.timestamp - a.timestamp)}
+                      renderItem={(v) => renderComments(v, () => deleteItem(v))}
+                      keyExtractor={item => item.id}
+                      ListFooterComponent={<View style={{ paddingBottom: 30 }}/>}
+                      style={{ flex: 1 }}
+                      onScroll={handleScroll}
+                    />
+                    {commentsLoading && !reportCommentModal ? (
+                      <View style={{ justifyContent: 'flex-end', alignItems: 'center', marginBottom: '5%' }}>
+                        <ActivityIndicator color={"#9EDAFF"}/> 
+                      </View>
+                    ) : null}
+                  </>
+                ) : null}
+              </View>
             </View>
-    
-    </>: null}
-                </View>
-                </KeyboardAvoidingView> 
-            </Animated.View>
-            </GestureDetector>
-    </GestureHandlerRootView>
-        </Modal>
+
+            {/* KeyboardAvoiding Input Box */}
+            <View style={styles.addCommentSecondContainer}>
+              <View style={{ flexDirection: 'row', marginTop: '5%', marginHorizontal: '5%', width: '90%' }}>
+                {pfp !== undefined ? (
+                  <FastImage 
+                    source={{ uri: pfp, priority: 'normal' }} 
+                    style={{ height: 35, width: 35, borderRadius: 25 }}
+                  />
+                ) : (
+                  <FastImage 
+                    source={require('../../assets/defaultpfp.jpg')} 
+                    style={{ height: 35, width: 35, borderRadius: 25 }}
+                  />
+                )}
+                {replyToReplyFocus ? (
+                  <TextInput 
+                    ref={textInputRef} 
+                    multiline 
+                    onKeyPress={handleKeyPress} 
+                    placeholder={tempReplyName ? `Reply To ${tempReplyName}` : 'Reply To'} 
+                    maxLength={200} 
+                    placeholderTextColor={"#fafafa"} 
+                    autoFocus={false} 
+                    style={styles.addCommentText} 
+                    value={reply} 
+                    onChangeText={handleReply} 
+                    returnKeyType="send" 
+                    onSubmitEditing={addNewReplyToReply}
+                  />
+                ) : replyFocus ? (
+                  <TextInput 
+                    ref={textInputRef} 
+                    multiline 
+                    onKeyPress={handleKeyPress} 
+                    placeholder={tempReplyName ? `Reply To ${tempReplyName}` : 'Reply To'} 
+                    maxLength={200} 
+                    placeholderTextColor={"#fafafa"} 
+                    autoFocus={false} 
+                    style={styles.addCommentText} 
+                    value={reply} 
+                    onChangeText={handleReply} 
+                    returnKeyType="send" 
+                    onSubmitEditing={addNewReply}
+                  />
+                ) : (
+                  <TextInput 
+                    ref={textInputRef} 
+                    onKeyPress={handleKeyPress} 
+                    multiline 
+                    placeholder='Add Comment...' 
+                    maxLength={200} 
+                    style={styles.addCommentText} 
+                    placeholderTextColor={"#fafafa"} 
+                    value={newComment} 
+                    onChangeText={handleNewComment}
+                  />
+                )}
+                {!singleCommentLoading ? (
+                  <View style={{ marginLeft: 'auto' }}>
+                    <NextButton 
+                      text={"Send"} 
+                      textStyle={{ paddingHorizontal: 0 }} 
+                      onPress={(newComment.length > 0 || reply.length > 0) ? 
+                        (replyToReplyFocus ? addNewReplyToReply : replyFocus ? addNewReply : addNewComment) : null
+                      }
+                    />
+                  </View>
+                ) : (
+                  <View style={{ marginLeft: 'auto', alignItems: 'center', marginTop: '2.5%' }}>
+                    <ActivityIndicator color={"#9EDAFF"} style={{ alignSelf: 'center' }}/>
+                  </View>
+                )}
+              </View>
+            </View>
+          </Animated.View>
+        </GestureDetector>
+      </GestureHandlerRootView>
+    </TouchableWithoutFeedback>
+  </KeyboardAvoidingView>
+</Modal>
+
     
   )
 }
@@ -1345,7 +1433,8 @@ const styles = StyleSheet.create({
     },
     modalView: {
         width: '100%',
-        height: '50%',
+        height: '45%',
+       // height: '50%',
     flexGrow: 1,
     backgroundColor: '#121212',
     borderRadius: 0,
@@ -1525,7 +1614,7 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-end',
         alignItems: 'flex-end',
         borderColor: "#fafafa",
-        marginBottom: '25%',
+        marginBottom: '20%',
         borderTopWidth: 0.25,
         width: '100%',
         backgroundColor: "transparent"

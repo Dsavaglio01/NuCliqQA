@@ -66,7 +66,7 @@ const ChatInput = ({newMessages, friendId, person, profile, active}) => {
             maxLength={200}
             enablesReturnKeyAutomatically={true}
           />
-          {inputText.length == 0 && !keyboardFocused ? 
+          {inputText.length == 0 && !keyboardFocused && (profile.subscription || profile.subscription2) ? 
             <>
                 <FontAwesome name='picture-o' color={"#fafafa"} size={25} style={{alignSelf: 'center'}} onPress={pickImage}/>
             </> 

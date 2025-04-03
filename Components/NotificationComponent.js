@@ -3,7 +3,8 @@ import React, { useContext } from 'react'
 import {MaterialIcons} from '@expo/vector-icons';
 import { Swipeable } from 'react-native-gesture-handler';
 import { useNavigation } from '@react-navigation/native';
-import {BACKEND_URL} from '@expo/vector-icons';
+import { activePerson } from '../firebaseUtils';
+import showToast from '../lib/toastService';
 import ProfileContext from '../lib/profileContext';
 import FastImage from 'react-native-fast-image';
 import NextButton from './NextButton';
@@ -28,7 +29,13 @@ const NotificationComponent = ({clique, item, index, user, filterCompleteNotific
                 })
                 const data = await response.json();
                 if (data.done) {
+                  if (activePerson(item.item.requestUser).active) {
+                    showToast(`${activePerson(item.item.requestUser).userName}`, `accepted your friend request`, `${activePerson(item.item.requestUser).pfp}`)
+                  }
+                  else {
                     schedulePushAcceptNotification(item.item.requestUser, profile.userName, item.info.notificationToken)
+                  }
+                    
                     handleFilter();
                 }
             } catch (error) {

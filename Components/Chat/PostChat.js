@@ -12,7 +12,7 @@ import toggleSave from '../../lib/toggleSave';
 import * as Haptics from 'expo-haptics';
 import handleMessagePress from '../../lib/handleMessagePress';
 import ChatBubble from 'react-native-chat-bubble';
-const PostChat = React.memo(({item, user, person, lastMessageId, postNull,
+const PostChat = React.memo(({item, user, person, lastMessageId, postNull, subscription,
   readBy, newMessages, updateNewMessages, reportedContent, friendId, updateLastMessageId}) => {
     const [animatedValue] = useState(new Animated.Value(0))
     const navigation = useNavigation();
@@ -209,7 +209,7 @@ const PostChat = React.memo(({item, user, person, lastMessageId, postNull,
            : null}
           {(item.saveModal && item.user == user.uid) || (item.saveModal && !reportedContent.includes(item.id)) ?  
           <View style={item.user == user.uid ? styles.copyModal : [styles.copyModal, {alignSelf: 'flex-start', marginLeft: '17%', width: '48%'}] }>
-            {item.user == user.uid ? 
+            {item.user == user.uid && subscription ? 
             <>
                 <TouchableOpacity style={styles.copyTextContainer} onPress={() => deleteMessage(item, newMessages, friendId, updateNewMessages, updateLastMessageId)}>
                   <Text allowFontScaling={false} style={[styles.copyText, {color: "#fafafa"}]}>Delete Message</Text>

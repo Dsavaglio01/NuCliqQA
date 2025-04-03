@@ -11,7 +11,8 @@ import toggleCopy from '../../lib/toggleCopy';
 import toggleSave from '../../lib/toggleSave';
 import handleMessagePress from '../../lib/handleMessagePress';
 import * as Haptics from 'expo-haptics'
-const ThemeChat = React.memo(({item, user, person, lastMessageId, themeNull, readBy, newMessages, updateNewMessages, reportedContent, friendId, updateLastMessageId}) => {
+const ThemeChat = React.memo(({item, user, person, lastMessageId, themeNull, readBy, newMessages, updateNewMessages, reportedContent, 
+  friendId, updateLastMessageId, subscription}) => {
     const [animatedValue] = useState(new Animated.Value(0))
     const navigation = useNavigation();
     const timerRef = useRef(null);
@@ -193,7 +194,7 @@ const ThemeChat = React.memo(({item, user, person, lastMessageId, themeNull, rea
            : null}
             {(item.saveModal && item.user == user.uid) || (item.saveModal && !reportedContent.includes(item.id)) ?  
           <View style={[styles.copyModal, {marginTop: '5%'}]}>
-            {item.user == user.uid ? 
+            {item.user == user.uid && subscription ? 
                 <>
                     <TouchableOpacity style={styles.copyTextContainer} onPress={() => deleteMessage(item, newMessages, friendId, updateNewMessages, updateLastMessageId)}>
                     <Text allowFontScaling={false} style={[styles.copyText, {color: "#fafafa"}]}>Delete Message</Text>

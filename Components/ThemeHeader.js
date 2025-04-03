@@ -8,7 +8,7 @@ import useAuth from '../Hooks/useAuth'
 import themeContext from '../lib/themeContext'
 import FastImage from 'react-native-fast-image'
 import ProfileContext from '../lib/profileContext'
-const ThemeHeader = ({text, cancelButton, style, video, adminCliques, backButton, searching, groupsJoined, following, myCliques, groupPosts, cliqueId, postArray, caption, id, groupposting, 
+const ThemeHeader = ({text, subscription, cancelButton, style, video, adminCliques, backButton, searching, groupsJoined, following, myCliques, groupPosts, cliqueId, postArray, caption, id, groupposting, 
   filteredGroup, explore, timestamp, post, actualPost, groupName, blockedUsers, username, actualGroup, userId, homePost, cliquePost, clique, actuallyExplore, actuallyJoined, name, actuallyFilteredGroup, viewingProfile}) => {
   const navigation = useNavigation();
   const [visible, setVisible] = useState(false);
@@ -136,9 +136,12 @@ const ThemeHeader = ({text, cancelButton, style, video, adminCliques, backButton
                   <Menu.Item onPress={() => {sendMeetDataBack()}} title="For You" titleStyle={actuallyExplore && actuallyFilteredGroup.length == 0 ? {color: theme.theme != 'light' ? "#9EDAFF" : "#005278"} : {color: theme.color}}/>
                   <Divider />
                   <Menu.Item onPress={() => {sendFollowingDataBack()}} title="Joined" titleStyle={actuallyJoined && actuallyFilteredGroup.length == 0 ? {color: theme.theme != 'light' ? "#9EDAFF" : "#005278"} : {color: theme.color}}/>
+                  {subscription ?
+                  <> 
                   <Divider />
                   <Menu.Item onPress={() => navigation.navigate('GroupName')} title="Create Cliq" titleStyle={{color: theme.color}}/>
-                  
+                    </>
+                  : null}
                   {groupsJoined.length > 0 ? groupsJoined.length == 1 ? <>
                   <Divider /> 
                   <Menu.Item onPress={() => navigation.navigate('GroupHome', {name: groupsJoined[0], newPost: false, postId: null})} title="My Cliq" titleStyle={{color: theme.color}} />

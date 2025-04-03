@@ -1,12 +1,11 @@
-import { StyleSheet, Text, View, Image, Modal, TouchableOpacity, ScrollView, Dimensions, Alert, ActivityIndicator, 
-  TextInput,} from 'react-native'
+import { StyleSheet, Text, View, Image, TouchableOpacity, ScrollView, Dimensions, Alert, ActivityIndicator, TextInput,} from 'react-native'
 import React, {useEffect, useState, useRef, useContext} from 'react'
 import { serverTimestamp, getDoc, doc, updateDoc, setDoc} from 'firebase/firestore';
 import { useNavigation } from '@react-navigation/native';
 import {MaterialCommunityIcons} from '@expo/vector-icons';
 import InputBox from '../Components/InputBox';
 import MainButton from '../Components/MainButton';
-import RadioButtonGroup, {RadioButtonItem} from 'expo-radio-button';
+
 import useAuth from '../Hooks/useAuth';
 import NextButton from '../Components/NextButton';
 import axios from 'axios';
@@ -20,6 +19,7 @@ import themeContext from '../lib/themeContext';
 import { db } from '../firebase'
 import ProfileContext from '../lib/profileContext';
 import { useMultiDownloadImage } from '../Hooks/useMultiDownloadImage';
+import MoodModal from '../Components/MoodModal';
 const Caption = ({route}) => {
     const {post, postArray, group, mentions, groupPfp, actualGroup, groupName, groupId, text, value, edit, editCaption, editId, blockedUsers, admin} = route.params;
     const carouselRef = useRef(null);
@@ -28,18 +28,17 @@ const Caption = ({route}) => {
     const [finished, setFinished] = useState(false);
     const [textInputValue, setTextInputValue] = useState('');
     const navigation = useNavigation();
-    const [mood, setMood] = useState('');
     const [uploading, setUploading] = useState(false);
     const [actualPostArray, setActualPostArray] = useState([]);
     const [caption, setCaption] = useState('');
     const theme = useContext(themeContext)
     const {user} = useAuth()
+    const [mood, setMood] = useState('');
     const [activeIndex, setActiveIndex] = useState(0);
     const [newPostArray, setNewPostArray] = useState([]);
     const [finalMentions, setFinalMentions] = useState([]);
     const profile = useContext(ProfileContext);
-    //console.log(`Caption: ${caption}`)
-    const {addImage, addVideo} = useMultiDownloadImage({user: user, caption: caption ?? '', actualPostArray: actualPostArray, setNewPostArray: setNewPostArray});
+    const {addImage, addVideo} = useMultiDownloadImage({user: user, mood: mood, caption: caption ?? '', actualPostArray: actualPostArray, setNewPostArray: setNewPostArray});
     /* useEffect(() => {
       if (route.params?.editCaption) {
         console.log('bruh')
@@ -416,7 +415,7 @@ const Caption = ({route}) => {
       headers: {
         'Content-Type': 'application/json', // Set content type as needed
       },
-      body: JSON.stringify({ data: {caption: caption, blockedUsers: blockedUsers, newPostArray: newPostArray, forSale: profile.forSale, value: value, finalMentions: finalMentions, pfp: profile.pfp, notificationToken: profile.notificationToken,
+      body: JSON.stringify({ data: {caption: caption, mood: mood, blockedUsers: blockedUsers, newPostArray: newPostArray, forSale: profile.forSale, value: value, finalMentions: finalMentions, pfp: profile.pfp, notificationToken: profile.notificationToken,
         background: profile.postBackground, user: user.uid, username: profile.userName, value: profile.private}}), // Send data as needed
     })
     const data = await response.json();
@@ -522,101 +521,16 @@ const Caption = ({route}) => {
     )
     
   }
+  const handleMoodCallback = (dataToSend) => {
+      //console.log(dataToSend)
+      setMood(dataToSend)
+    }
    return (
     <Provider>
     <View style={[styles.container, {backgroundColor: theme.backgroundColor}]}>
       <ThemeHeader text={group ? `${groupName} Post` : 'New Post'} video={false}/>
+      <MoodModal moodModal={moodModal} closeModal={() => setMoodModal(false)} isMood={handleMoodCallback}/>
       <Divider borderBottomWidth={0.85} borderColor={theme.color}/>
-      <Modal transparent animationType='slide' onRequestClose={() => setMoodModal(false)} visible={moodModal}>
-        <View style={styles.modalContainer}>
-          <View style={styles.modalView}>
-            <MaterialCommunityIcons onPress={() => setMoodModal(false)} name='close' size={30} color={"#fff"} style={{textAlign: 'right', marginLeft: 'auto', justifyContent: 'flex-end'}}/>
-            <RadioButtonGroup
-                        containerStyle={{ marginTop: '5%', marginLeft: '2.5%', flexDirection: 'row', flexWrap: 'wrap'}}
-                        selected={mood}
-                        onSelected={(value) => {setMood(value)}}
-                        containerOptionStyle={{margin: 5, marginBottom: '10%'}}
-                        radioBackground={theme.theme != 'light' ? "#9EDAFF" : "#005278"}
-                        size={22.5}
-                        radioStyle={{alignSelf: 'flex-start'}}
-              >
-                <RadioButtonItem value={"Excited"} label={
-                <View style={{marginLeft: '2.5%'}}>
-                    <Text style={{fontSize: 15.36, fontFamily: 'Montserrat_500Medium', color: theme.color}}>Excited</Text>
-                </View>
-            }/>
-            <RadioButtonItem value={"Funny"} label={
-                <View style={{marginLeft: '2.5%'}}>
-                    <Text style={{fontSize: 15.36, fontFamily: 'Montserrat_500Medium', color: theme.color}}>Funny</Text>
-                </View>
-            }/>
-            <RadioButtonItem value={"Grateful"} label={
-                <View style={{marginLeft: '2.5%'}}>
-                    <Text style={{fontSize: 15.36, fontFamily: 'Montserrat_500Medium', color: theme.color}}>Grateful</Text>
-                </View>
-            }/>
-            <RadioButtonItem value={"Happy"} label={
-                <View style={{marginLeft: '2.5%'}}>
-                    <Text style={{fontSize: 15.36, fontFamily: 'Montserrat_500Medium', color: theme.color}}>Happy</Text>
-                </View>
-            }/>
-            <RadioButtonItem value={"Mad"} label={
-                <View style={{marginLeft: '2.5%'}}>
-                    <Text style={{fontSize: 15.36, fontFamily: 'Montserrat_500Medium', color: theme.color}}>Mad</Text>
-                </View>
-            }/>
-            <RadioButtonItem value={"Sad"} label={
-                <View style={{marginLeft: '2.5%'}}>
-                    <Text style={{fontSize: 15.36, fontFamily: 'Montserrat_500Medium', color: theme.color}}>Sad</Text>
-                </View>
-            }/>
-            <RadioButtonItem value={"Scared"} label={
-                <View style={{marginLeft: '2.5%'}}>
-                    <Text style={{fontSize: 15.36, fontFamily: 'Montserrat_500Medium', color: theme.color}}>Scared</Text>
-                </View>
-            }/>
-            <RadioButtonItem value={""} label={
-                <View style={{marginLeft: '2.5%'}}>
-                    <Text style={{fontSize: 15.36, fontFamily: 'Montserrat_500Medium', color: theme.color}}>No Mood</Text>
-                </View>
-            }/>
-            </RadioButtonGroup>
-            
-            {/* <View style={{flexWrap: 'wrap', flexDirection: 'row'}}>
-              <TouchableOpacity activeOpacity={1} onPress={() => setMood('Excited')}  style={{flexDirection: 'row', alignItems: 'center', marginTop: '5%', marginLeft: '5%'}}>
-                <Checkbox value={mood} onValueChange={() => setMood('Excited')} color={theme.theme != 'light' ? "#9EDAFF" : "#005278"} />
-                <Text style={[styles.editText, {color: theme.color}]}>Excited</Text>
-              </TouchableOpacity>
-              <TouchableOpacity activeOpacity={1} onPress={() => setMood('Funny')}  style={{flexDirection: 'row', alignItems: 'center', marginTop: '5%', marginLeft: '5%'}}>
-                <Checkbox value={mood} onValueChange={() => setMood('Funny')} color={theme.theme != 'light' ? "#9EDAFF" : "#005278"} />
-                <Text style={[styles.editText, {color: theme.color}]}>Funny</Text>
-              </TouchableOpacity>
-              <TouchableOpacity activeOpacity={1} onPress={() => setMood('Grateful')}  style={{flexDirection: 'row', alignItems: 'center', marginTop: '5%', marginLeft: '5%'}}>
-                <Checkbox value={mood} onValueChange={() => setMood('Grateful')} color={theme.theme != 'light' ? "#9EDAFF" : "#005278"} />
-                <Text style={[styles.editText, {color: theme.color}]}>Grateful</Text>
-              </TouchableOpacity>
-              <TouchableOpacity activeOpacity={1} onPress={() => setMood('Happy')}  style={{flexDirection: 'row', alignItems: 'center', marginTop: '5%', marginLeft: '5%'}}>
-                <Checkbox value={mood} onValueChange={() => setMood('Happy')} color={theme.theme != 'light' ? "#9EDAFF" : "#005278"} />
-                <Text style={[styles.editText, {color: theme.color}]}>Happy</Text>
-              </TouchableOpacity>
-              <TouchableOpacity activeOpacity={1} onPress={() => setMood('Mad')}  style={{flexDirection: 'row', alignItems: 'center', marginTop: '5%', marginLeft: '5%'}}>
-                <Checkbox value={mood} onValueChange={() => setMood('Mad')} color={theme.theme != 'light' ? "#9EDAFF" : "#005278"} />
-                <Text style={[styles.editText, {color: theme.color}]}>Mad</Text>
-              </TouchableOpacity>
-              <TouchableOpacity activeOpacity={1} onPress={() => setMood('Sad')}  style={{flexDirection: 'row', alignItems: 'center', marginTop: '5%', marginLeft: '5%'}}>
-                <Checkbox value={mood} onValueChange={() => setMood('Sad')} color={theme.theme != 'light' ? "#9EDAFF" : "#005278"} />
-                <Text style={[styles.editText, {color: theme.color}]}>Sad</Text>
-              </TouchableOpacity>
-              <TouchableOpacity activeOpacity={1} onPress={() => setMood('Scared')}  style={{flexDirection: 'row', alignItems: 'center', marginTop: '5%', marginLeft: '5%'}}>
-                <Checkbox value={mood} onValueChange={() => setMood('Scared')} color={theme.theme != 'light' ? "#9EDAFF" : "#005278"} />
-                <Text style={[styles.editText, {color: theme.color}]}>Scared</Text>
-              </TouchableOpacity>
-              
-              
-            </View> */}
-          </View>
-        </View>
-      </Modal>
         <View style={styles.main}>
           {finished ? 
           <View style={{alignItems: 'center'}}>
@@ -739,9 +653,13 @@ const Caption = ({route}) => {
       </View> : null}
       {!edit ? 
       <View style={{flexDirection: 'column'}}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginLeft: 20, width: '90%'}}>
+        <TouchableOpacity style={styles.optionContainer} onPress={() => setMoodModal(true)}>
+          <Text style={styles.options}>{mood.length > 0 ? mood : 'Mood'}</Text>
+        </TouchableOpacity>
+          
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.optionContainer}>
           <TouchableOpacity onPress={!edit && !uploading ? () => navigation.navigate('MentionPreview', {groupName: groupName, userName: profile.userName, actualGroup: actualGroup, groupPfp: groupPfp, blockedUsers: blockedUsers, admin: admin, postArray: actualPostArray, group: group, groupId: groupId, value: value, edit: false, oGmentions: finalMentions}): null}>
-            {!finalMentions && !edit || finalMentions.length == 0 && !edit ? <Text style={{fontFamily: 'Montserrat_500Medium', fontSize: 15.36, color: theme.color}}>T@g</Text> : 
+            {!finalMentions && !edit || finalMentions.length == 0 && !edit ? <Text style={styles.options}>T@g</Text> : 
             <View style={{flexDirection: 'row'}} >
             {finalMentions.map((item, index) => {
               //console.log(item)
@@ -833,27 +751,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    //alignItems: 'center',
-    marginTop: 22,
-  },
-  modalView: {
-    //margin: 20,
-    backgroundColor: '#121212',
-    borderRadius: 20,
-    padding: 35,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-  },
   successText: {
     fontFamily: 'Montserrat_700Bold',
     fontSize: 24,
@@ -866,4 +763,10 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat_500Medium',
     marginLeft: '5%'
   },
+  options: {
+    fontFamily: 'Montserrat_500Medium', 
+    fontSize: 15.36, 
+    color: "#fafafa"
+  },
+  optionContainer: {marginLeft: 20, width: '90%'}
 })

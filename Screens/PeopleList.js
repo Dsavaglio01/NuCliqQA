@@ -252,6 +252,7 @@ const PeopleList = ({route}) => {
     //console.log(data)
       if (data.request) {
         setActualList(actualList.filter((e) => e.id !== item.id))
+        
         schedulePushRequestFriendNotification(item.id, username, item.notificationToken)
       }
       else if (data.friend) {

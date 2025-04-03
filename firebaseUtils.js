@@ -1,8 +1,42 @@
-import { useContext } from 'react';
 import { db } from './firebase';
 import { getDoc, doc, collection, where, onSnapshot, setDoc, getDocs, startAfter, arrayUnion, serverTimestamp, updateDoc, 
 arrayRemove, increment, orderBy, limit, startAt, endAt, query, or, documentId, deleteDoc, addDoc, getCountFromServer,
 writeBatch} from 'firebase/firestore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getChatMessages, getLastPersonalChatDocId, saveChatMessages, getCachedImages, saveCachedImages, getLastDocId, saveLastDocId,
+  getPersonalPostId, savePersonalPostId, savePersonalPosts, getPersonalPosts,
+} from './utils/asyncStorage';
+
+const PERSONAL_POST_KEY = 'personal_posts';
+
+const LAST_NOTI_ID = 'last_noti_id';
+const PERSONAL_POST_ID = 'personal_post_id';
+export const getCachedNotis = async(userId) => {
+  const key = `notifications_${userId}`
+    const data = await AsyncStorage.getItem(key);
+    return data ? JSON.parse(data) : [];
+}
+export const saveNotifications = async (userId, notifications) => {
+  const key = `notifications_${userId}`
+    await AsyncStorage.setItem(key, JSON.stringify(notifications));
+}
+
+
+
+
+export const getLastNotiId = async () => {
+  return await AsyncStorage.getItem(LAST_NOTI_ID);
+}
+
+export const saveLastPersonalChatDocId = async (friendId, docId) => {
+  const key = `lastDocId_${friendId}`;
+  if (docId) await AsyncStorage.setItem(key, docId);
+};
+export const saveLastNotiId = async (notiId) => {
+  if (notiId) await AsyncStorage.setItem(LAST_NOTI_ID, notiId);
+}
+
+
 export const addCommentLike = async(item, user, setComments, comments, username, focusedItem) => {
   const updatedObject = { ...item };
 
@@ -261,6 +295,125 @@ export const fetchStory = async({user}) => {
       })
       return {story}
 }
+export const fetchMorePersonalMessages = async (friendId, messages, setMessages, setLastVisible, lastVisible) => {
+  if (!friendId || !lastVisible) return;
+
+  try {
+    // Query for more messages, starting after the last loaded message
+    const q = query(
+      collection(db, 'friends', friendId, 'chats'),
+      orderBy('timestamp', 'desc'),
+      startAfter(lastVisible),
+      limit(25)
+    );
+
+    const querySnapshot = await getDocs(q);
+    if (querySnapshot.empty) return; // No more messages
+
+    const newMessages = querySnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+      copyModal: false,
+      saveModal: false,
+    }));
+
+    // **Load cached messages**
+    const cachedMessages = await getChatMessages(friendId);
+
+    // **Deduplication**: Use a Map to avoid duplicates
+    const uniqueMessagesMap = new Map();
+    [...messages, ...newMessages, ...cachedMessages].forEach((msg) =>
+      uniqueMessagesMap.set(msg.id, msg)
+    );
+
+    const updatedMessages = Array.from(uniqueMessagesMap.values());
+
+    // **Save to AsyncStorage**
+    await saveChatMessages(friendId, updatedMessages);
+    await saveLastPersonalChatDocId(friendId, querySnapshot.docs[querySnapshot.docs.length - 1]?.id); 
+
+    // **Update UI**
+    setMessages(updatedMessages);
+    setLastVisible(querySnapshot.docs[querySnapshot.docs.length - 1]);
+  } catch (error) {
+    console.error("Error fetching more messages:", error);
+  }
+};
+
+export const fetchPersonalMessages = async (friendId, setMessages, setLastVisible, setUnsubscribe) => {
+  if (!friendId) return;
+  try {
+    // Base query
+    let q = query(
+      collection(db, 'friends', friendId, 'chats'),
+      orderBy('timestamp', 'desc'),
+      limit(25)
+    );
+
+    // Check last document ID for pagination
+    const lastDocId = await getLastPersonalChatDocId(friendId);
+    if (lastDocId) {
+      const lastDocSnap = await getDoc(doc(db, 'friends', friendId, 'chats', lastDocId));
+      if (lastDocSnap.exists()) {
+        q = query(
+          collection(db, 'friends', friendId, 'chats'),
+          orderBy('timestamp', 'desc'),
+          startAfter(lastDocSnap), // Fixed: Pass the document snapshot
+          limit(25)
+        );
+      }
+    }
+
+    // Check if there's a previous listener & unsubscribe it
+    if (setUnsubscribe) {
+      setUnsubscribe((prevUnsub) => {
+        if (prevUnsub) prevUnsub(); // Unsubscribe from previous listener
+        return null; // Reset before setting a new one
+      });
+    }
+
+    // Get messages from Firestore
+    const querySnapshot = await getDocs(q);
+    if (querySnapshot.empty) {
+      console.log('No new messages, using cached messages');
+      return await getChatMessages(friendId);
+    }
+
+    // **Set up real-time updates but ensure only one listener exists**
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
+      const chats = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+        copyModal: false,
+        saveModal: false,
+      }));
+
+      const cachedMessages = await getChatMessages(friendId);
+
+      // **Deduplication** (avoid duplicate messages in cache)
+      const uniqueMessages = new Map();
+      [...chats, ...cachedMessages].forEach((msg) => uniqueMessages.set(msg.id, msg));
+
+      const updatedMessages = Array.from(uniqueMessages.values());
+
+      // Save updated messages to AsyncStorage
+      await saveChatMessages(friendId, updatedMessages);
+      await saveLastPersonalChatDocId(friendId, snapshot.docs[snapshot.docs.length - 1]?.id); // Store last doc ID
+
+      // **Update UI**
+      setMessages(updatedMessages);
+      setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
+    });
+
+    // Store unsubscribe function so we can clean up later
+    setUnsubscribe(() => unsubscribe);
+
+    return unsubscribe;
+  } catch (error) {
+    console.error('Error fetching personal messages:', error);
+  }
+};
+
 export const fetchGroupNotifications = async(groupId, userId, collectionName, setMessageNotifications) => {
   const q = query(collection(db, "groups", groupId, 'notifications', userId, collectionName));
   const unsubscribe = onSnapshot(q, (querySnapshot) => {
@@ -426,6 +579,46 @@ export const fetchPublicPostsExcludingBlockedUsers = async (blockedUsers) => {
 
   return { posts, lastVisible: querySnapshot.docs[querySnapshot.docs.length - 1] };
 };
+export const fetchPublicMoodPostsExcludingBlockedUsers = async (mood, blockedUsers) => {
+  const posts = [];
+  let fetchedCount = 0;
+
+  const q = query(
+    collection(db, 'posts'),
+    where('private', '==', false),
+    where('mood', '==', mood),
+    orderBy('timestamp', 'desc'),
+    limit(7)
+  );
+
+  const querySnapshot = await getDocs(q);
+
+  querySnapshot.forEach((doc) => {
+    if (!blockedUsers.includes(doc.data().userId)) {
+      posts.push({ id: doc.id, loading: false, postIndex: 0, ...doc.data() });
+    } else {
+      fetchedCount++;
+    }
+  });
+
+  // Fetch more posts if all initial ones are blocked
+  if (fetchedCount === 3 && posts.length === 0) {
+    const nextQuery = query(
+      collection(db, 'posts'),
+      where('private', '==', false),
+      where('mood', '==', mood),
+      orderBy('timestamp', 'desc'),
+      startAfter(querySnapshot.docs[querySnapshot.docs.length - 1]),
+      limit(3)
+    );
+    const nextSnapshot = await getDocs(nextQuery);
+    nextSnapshot.forEach((doc) => {
+      posts.push({ id: doc.id, loading: false, postIndex: 0, ...doc.data() });
+    });
+  }
+
+  return { posts, lastVisible: querySnapshot.docs[querySnapshot.docs.length - 1] };
+};
 export const fetchUserFeedPosts = async (userId, followingCount) => {
   const docRef = doc(db, 'userFeeds', userId);
   const docSnap = await getDoc(docRef);
@@ -434,6 +627,41 @@ export const fetchUserFeedPosts = async (userId, followingCount) => {
   }
   return [];
 };
+export const fetchMorePublicMoodPostsExcludingBlockedUsers = async (mood, blockedUsers, lastVisible) => {
+  const posts = [];
+  let fetchedCount = 0;
+  const q = query(
+    collection(db, 'posts'),
+    where('private', '==', false),
+    where('mood', '==', mood),
+    orderBy('timestamp', 'desc'),
+    startAfter(lastVisible),
+    limit(4)
+  );
+  const querySnapshot = await getDocs(q)
+  querySnapshot.forEach((doc) => {
+    if (!blockedUsers.includes(doc.data().userId)) {
+      posts.push({ id: doc.id, loading: false, postIndex: 0, ...doc.data() });
+    } else {
+      fetchedCount++;
+    }
+  });
+  if (fetchedCount === 4 && posts.length === 0) {
+    const nextQuery = query(
+      collection(db, 'posts'),
+      where('private', '==', false),
+      where('mood', '==', mood),
+      orderBy('timestamp', 'desc'),
+      startAfter(querySnapshot.docs[querySnapshot.docs.length - 1]),
+      limit(4)
+    );
+    const nextSnapshot = await getDocs(nextQuery);
+    nextSnapshot.forEach((doc) => {
+      posts.push({ id: doc.id, loading: false, postIndex: 0, ...doc.data() });
+    });
+  }
+  return { posts, lastVisible: querySnapshot.docs[querySnapshot.docs.length - 1] };
+}
 export const fetchMorePublicPostsExcludingBlockedUsers = async (blockedUsers, lastVisible) => {
   const posts = [];
   let fetchedCount = 0;
@@ -592,16 +820,48 @@ export const fetchUserSearchesLarge = async (specificSearch) => {
  * @returns {Function} - An unsubscribe function to stop listening to changes.
  * @throws {Error} - If `userId` is not provided.
 */
-export const fetchPosts = (userId, setPosts, setLastVisible) => {
+export const fetchPosts = async(userId, setPosts, setLastVisible) => {
   if (!userId) {
     throw new Error("userId is undefined");
   }
+  const lastPersonalPostId = await getPersonalPostId(userId, 'posts');
+  if (lastPersonalPostId) {
+      const lastDocSnap = await getDoc(doc(db, 'profiles', userId, 'posts', lastPersonalPostId));
+      if (lastDocSnap.exists()) {
+        q = query(
+          collection(db, 'profiles', userId, 'posts'),
+          where('repost', '==', false),
+          orderBy(timestamp, 'desc'),
+          startAfter(lastDocSnap),
+          limit(9)
+        );
+      }
+    }
   const q = query(collection(db, 'profiles', userId, 'posts'), where('repost', '==', false), orderBy('timestamp', 'desc'), limit(9))
-  const unsubscribe = onSnapshot(q, (snapshot) => {
+  
+  const unsubscribe = onSnapshot(q, async(snapshot) => {
+    if (snapshot.empty) {
+      console.log('No new themes, using cached images');
+      return await getPersonalPosts(userId);
+    }
     const posts = snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data()
     }));
+    const cachedNotis = await getPersonalPosts(userId);
+
+    // **Deduplicate**: Create a map of IDs to remove duplicates
+    const uniqueNotisMap = new Map();
+    [...posts, ...cachedNotis].forEach((noti) => {
+      uniqueNotisMap.set(noti.id, noti); // Latest image data overwrites old one
+    });
+
+    // Convert back to an array
+    const updatedImages = Array.from(uniqueNotisMap.values());
+
+    // Save to AsyncStorage
+    await savePersonalPosts(userId, updatedImages);
+    await savePersonalPostId(userId, posts[0].id); // Store latest image doc ID
     setPosts(posts);
     if (snapshot.docs.length > 0) {
       setLastVisible(snapshot.docs[snapshot.docs.length - 1])
@@ -614,11 +874,26 @@ export const fetchMorePosts = (userId, setPosts, posts, setLastVisible, lastVisi
     throw new Error("userId is undefined");
   }
   const q = query(collection(db, 'profiles', userId, 'posts'), where('repost', '==', false), orderBy('timestamp', 'desc'), startAfter(lastVisible), limit(9))
-  const unsubscribe = onSnapshot(q, (snapshot) => {
+  const unsubscribe = onSnapshot(q, async(snapshot) => {
     const post = snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data()
     }));
+    if (snapshot.empty) return; // No more messages
+    // **Load cached messages**
+    const cachedMessages = await getPersonalPosts(userId)
+
+    // **Deduplication**: Use a Map to avoid duplicates
+    const uniqueMessagesMap = new Map();
+    [...post, ...cachedMessages].forEach((msg) =>
+      uniqueMessagesMap.set(msg.id, msg)
+    );
+
+    const updatedMessages = Array.from(uniqueMessagesMap.values());
+
+    // **Save to AsyncStorage**
+    await savePersonalPosts(userId, updatedMessages);
+    await savePersonalPostId(userId, post[0].id); 
     setPosts([...posts, ...post]);
     if (snapshot.docs.length > 0) {
       setLastVisible(snapshot.docs[snapshot.docs.length - 1])
@@ -794,17 +1069,46 @@ export const fetchCliqueData = async(groupId, setContacts, setRequests, setRepor
  * @returns {Function} - An unsubscribe function to stop listening to changes.
  * @throws {Error} - If `userId` or `subCollection` is not provided.
 */
-export const fetchPurchasedThemes = (userId, subCollection, order, setPurchasedThemes, setPurchasedLastVisible) => {
+export const fetchPurchasedThemes = async(userId, subCollection, order, setPurchasedThemes, setPurchasedLastVisible) => {
   if (!userId || !subCollection) {
     throw new Error("userId is undefined");
   }
   const purchasedQuery = query(collection(db, 'profiles', userId, 'purchased'), orderBy(subCollection, order), limit(10))
-  const unsubscribe = onSnapshot(purchasedQuery, (snapshot) => {
+  const lastDocId = await getLastDocId(userId, 'purchased', subCollection, order);
+    if (lastDocId) {
+      const lastDocSnap = await getDoc(doc(db, 'profiles', userId, 'purchased', lastDocId));
+      if (lastDocSnap.exists()) {
+        q = query(
+          collection(db, 'profiles', userId, 'purchased',),
+          orderBy(subCollection, order),
+          startAfter(lastDocSnap),
+          limit(10)
+        );
+      }
+    }
+  const unsubscribe = onSnapshot(purchasedQuery, async(snapshot) => {
     const purchased = snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
       transparent: false
     }));
+    if (snapshot.empty) {
+      return await getCachedImages(userId, 'purchased', subCollection, order);
+    }
+    const cachedImages = await getCachedImages(userId, 'purchased', subCollection, order);
+
+    // **Deduplicate**: Create a map of IDs to remove duplicates
+    const uniqueImagesMap = new Map();
+    [...purchased, ...cachedImages].forEach((img) => {
+      uniqueImagesMap.set(img.id, img); // Latest image data overwrites old one
+    });
+
+    // Convert back to an array
+    const updatedImages = Array.from(uniqueImagesMap.values());
+
+    // Save to AsyncStorage
+    await saveCachedImages(userId, 'purchased', subCollection, order, updatedImages);
+    await saveLastDocId(userId, 'purchased', subCollection, order, purchased[0].id); // Store latest image doc ID
     if (purchased) {
       setPurchasedThemes(purchased);
     }
@@ -836,31 +1140,61 @@ export const fetchMorePurchasedThemes = async(userId, subCollection, order, last
   try {
     const purchasedQuery = query(collection(db, 'profiles', userId, 'purchased'), orderBy(subCollection, order), startAfter(lastVisible), limit(10))
     const querySnapshot = await getDocs(purchasedQuery)
+    if (querySnapshot.empty) return; // No more messages
     querySnapshot.forEach((doc) => {
       tempPosts.push({id: doc.id, ...doc.data(), transparent: false})
     });
+    // **Load cached messages**
+    const cachedMessages = await getCachedImages(userId, 'purchased', subCollection, order);
+
+    // **Deduplication**: Use a Map to avoid duplicates
+    const uniqueMessagesMap = new Map();
+    [...tempPosts, ...cachedMessages].forEach((msg) =>
+      uniqueMessagesMap.set(msg.id, msg)
+    );
+
+    const updatedMessages = Array.from(uniqueMessagesMap.values());
+
+    // **Save to AsyncStorage**
+    await saveCachedImages(userId, 'purchased', subCollection, order, updatedMessages);
+    await saveLastDocId(userId, 'purchased', subCollection, order, querySnapshot.docs[querySnapshot.docs.length - 1]?.id); 
     return {tempPosts, lastPurchasedVisible: querySnapshot.docs[querySnapshot.docs.length - 1]}
   } 
   catch (e) {
     console.error(e)
   }
 }
-export const fetchMoreFreeThemes = async(subCollection, order, freeLastVisible) => {
+export const fetchMoreFreeThemes = async(subCollection, order, freeLastVisible, userId) => {
   if (!subCollection) {
     throw new Error("subcollection is undefined");
   }
   const tempPosts = []
   try {
     const q = query(collection(db, 'freeThemes'), orderBy(subCollection, order), startAfter(freeLastVisible), limit(10))
-    const querySnapshot = await getDocs(q)
+    const querySnapshot = await getDocs(q);
+    if (querySnapshot.empty) return; // No more messages
     querySnapshot.forEach((doc) => {
       tempPosts.push({id: doc.id, ...doc.data(), transparent: false})
     });
+    // **Load cached messages**
+    const cachedMessages = await getCachedImages(userId, 'free', subCollection, order);
+
+    // **Deduplication**: Use a Map to avoid duplicates
+    const uniqueMessagesMap = new Map();
+    [...tempPosts, ...cachedMessages].forEach((msg) =>
+      uniqueMessagesMap.set(msg.id, msg)
+    );
+
+    const updatedMessages = Array.from(uniqueMessagesMap.values());
+
+    // **Save to AsyncStorage**
+    await saveCachedImages(userId, 'free', subCollection, order, updatedMessages);
+    await saveLastDocId(userId, 'free', subCollection, order, querySnapshot.docs[querySnapshot.docs.length - 1]?.id); 
     return {tempPosts, lastFreeVisible: querySnapshot.docs[querySnapshot.docs.length - 1]}
+  } catch (error) {
+    console.error(error)
   } 
-  catch (e) {
-    console.error(e)
-  }
+
 }
 /**
  * Gets first 10 themes based on subCollection (price, date, etc.) and order (ascending, descending) that are 'free'.
@@ -869,25 +1203,67 @@ export const fetchMoreFreeThemes = async(subCollection, order, freeLastVisible) 
  * @returns {Function} - An unsubscribe function to stop listening to changes.
  * @throws {Error} - If `subCollection` is not provided.
 */
-export const fetchFreeThemes = async(subCollection, order) => {
+export const fetchFreeThemes = async (subCollection, order, userId) => {
   if (!subCollection) {
     throw new Error("subcollection is undefined");
   }
-  const tempPosts = []
-  try {
-    const q = query(collection(db, 'freeThemes'), orderBy(subCollection, order), limit(10))
-    const querySnapshot = await getDocs(q)
-    querySnapshot.forEach((doc) => {
-      tempPosts.push({id: doc.id, ...doc.data(), transparent: false})
-    });
-    //console.log(tempPosts)
-    return {tempPosts, lastFreeVisible: querySnapshot.docs[querySnapshot.docs.length - 1]}
-  } 
-  catch (e) {
-    console.error(e)
-  }
 
-}
+  const tempPosts = [];
+  try {
+    let q = query(
+      collection(db, 'freeThemes'),
+      orderBy(subCollection, order),
+      limit(10)
+    );
+
+    const lastDocId = await getLastDocId(userId, 'free', subCollection, order);
+    if (lastDocId) {
+      const lastDocSnap = await getDoc(doc(db, 'freeThemes', lastDocId));
+      if (lastDocSnap.exists()) {
+        q = query(
+          collection(db, 'freeThemes'),
+          orderBy(subCollection, order),
+          startAfter(lastDocSnap),
+          limit(10)
+        );
+      }
+    }
+
+    const querySnapshot = await getDocs(q);
+    if (querySnapshot.empty) {
+      console.log('No new themes, using cached images');
+      return await getCachedImages(userId, 'free', subCollection, order);
+    }
+
+    querySnapshot.forEach((doc) => {
+      tempPosts.push({ id: doc.id, ...doc.data(), transparent: false });
+    });
+
+    // Fetch cached images
+    const cachedImages = await getCachedImages(userId, 'free', subCollection, order);
+
+    // **Deduplicate**: Create a map of IDs to remove duplicates
+    const uniqueImagesMap = new Map();
+    [...tempPosts, ...cachedImages].forEach((img) => {
+      uniqueImagesMap.set(img.id, img); // Latest image data overwrites old one
+    });
+
+    // Convert back to an array
+    const updatedImages = Array.from(uniqueImagesMap.values());
+
+    // Save to AsyncStorage
+    await saveCachedImages(userId, 'free', subCollection, order, updatedImages);
+    await saveLastDocId(userId, 'free', subCollection, order, tempPosts[0].id); // Store latest image doc ID
+
+    return {
+      tempPosts: updatedImages,
+      lastFreeVisible: querySnapshot.docs[querySnapshot.docs.length - 1],
+    };
+  } catch (e) {
+    console.error(e);
+  }
+};
+
 /**
  * Gets first 10 themes based on subCollection (price, date, etc.) and order (ascending, descending) that were created by the user.
  * @param {String} userId - The id of the user perfoming this action.
@@ -896,14 +1272,14 @@ export const fetchFreeThemes = async(subCollection, order) => {
  * @returns {Function} - An unsubscribe function to stop listening to changes.
  * @throws {Error} - If `myId` or `subCollection` is not provided.
 */
-export const fetchMyThemes = async(userId, subCollection, order) => {
+export const fetchMyThemes = async(userId, subCollection, order, userId) => {
   if (!userId) {
     throw new Error("userId is undefined");
   }
   else if (subCollection == 'bought_count') {
     const tempPosts = []
     try { 
-      const myQuery = query(collection(db, 'profiles', userId, 'myThemes'), limit(10))
+      const myQuery = query(collection(db, 'profiles', userId, 'myThemes'), orderBy('timestamp', 'desc'), limit(10))
       const querySnapshot = await getDocs(myQuery)
       querySnapshot.forEach((doc) => {
         tempPosts.push({id: doc.id, ...doc.data(), transparent: false})
@@ -1176,6 +1552,7 @@ export const fetchActualNotifications = async (group, id, notifications) => {
     if (item.remove || item.ban) groupIds.add(item.postId);
   });
   // Batch fetch all required documents
+  
   const fetchBatchDocs = async (collectionName, ids) => {
     if (ids.size === 0) return {};
     const ref = collection(db, collectionName);
@@ -1250,7 +1627,18 @@ export const deleteCheckedNotifications = async(userId, group, id) => {
 }
 export const fetchFirstNotifications = async(userId, group, id) => {
   try {
-    console.log(userId)
+    const lastDocId = await getLastNotiId();
+    if (lastDocId) {
+      const lastDocSnap = await getDoc(doc(db, 'profiles', userId, 'notifications', lastDocId));
+      if (lastDocSnap.exists()) {
+        q = query(
+          collection(db, 'profiles', userId, 'notifications', lastDocId),
+          orderBy('timestamp', 'desc'),
+          startAfter(lastDocSnap),
+          limit(10)
+        );
+      }
+    }
     let templist = []
     if (group) {
       const q = query(collection(db, 'groups', id, "profiles", userId, 'notifications'), orderBy('timestamp', 'desc'), limit(10));
@@ -1262,9 +1650,26 @@ export const fetchFirstNotifications = async(userId, group, id) => {
     else {
       const q = query(collection(db, "profiles", userId, 'notifications'), orderBy('timestamp', 'desc'), limit(10));
       const querySnapshot = await getDocs(q);
+      if (querySnapshot.empty) {
+        return await getCachedNotis();
+      }
       querySnapshot.forEach((doc) => {
-          templist.push({id: doc.id, loading: false, ...doc.data()})
+        templist.push({id: doc.id, loading: false, ...doc.data()})
       });
+      const cachedImages = await getCachedNotis();
+
+    // **Deduplicate**: Create a map of IDs to remove duplicates
+    const uniqueImagesMap = new Map();
+    [...templist, ...cachedImages].forEach((img) => {
+      uniqueImagesMap.set(img.id, img); // Latest image data overwrites old one
+    });
+
+    // Convert back to an array
+    const updatedImages = Array.from(uniqueImagesMap.values());
+
+    // Save to AsyncStorage
+    await saveCachedImages(updatedImages);
+    await saveLastDocId(templist[0].id);
     }
     return templist;
   }
@@ -1484,7 +1889,13 @@ export const repostFunction = async(user, blockedUsers, repostComment, forSale, 
               })
         setRepostLoading(false)
         handleClose()
-        schedulePushRepostNotification(repostItem.userId, username, repostItem.notificationToken)
+        if (activePerson(repostItem.userId).active) {
+          showToast(`${activePerson(repostItem.userId).userName}`, `re-vibed your vibe`, `${activePerson(repostItem.userId).pfp}`)
+        }
+        else {
+          schedulePushRepostNotification(repostItem.userId, username, repostItem.notificationToken)
+        }
+        
             } catch (error) {
               console.error(error)
             }

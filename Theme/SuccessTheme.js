@@ -19,6 +19,7 @@ import themeContext from '../lib/themeContext';
 import ProfileContext from '../lib/profileContext';
 import InfoModal from '../Components/Themes/InfoModal';
 import { fetchThemeNames } from '../firebaseUtils';
+import FastImage from 'react-native-fast-image';
 const SuccessTheme = ({route}) => {
     const {post, name, edit, themeId, actualThemeName, actualKeywords, searchKeywords} = route.params; 
     const navigation = useNavigation();
@@ -46,23 +47,23 @@ const SuccessTheme = ({route}) => {
     const [uploading, setUploading] = useState(false);
     const profile = useContext(ProfileContext);
     useEffect(() => {
-        if (route.params?.edit == true && route.params?.post) {
-            const getData = async() => {
-                    const freeDocSnap = await getDocs(collection(db, 'freeThemes'), where('images', 'array-contains', post))
-                    if (freeDocSnap.docs.length > 0) {
-                        setActualThemeId(freeDocSnap.docs[0].id)
-                    }
+      if (route.params?.edit == true && route.params?.post) {
+        const getData = async() => {
+                const freeDocSnap = await getDocs(collection(db, 'freeThemes'), where('images', 'array-contains', post))
+                if (freeDocSnap.docs.length > 0) {
+                    setActualThemeId(freeDocSnap.docs[0].id)
+                }
 
-                if (profile.postBackground == post) {
-                    setPostChecked(true)
-                }
-                if (profile.background == post) {
-                    //
-                    setProfileChecked(true)
-                }
+            if (profile.postBackground == post) {
+                setPostChecked(true)
             }
-            getData()
+            if (profile.background == post) {
+                //
+                setProfileChecked(true)
+            }
         }
+        getData()
+      }
     }, [route.params?.edit, route.params?.post])
     useEffect(() => {
       const getNames = async() => {
@@ -640,7 +641,7 @@ function checkKeywords() {
                 </View>
               </View>
               <View style={{borderWidth: 1, padding: 2.5}}>
-                  <Image source={{uri: post}} style={{height: 175, width: 85}}/>
+                  <FastImage source={{uri: post}} style={{height: 175, width: 85}}/>
               </View>
           </View>
           <View behavior={Platform.OS === 'ios' ? 'padding' : null} style={{marginTop: '2.5%'}}>

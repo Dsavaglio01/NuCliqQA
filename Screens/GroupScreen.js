@@ -15,6 +15,7 @@ import RecentSearches from '../Components/RecentSearches';
 import _ from 'lodash'
 import themeContext from '../lib/themeContext';
 import { db } from '../firebase'
+import ProfileContext from '../lib/profileContext';
 const GroupScreen = ({route}) => {
   const [groups, setGroups] = useState([]);
   const theme = useContext(themeContext)
@@ -23,6 +24,7 @@ const GroupScreen = ({route}) => {
   const [completeFilteredGroup, setCompleteFilteredGroup] = useState([]);
   const [shouldgetdata, setShouldgetData] = useState(true);
   const [groupSearches, setGroupSearches] = useState([]);
+  const profile = useContext(ProfileContext);
   const [recentSearches, setRecentSearches] = useState(false);
   const [moreResults, setMoreResults] = useState(false);
   const [moreResultButton, setMoreResultButton] = useState(false);
@@ -684,7 +686,7 @@ const GroupScreen = ({route}) => {
     <Provider>
     <View style={styles.container}>
           <View style={{backgroundColor: theme.backgroundColor}}>
-                  <ThemeHeader adminCliques={() => navigation.navigate('MyGroups')} text={"Cliqs For You"} actuallyExplore={explore ? true: false} actuallyJoined={following ? true: false} groupsJoined={groupsJoined} filteredGroup={handleFilteredGroupCallback}
+                  <ThemeHeader subscription={profile.subscription || profile.subscription2} adminCliques={() => navigation.navigate('MyGroups')} text={"Cliqs For You"} actuallyExplore={explore ? true: false} actuallyJoined={following ? true: false} groupsJoined={groupsJoined} filteredGroup={handleFilteredGroupCallback}
                   clique={true} searching={handleSearchCallback} actuallyFilteredGroup={filteredGroup} following={handleFollowingCallback} explore={handleMeetCallback}/>
           </View>
           {searching ? 

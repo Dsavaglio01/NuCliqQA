@@ -134,7 +134,7 @@ const Post = ({route}) => {
   return (
     <Provider>
         <View style={[styles.container, {backgroundColor: theme.backgroundColor}]}>
-          {completePosts.length > 0 || doesNotExist ? 
+          {completePosts.length > 0 && !video || doesNotExist || !video ? 
             <ThemeHeader name={name} video={video} text={"Viewing Post"} actualGroup={actualGroup} groupName={groupName} cliqueId={groupId} postArray={completePosts[0] != undefined ? completePosts[0].post : null} repost={completePosts.repost ? true : false} caption={completePosts[0] != undefined ? completePosts[0].caption : null} id={completePosts[0] != undefined ? completePosts[0].id : null}
              backButton={true} post={true} timestamp={completePosts[0] != undefined ? completePosts[0].timestamp : null} actualPost={completePosts != undefined ? completePosts[0] : null} userId={completePosts[0] != undefined ? completePosts[0].userId : null} homePost={groupId ? false: true} cliquePost={groupId? true: false} style={{marginLeft: '2.5%'}}/> : null}
             {loading ? 
@@ -145,7 +145,7 @@ const Post = ({route}) => {
             <PostComponent forSale={profile.forSale} background={profile.background} notificationToken={profile.notificationToken} edit={edit} caption={caption} individualPost={true} blockedUsers={profile.blockedUsers} data={[completePosts[0]]} fetchMoreData={null} home={groupId ? false : true}
             clique={groupId ? true : false} cliqueId={groupId} username={profile.userName} cliqueIdName={groupName} cliqueIdPfp={actualPfp} actualClique={actualGroup} openPostMenuFunction={openMenuFunctionCallback}
         closePostMenu={closeMenuCallback} openPostMenu={openMenuCallback}/> : 
-        completePosts.length && video ? <VideoPostComponent reportedPosts={profile.reportedPosts} forSale={profile.forSale} background={profile.background} notificationToken={profile.notificationToken} edit={edit} caption={caption} individualPost={true} blockedUsers={profile.blockedUsers} data={[completePosts[0]]} fetchMoreData={null} home={groupId ? false : true}
+        completePosts.length && video ? <VideoPostComponent viewing={true} reportedPosts={profile.reportedPosts} forSale={profile.forSale} background={profile.background} notificationToken={profile.notificationToken} edit={edit} caption={caption} individualPost={true} blockedUsers={profile.blockedUsers} data={[completePosts[0]]} fetchMoreData={null} home={groupId ? false : true}
             clique={groupId ? true : false} cliqueId={groupId} username={profile.userName} cliqueIdName={groupName} cliqueIdPfp={actualPfp} actualClique={actualGroup} openPostMenuFunction={openMenuFunctionCallback}
         closePostMenu={closeMenuCallback} openPostMenu={openMenuCallback}/> :
         <View style={{alignItems: 'center', flex: 1, justifyContent: 'center', marginBottom: '10%'}}> 
