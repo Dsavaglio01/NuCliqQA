@@ -1,15 +1,15 @@
 # NuCliq
-Social media app with 500+ beta downloads, built with React Native, Node.js, and GCP.
+Social media app with 100+ beta downloads, built with React Native, Expo, Node.js, Firebase, and GCP.
 
 ## Tech Stack
-- Frontend: React Native
+- Frontend: React Native, Expo
 - Backend: Node.js, Express
-- Integrations: Stripe, Firebase, Docker, GCP
+- Integrations: Firebase, GCP, Google Cloud Functions, RevenueCat
 
 ## Metrics
 - 30% faster APIs via GCP serverless
-- $5K+ Stripe transactions
-- 1,000+ daily requests
+- 40% faster with resuable components/caching with AsyncStorage
+- 100+ daily requests
 
 ## Setup
 1. Clone: `git clone https://github.com/Dsavaglio01/NuCliqQA`
