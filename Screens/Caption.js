@@ -252,7 +252,6 @@ const Caption = ({route}) => {
     let notis = (await getDoc(doc(db, 'profiles', id))).data().allowNotifications
     let banned = (await getDoc(doc(db, 'profiles', id))).data().banned
     const deepLink = `nucliqv1://GroupChannels?id=${groupId}&group=${actualGroup}&person=${id}&pfp=${groupPfp}&name=${groupName}`;
-     //let cliqNotis = (await getDoc(doc(db, 'groups', groupId))).data().allowPostNotifications
      if (groupId) {
       console.log('third')
       if (notis && cliqNotis.includes(user.uid)) {
@@ -404,98 +403,111 @@ const Caption = ({route}) => {
     }
    
 
-    useEffect(() => {
-      if (newPostArray.length > 0) {
+useEffect(() => {
+  if (newPostArray.length > 0) {
+    if ((newPostArray.filter((item) => item.image == true).every(obj => obj['post'].includes('https://firebasestorage.googleapis.com')) && newPostArray.length == actualPostArray.length) || (newPostArray.filter((item) => item.text).every(obj => obj['visible'] == true) && newPostArray.length == actualPostArray.length)) {
+      const doFunction = async() => {
+        if (!group) {
+          try {
+          const response = await fetch(`http://10.0.0.225:4000/api/uploadPost`, {
+            method: 'POST', // Use appropriate HTTP method (GET, POST, etc.)
+            headers: {
+              'Content-Type': 'application/json', // Set content type as needed
+            },
+            body: JSON.stringify({ data: {caption: caption, mood: mood, blockedUsers: blockedUsers, newPostArray: newPostArray, forSale: profile.forSale, value: value, finalMentions: finalMentions, pfp: profile.pfp, notificationToken: profile.notificationToken,
+              background: profile.postBackground, user: user.uid, username: profile.userName, value: profile.private}}), // Send data as needed
+          })
+          const data = await response.json();
+          if (data.done) {
+            if (finalMentions.length > 0 && newPostArray.length == 1 && newPostArray[0].video) {
+              setFinished(true)
+              setUploading(false)
+              finalMentions.map(async(item) => {
+                await setDoc(doc(db, 'profiles', item.id, 'notifications', data.docRefId), {
+                  like: false,
+                  comment: false,
+                  friend: false,
+                  item: data.docRefId,
+                  request: false,
+                  postMention: true,
+                  video: true,
+                  acceptRequest: false,
+                  theme: false,
+                  postId: data.docRefId,
+                  report: false,
+                  requestUser: user.uid,
+                  requestNotificationToken: item.notificationToken,
+                  likedBy: profile.userName,
+                  timestamp: serverTimestamp()
+                }).then(async() => 
+                    await setDoc(doc(db, 'profiles', item.id, 'mentions', data.docRefId), {
+                    id: data.docRefId,
+                    video: true,
+                    timestamp: serverTimestamp()
+                  })).then(() => scheduleMentionNotification(item.id, profile.userName, item.notificationToken))})
+            }
+            else if (finalMentions.length > 0) {
+              setFinished(true)
+              setUploading(false)
+              finalMentions.map(async(item) => {
+                await setDoc(doc(db, 'profiles', item.id, 'notifications', data.docRefId), {
+                  like: false,
+                  comment: false,
+                  friend: false,
+                  item: data.docRefId,
+                  request: false,
+                  postMention: true,
+                  video: false,
+                  acceptRequest: false,
+                  theme: false,
+                  postId: data.docRefId,
+                  report: false,
+                  requestUser: user.uid,
+                  requestNotificationToken: item.notificationToken,
+                  likedBy: profile.userName,
+                  timestamp: serverTimestamp()
+                }).then(async() => 
+                await setDoc(doc(db, 'profiles', item.id, 'mentions', data.docRefId), {
+                  id: data.docRefId,
+                  timestamp: serverTimestamp()
+                })).then(() => scheduleMentionNotification(item.id, profile.userName, item.notificationToken))})
+            } 
+            else {
+              setFinished(true)
+              setUploading(false)
+            }
+          }
+        } 
+        catch (error) {
+          console.error('Error:', error);
+        }
+        }
+        else {
+          try {
+          const response = await fetch(`http://10.0.0.225:4000/api/uploadCliqPost`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ data: {caption: caption, groupId: groupId, mood: mood, blockedUsers: blockedUsers, newPostArray: newPostArray, forSale: profile.forSale, value: value, finalMentions: finalMentions, pfp: profile.pfp, notificationToken: profile.notificationToken,
+              background: profile.postBackground, user: user.uid, username: profile.userName, value: profile.private}}), // Send data as needed
+          })
+          const data = await response.json();
+          if (data.done) {
+            setFinished(true)
+            setUploading(false)
+          }
+        } 
+        catch (error) {
+          console.error('Error:', error);
+        }
+        }
         
-        if ((newPostArray.filter((item) => item.image == true).every(obj => obj['post'].includes('https://firebasestorage.googleapis.com')) && newPostArray.length == actualPostArray.length) || (newPostArray.filter((item) => item.text).every(obj => obj['visible'] == true) && newPostArray.length == actualPostArray.length)) {
-            const doFunction = async() => {
-    try {
-    const response = await fetch(`http://10.0.0.225:4000/api/uploadPost`, {
-      method: 'POST', // Use appropriate HTTP method (GET, POST, etc.)
-      headers: {
-        'Content-Type': 'application/json', // Set content type as needed
-      },
-      body: JSON.stringify({ data: {caption: caption, mood: mood, blockedUsers: blockedUsers, newPostArray: newPostArray, forSale: profile.forSale, value: value, finalMentions: finalMentions, pfp: profile.pfp, notificationToken: profile.notificationToken,
-        background: profile.postBackground, user: user.uid, username: profile.userName, value: profile.private}}), // Send data as needed
-    })
-    const data = await response.json();
-    //console.log(data)
-      if (data.done) {
-        if (finalMentions.length > 0 && newPostArray.length == 1 && newPostArray[0].video) {
-         setFinished(true)
-         setUploading(false)
-         finalMentions.map(async(item) => {
-          //Alert.alert('test', data)
-      await setDoc(doc(db, 'profiles', item.id, 'notifications', data.docRefId), {
-                                      like: false,
-                                  comment: false,
-                                  friend: false,
-                                  item: data.docRefId,
-                                  request: false,
-                                  postMention: true,
-                                  video: true,
-                                  acceptRequest: false,
-                                  theme: false,
-                                  postId: data.docRefId,
-                                  report: false,
-                                  requestUser: user.uid,
-                                  requestNotificationToken: item.notificationToken,
-                                  likedBy: profile.userName,
-                                  timestamp: serverTimestamp()
-                                    }).then(async() => 
-      await setDoc(doc(db, 'profiles', item.id, 'mentions', data.docRefId), {
-      id: data.docRefId,
-      video: true,
-      timestamp: serverTimestamp()
-    })).then(() => scheduleMentionNotification(item.id, profile.userName, item.notificationToken))})
-  }
-  else if (finalMentions.length > 0) {
-    setFinished(true)
-         setUploading(false)
-         finalMentions.map(async(item) => {
-          //Alert.alert('test', data)
-      await setDoc(doc(db, 'profiles', item.id, 'notifications', data.docRefId), {
-                                      like: false,
-                                  comment: false,
-                                  friend: false,
-                                  item: data.docRefId,
-                                  request: false,
-                                  postMention: true,
-                                  video: false,
-                                  acceptRequest: false,
-                                  theme: false,
-                                  postId: data.docRefId,
-                                  report: false,
-                                  requestUser: user.uid,
-                                  requestNotificationToken: item.notificationToken,
-                                  likedBy: profile.userName,
-                                  timestamp: serverTimestamp()
-                                    }).then(async() => 
-      await setDoc(doc(db, 'profiles', item.id, 'mentions', data.docRefId), {
-      id: data.docRefId,
-      timestamp: serverTimestamp()
-    })).then(() => scheduleMentionNotification(item.id, profile.userName, item.notificationToken))})
-  }
-  else {
-    setFinished(true)
-    setUploading(false)
-  }
-
-   //then(() => 
       }
-    
-  } 
-  catch (error) {
-    console.error('Error:', error);
+      doFunction()
+    } 
   }
-   
-       }
-      
-        doFunction()
-          } 
-
-      }
-    }, [newPostArray])
+}, [newPostArray])
     
   const renderItems = ({item, index}) => {
     //console.log(item)

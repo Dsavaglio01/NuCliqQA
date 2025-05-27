@@ -110,6 +110,7 @@ export const removeCommentLike = async(item, user, setComments, comments, focuse
     console.error(error)
   }
 }
+
 export const deleteReplyFunction = async (item, reply, focusedItem, comments, setComments, tempPosts, setTempPosts) => {
   if (!item || !reply || !focusedItem) {
     throw new Error("Error: Missing required parameters.");
@@ -461,6 +462,7 @@ export const fetchUsernames = async () => {
   }
 }
 export const fetchCliquePostsExcludingBlockedUsers = async (groupId, blockedUsers) => {
+  console.log(groupId, blockedUsers)
   const posts = [];
   let fetchedCount = 0;
   const q = query(collection(db, 'groups', groupId, 'posts'), orderBy('timestamp', 'desc'), limit(3))
@@ -723,6 +725,61 @@ export const fetchFriends = async (userId, setFriends) => {
   });
   return unsubscribe;
 }
+export const fetchFriendsForMessages = async (userId, setFriends, profile, setLastVisible) => {
+  if (!userId || !profile) {
+    throw new Error("Error: 'userId or profile' is not defined.");
+  }
+  const q = query(collection(db, 'profiles', userId, 'friends'), where('actualFriend', '==', true), orderBy('lastMessageTimestamp', 'desc'), limit(20));
+  const unsubscribe = onSnapshot(q, (querySnapshot) => {
+    const friends = [];
+    querySnapshot.forEach((doc) => {
+      if (!profile.blockedUsers.includes(doc.id) && !profile.usersThatBlocked.includes(doc.id)) {
+        friends.push({id: doc.id});
+      }
+    });
+    setFriends(friends)
+    setLastVisible(querySnapshot.docs[querySnapshot.docs.length-1])
+  });
+  return unsubscribe;
+}
+export const fetchMoreFriendsForMessages = async (userId, friends, lastVisible, setFriends, profile, setLastVisible) => {
+  if (!userId || !profile || !lastVisible) {
+    throw new Error("Error: 'userId or profile or lastVisible' is not defined.");
+  }
+  const q = query(collection(db, 'profiles', userId, 'friends'), where('actualFriend', '==', true), orderBy('lastMessageTimestamp', 'desc'), limit(20));
+  const unsubscribe = onSnapshot(q, (querySnapshot) => {
+    const newData = [];
+    querySnapshot.forEach((doc) => {
+      if (!profile.blockedUsers.includes(doc.id) && !profile.usersThatBlocked.includes(doc.id)) {
+        newData.push({id: doc.id});
+      }
+    });
+    setFriends([...friends, ...newData]);
+    if (querySnapshot.docs.length > 0) {
+      setLastVisible(querySnapshot.docs[querySnapshot.docs.length-1])
+    }
+  });
+  return unsubscribe;
+}
+export const fetchFriendsForActiveUsers = async (userId, setFriends, profile, setLastVisible) => {
+  if (!userId || !profile) {
+    throw new Error("Error: 'userId or profile' is not defined.");
+  }
+  const q = query(collection(db, 'profiles', userId, 'friends'), where('actualFriend', '==', true));
+  const unsubscribe = onSnapshot(q, (querySnapshot) => {
+    const friends = [];
+    querySnapshot.forEach((doc) => {
+      if (!profile.blockedUsers.includes(doc.id) && !profile.usersThatBlocked.includes(doc.id)) {
+        friends.push({id: doc.id});
+      }
+
+      
+    });
+    setFriends(friends)
+    setLastVisible(querySnapshot.docs[querySnapshot.docs.length-1])
+  });
+  return unsubscribe;
+}
 export const fetchNewPost = async (groupId, postId) => {
   if (!groupId || !postId) {
     throw new Error("Error: 'group and/or post' is undefined.");
@@ -793,6 +850,15 @@ export const ableToShareVideoFunction = async (itemId) => {
     
     return docSnap.exists();
 }
+export const fetchFriendSearches = async(collection, specificSearch) => {
+  const userSearches = [];
+  const q = query(collection(db, "profiles"), where(collection, 'array-contains', specificSearch.toLowerCase()), limit(10))
+  const firstQuerySnapshot = await getDocs(q)
+  firstQuerySnapshot.forEach((doc) => {
+    userSearches.push({id: doc.id, ...doc.data()})
+  })
+  return {userSearches}
+} 
 export const fetchUserSearchesSmall = async (specificSearch) => {
   const userSearches = [];
   const q = query(collection(db, "profiles"), where('smallKeywords', 'array-contains', specificSearch.toLowerCase()), limit(10))
@@ -1272,7 +1338,7 @@ export const fetchFreeThemes = async (subCollection, order, userId) => {
  * @returns {Function} - An unsubscribe function to stop listening to changes.
  * @throws {Error} - If `myId` or `subCollection` is not provided.
 */
-export const fetchMyThemes = async(userId, subCollection, order, userId) => {
+export const fetchMyThemes = async(userId, subCollection, order) => {
   if (!userId) {
     throw new Error("userId is undefined");
   }
@@ -1520,6 +1586,20 @@ export const fetchGroup = (groupId, setGroup) => {
   const unsubscribe = onSnapshot(q, (doc) => {
     setGroup({id: doc.id, ...doc.data()})
   });
+  return unsubscribe;
+}
+export const fetchMessageNotifications = async(userId, setMessageNotifications) => {
+  if (!userId) {
+    throw new Error("Error: 'userId' is undefined.");
+  }
+  const q = query(collection(db, 'friends'), where('toUser', '==', userId))
+  const unsubscribe = onSnapshot(q, (querySnapshot) => {
+    const messageNotifications = [];
+    querySnapshot.forEach((doc) => {
+      messageNotifications.push({id: doc.data().messageId})
+    })
+    setMessageNotifications(messageNotifications)
+  })
   return unsubscribe;
 }
 export const fetchActualNotifications = async (group, id, notifications) => {

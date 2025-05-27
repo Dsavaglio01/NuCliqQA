@@ -34,6 +34,7 @@ const GroupHome = ({route}) => {
     const {imageLoading, imageBackground, pickImage} = useSinglePickImage({cliquePfp: true, name: `${user.uid}cliquePfp.jpg`, group: group});
     useEffect(() => {
       if (profile) {
+        console.log(profile.groupsJoined)
         setGroupsJoined(profile.groupsJoined)
       }
     }, [profile])
@@ -345,6 +346,7 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row', 
+    marginTop: '1%',
     alignItems: 'center', 
     justifyContent: 'center'
   },

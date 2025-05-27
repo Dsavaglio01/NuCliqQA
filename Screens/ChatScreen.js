@@ -3,7 +3,7 @@ import React, {useState, useEffect, useMemo, useContext} from 'react'
 import {MaterialCommunityIcons} from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import useAuth from '../Hooks/useAuth';
-import { onSnapshot, query, collection, orderBy, doc, getDocs, limit, getDoc, where, deleteDoc, startAfter } from 'firebase/firestore';
+import { onSnapshot, doc, getDoc} from 'firebase/firestore';
 import SearchInput from '../Components/SearchInput';
 import { Provider } from 'react-native-paper';
 import {Divider} from 'react-native-paper'
@@ -13,6 +13,9 @@ import _ from 'lodash';
 import { db } from '../firebase'
 import ProfileContext from '../lib/profileContext';
 import PreviewChat from '../Components/Chat/PreviewChat';
+import { fetchFriendsForMessages, fetchFriendsForActiveUsers, fetchMoreFriendsForMessages, deleteCheckedNotifications, fetchMessageNotifications} 
+from '../firebaseUtils';
+
 const ChatScreen = ({route}) => {
     const profile = useContext(ProfileContext);
     const navigation = useNavigation();
@@ -39,48 +42,43 @@ const ChatScreen = ({route}) => {
     const {user} = useAuth()
     
     useMemo(() => {
-      let unsub;
-      const fetchCards = () => {
-        unsub = onSnapshot(query(collection(db, 'friends'), where('toUser', '==', user.uid)), (snapshot) => {
-          setMessageNotifications(snapshot.docs.map((doc)=> ( {
-          id: doc.data().messageId
-          })))
-        })
-      } 
-      fetchCards();
-      return unsub;
-    }, [ onSnapshot])
+      let unsubscribe;
+        if (user?.uid) {
+          unsubscribe = fetchMessageNotifications(user.uid, setMessageNotifications)
+        }
+        return () => {
+          if (unsubscribe) {
+            return unsubscribe;
+          }
+        };
+    }, [onSnapshot])
   useMemo(()=> {
-      let unsub;
-      const fetchCards = async () => {
-        unsub = onSnapshot(query(collection(db, 'profiles', user.uid, 'friends'), where('actualFriend', '==', true)), (snapshot) => {
-          setOgActiveFriends(snapshot.docs.filter(doc => !profile.blockedUsers.includes(doc.id) && !profile.usersThatBlocked.includes(doc.id)).map((doc)=> ( {
-            id: doc.id,
-            //...doc.data()
-          })))
-           setLastVisible(snapshot.docs[snapshot.docs.length - 1])
-        })
-       
-      } 
-      fetchCards();
-      return unsub;
-    }, []);
-    useMemo(()=> {
-      setFriends([])
-      let unsub;
-      const fetchCards = async () => {
-        unsub = onSnapshot(query(collection(db, 'profiles', user.uid, 'friends'), where('actualFriend', '==', true), orderBy('lastMessageTimestamp', 'desc'), limit(20)), (snapshot) => {
-          setFriends(snapshot.docs.filter(doc => !profile.blockedUsers.includes(doc.id) && !profile.usersThatBlocked.includes(doc.id)).map((doc)=> ( {
-            id: doc.id,
-            ...doc.data()
-          })))
-           setLastVisible(snapshot.docs[snapshot.docs.length - 1])
-        })
-       
-      } 
-      fetchCards();
-      return unsub;
-    }, [profile]);
+    let unsubscribe;
+    if (user?.uid && profile) {
+      // Call the utility function and pass state setters as callbacks
+      unsubscribe = fetchFriendsForActiveUsers(user.uid, setFriends, profile, setLastVisible);
+    }
+    // Clean up the listener when the component unmounts
+    return () => {
+      if (unsubscribe) {
+        return unsubscribe;
+      }
+    };
+  }, [user, profile]);
+  useMemo(()=> {
+    setFriends([])
+    let unsubscribe;
+    if (user?.uid) {
+      // Call the utility function and pass state setters as callbacks
+      unsubscribe = fetchFriendsForMessages(user.uid, setFriends, profile, setLastVisible);
+    }
+    // Clean up the listener when the component unmounts
+    return () => {
+      if (unsubscribe) {
+        return unsubscribe;
+      }
+    };
+  }, [profile, user]);
     
     useMemo(() => {
       if (friends.length > 0) {
@@ -121,48 +119,29 @@ const ChatScreen = ({route}) => {
        const newArray = activeFriendsInfo.map((item) => {
           if (item.active == true) {
             return item;
-            //setActiveFriends([...activeFriends, item])
           }
           else {
             return null;
           }
-          //console.log(item.id)
         })
-        //console.log(newArray.filter((e) => e !== undefined).map(item => item.id))
         const filtered = newArray.filter((item) => item !== null);
-        //console.log(filtered.length)
         setActiveFriends(filtered);
     }, [activeFriendsInfo])
-    //console.log(activeFriends.length)
-
-    
 
     function fetchMoreData() {
       if (lastVisible != undefined) {
-    let unsub;
-      const fetchCards = async () => {
-        unsub = onSnapshot(query(collection(db, 'profiles', user.uid, 'friends'), where('actualFriend', '==', true), orderBy('lastMessageTimestamp', 'desc'), startAfter(lastVisible), limit(20)), (snapshot) => {
-          const newData = [];
-          setFriends(snapshot.docs.filter(doc => !profile.blockedUsers.includes(doc.id) || !profile.usersThatBlocked.includes(doc.id)).map((doc)=> {
-            newData.push({
-              id: doc.id,
-            ...doc.data(),
-            })
-            
-          }))
-          setFriends([...friends, ...newData])
-          setLastVisible(snapshot.docs[snapshot.docs.length-1])
-          
-        })
-      } 
-      fetchCards();
-      return unsub;
-    }
+        let unsubscribe;
+        // Call the utility function and pass state setters as callbacks
+        unsubscribe = fetchMoreFriendsForMessages(user.uid, friends, lastVisible, setFriends, profile, setLastVisible)
+        // Clean up the listener when the component unmounts
+        return () => {
+          if (unsubscribe) {
+            return unsubscribe;
+          }
+        }
       }
-
-    
-    
-   
+    }
+    console.log(friends)
     useMemo(()=> {
       if (completeFriends.length > 0){
         Promise.all(completeFriends.map(async(item) => await getDoc(doc(db, 'friends', item.id))))
@@ -236,42 +215,22 @@ const ChatScreen = ({route}) => {
       setSearches([])
       const getData = async() => {
         if (specificSearch.length < 4) {
-        const firstQ = query(collection(db, "profiles", user.uid, 'friends'), where('smallKeywords', 'array-contains', specificSearch.toLowerCase()), limit(10));
-        const firstQuerySnapshot = await getDocs(firstQ)
-        firstQuerySnapshot.forEach(async(document) => {
-          const docSnap = await getDoc(doc(db, 'profiles', document.id))
-          if (docSnap.exists()) {
-          setSearches(prevState => [...prevState, {id: docSnap.id, ...docSnap.data()}])
-          }
-        })
+          const {userSearches} = await fetchUserSearchesSmall('smallKeywords', specificSearch);
+          setActualSearches(userSearches)
+        }
+        else {
+          const {userSearches} = await fetchUserSearchesLarge('largeKeywords', specificSearch);
+          setActualSearches(userSearches)
+        }
       }
-      else {
-        const firstQ = query(collection(db, "profiles", user.uid, 'friends'), where('largeKeywords', 'array-contains', specificSearch.toLowerCase()), limit(10));
-        const firstQuerySnapshot = await getDocs(firstQ)
-        firstQuerySnapshot.forEach(async(document) => {
-          const docSnap = await getDoc(doc(db, 'profiles', document.id))
-          if (docSnap.exists()) {
-          setSearches(prevState => [...prevState, {id: docSnap.id, ...docSnap.data()}])
-          }
-        })
-      }
-      }
-      
       getData();
     } 
   }, [specificSearch])
     useEffect(() => {
       if (route.params?.notification == true) {
-        deleteCheckedNotifications()
+        deleteCheckedNotifications(user.uid, false, null)
       }
     }, [route.params?.notification])
-    async function deleteCheckedNotifications() {
-      //
-      const querySnapshot = await getDocs(collection(db, "profiles", user.uid, 'checkNotifications'));
-      querySnapshot.forEach(async(docu) => {
-        await deleteDoc(doc(db, 'profiles', user.uid, 'checkNotifications', docu.id))
-      });
-    }
 
 const handleScroll = _.debounce((event) => {
     // Your logic for fetching more data
@@ -549,7 +508,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: '8%',
+    marginTop: '9%',
     marginLeft: '5%',
     marginRight: '5%'
   },

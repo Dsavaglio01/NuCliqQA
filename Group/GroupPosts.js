@@ -42,6 +42,7 @@ const GroupPosts = ({route}) => {
         const getData = async () => {
           const { posts, lastVisible } = await fetchCliquePostsExcludingBlockedUsersWithActualNewPost(group.id, profile.blockedUsers, actualNewPost)
           setPosts(posts);
+          setLoading(false);
           setLastVisible(lastVisible);
         }
         getData();
@@ -50,6 +51,7 @@ const GroupPosts = ({route}) => {
         const getData = async () => {
           const { posts, lastVisible } = await fetchCliquePostsExcludingBlockedUsers(group.id, profile.blockedUsers)
           setPosts(posts);
+          setLoading(false);
           setLastVisible(lastVisible);
         }
         getData();
@@ -57,7 +59,7 @@ const GroupPosts = ({route}) => {
         
       
     }, [actualNewPost, group])
-    
+    console.log(posts.length)
     async function fetchMoreData () {
       if (lastVisible != undefined) {
         const { tempPosts, lastVisible: newLastVisible } = await fetchMoreCliquePostsExcludingBlockedUsers(group.id, profile.blockedUsers, lastVisible);
@@ -72,8 +74,8 @@ const GroupPosts = ({route}) => {
         <PostComponent data={posts} forSale={profile.forSale} background={profile.background} home={false} loading={loading} lastVisible={lastVisible} 
           actualClique={group} videoStyling={null || false} cliqueIdPfp={group.banner} cliqueIdName={group.name} post={null} blockedUsers={profile.blockedUsers}
           openPostMenu={null} clique={true} cliqueId={group.id} pfp={profile.pfp} ogUsername={profile.userName} admin={admin} edit={false} caption={null} 
-          notificationToken={profile.notificationToken} smallKeywords={profile.smallKeywords} largeKeywords={profile.largeKeywords} reportedPosts={reportedPosts}
-          reportedComments={reportedComments} privacy={profile.privacy}/>
+          notificationToken={profile.notificationToken} smallKeywords={profile.smallKeywords} largeKeywords={profile.largeKeywords} reportedPosts={[]}
+          reportedComments={[]} privacy={profile.privacy}/>
         </>
         : loading ? 
         <View style={styles.loadingContainer}>
