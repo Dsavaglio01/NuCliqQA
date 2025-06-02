@@ -36,7 +36,7 @@ NuCliq is in beta, achieving 100+ downloads during testing. Active development c
 ## Screenshots
 
 ## Home / Video Feed
-![Home/Video Feed](https://i.imgur.com/6h6dlY3.jpeg)
+<img src="https://i.imgur.com/6h6dlY3.jpeg" alt="Home/Video Feed" height="400">
 
 ## Theme Marketplace
 ![Theme Marketplace](https://i.imgur.com/dO3HM1B.jpeg)
