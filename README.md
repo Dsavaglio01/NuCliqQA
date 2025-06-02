@@ -12,7 +12,7 @@ NuCliq is in beta, achieving 100+ downloads during testing. Active development c
 ## Features
 - User authentication (Firebase, Apple/Google Sign-in with JWT-based security)
 - Real-time social interactions (text/image/video posts, likes, comments, replies, shares, reposts, mentions; powered by Cloud Firestore)
-- Mood-based filtering (algorithm-driven personalization for happy/scary/sad feeds, enhancing user experience)
+- Mood-based filtering personalization for happy/scary/sad feeds, enhancing user experience)
 - Secure payments (RevenueCat for one-time payments/subscriptions, API-driven transactions)
 - Profile creation/updates (bio, name, real-time sync via Cloud Firestore)
 - Theme marketplace (Firestore-backed real-time uploads/sharing of wallpapers, free or credit-based)
