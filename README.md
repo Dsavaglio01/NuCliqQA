@@ -34,6 +34,6 @@ NuCliq is in beta, achieving 100+ downloads during testing. Active development c
 4. Run: `npm start`
 
 ## Screenshots
-![Home/Video Feed](https://imgur.com/gallery/home-video-feed-75jdb51)
-![Theme Marketplace](https://imgur.com/gallery/theme-marketplace-yzi6Ua2)
-![Apply Theme View](https://imgur.com/gallery/apply-theme-EOkcbhC)
+![Home/Video Feed](https://i.imgur.com/6h6dlY3.jpeg)
+![Theme Marketplace](https://i.imgur.com/dO3HM1B.jpeg)
+![Apply Theme View](https://i.imgur.com/vwnjGLF.jpeg)
