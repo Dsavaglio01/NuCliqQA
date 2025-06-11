@@ -890,7 +890,9 @@ export const fetchPosts = async(userId, setPosts, setLastVisible) => {
   if (!userId) {
     throw new Error("userId is undefined");
   }
+  console.log(userId)
   const lastPersonalPostId = await getPersonalPostId(userId, 'posts');
+  console.log(lastPersonalPostId)
   if (lastPersonalPostId) {
       const lastDocSnap = await getDoc(doc(db, 'profiles', userId, 'posts', lastPersonalPostId));
       if (lastDocSnap.exists()) {
@@ -907,15 +909,16 @@ export const fetchPosts = async(userId, setPosts, setLastVisible) => {
   
   const unsubscribe = onSnapshot(q, async(snapshot) => {
     if (snapshot.empty) {
-      console.log('No new themes, using cached images');
+      console.log('No new posts, using cached posts');
       return await getPersonalPosts(userId);
     }
     const posts = snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data()
     }));
+    console.log('Posts: ' + posts.length)
     const cachedNotis = await getPersonalPosts(userId);
-
+    console.log(cachedNotis)
     // **Deduplicate**: Create a map of IDs to remove duplicates
     const uniqueNotisMap = new Map();
     [...posts, ...cachedNotis].forEach((noti) => {
@@ -923,11 +926,12 @@ export const fetchPosts = async(userId, setPosts, setLastVisible) => {
     });
 
     // Convert back to an array
-    const updatedImages = Array.from(uniqueNotisMap.values());
+    /* const updatedImages = Array.from(uniqueNotisMap.values());
 
     // Save to AsyncStorage
     await savePersonalPosts(userId, updatedImages);
-    await savePersonalPostId(userId, posts[0].id); // Store latest image doc ID
+    await savePersonalPostId(userId, posts[0].id); // Store latest image doc ID */
+    console.log(posts.length)
     setPosts(posts);
     if (snapshot.docs.length > 0) {
       setLastVisible(snapshot.docs[snapshot.docs.length - 1])
@@ -1136,56 +1140,22 @@ export const fetchCliqueData = async(groupId, setContacts, setRequests, setRepor
  * @throws {Error} - If `userId` or `subCollection` is not provided.
 */
 export const fetchPurchasedThemes = async(userId, subCollection, order, setPurchasedThemes, setPurchasedLastVisible) => {
+  console.log('Im here')
   if (!userId || !subCollection) {
     throw new Error("userId is undefined");
   }
   const purchasedQuery = query(collection(db, 'profiles', userId, 'purchased'), orderBy(subCollection, order), limit(10))
-  const lastDocId = await getLastDocId(userId, 'purchased', subCollection, order);
-    if (lastDocId) {
-      const lastDocSnap = await getDoc(doc(db, 'profiles', userId, 'purchased', lastDocId));
-      if (lastDocSnap.exists()) {
-        q = query(
-          collection(db, 'profiles', userId, 'purchased',),
-          orderBy(subCollection, order),
-          startAfter(lastDocSnap),
-          limit(10)
-        );
-      }
-    }
-  const unsubscribe = onSnapshot(purchasedQuery, async(snapshot) => {
+  const unsubscribe = onSnapshot(purchasedQuery, (snapshot) => {
     const purchased = snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
       transparent: false
     }));
-    if (snapshot.empty) {
-      return await getCachedImages(userId, 'purchased', subCollection, order);
-    }
-    const cachedImages = await getCachedImages(userId, 'purchased', subCollection, order);
-
-    // **Deduplicate**: Create a map of IDs to remove duplicates
-    const uniqueImagesMap = new Map();
-    [...purchased, ...cachedImages].forEach((img) => {
-      uniqueImagesMap.set(img.id, img); // Latest image data overwrites old one
-    });
-
-    // Convert back to an array
-    const updatedImages = Array.from(uniqueImagesMap.values());
-
-    // Save to AsyncStorage
-    await saveCachedImages(userId, 'purchased', subCollection, order, updatedImages);
-    await saveLastDocId(userId, 'purchased', subCollection, order, purchased[0].id); // Store latest image doc ID
-    if (purchased) {
-      setPurchasedThemes(purchased);
-    }
-    else {
-      setPurchasedThemes([]);
-    }
-    
+    setPurchasedThemes(purchased);
     if (snapshot.docs.length > 0) {
       setPurchasedLastVisible(snapshot.docs[snapshot.docs.length - 1]);
     }
-
+    console.log(purchased.length)
   return unsubscribe;
   });
 }
@@ -1336,25 +1306,66 @@ export const fetchFreeThemes = async (subCollection, order, userId) => {
  * @param {String} subCollection - The name of the field/subCollection that we are ordering the query by (date, price, etc.).
  * @param {String} order - The name of the order that we are ordering the query by (ascending, descending, etc.).
  * @returns {Function} - An unsubscribe function to stop listening to changes.
- * @throws {Error} - If `myId` or `subCollection` is not provided.
+ * @throws {Error} - If `userId` or `subCollection` is not provided.
 */
-export const fetchMyThemes = async(userId, subCollection, order) => {
-  if (!userId) {
+export const fetchMyThemes = async(userId, subCollection, order, setMyThemes, setMyLastVisible) => {
+  if (!userId || !subCollection) {
+    throw new Error("userId or subCollection is undefined");
+  }
+  const myQuery = query(collection(db, 'profiles', userId, 'myThemes'), orderBy(subCollection, order), limit(10))
+  const lastDocId = await getLastDocId(userId, 'myThemes', subCollection, order);
+    if (lastDocId) {
+      const lastDocSnap = await getDoc(doc(db, 'profiles', userId, 'myThemes', lastDocId));
+      if (lastDocSnap.exists()) {
+        q = query(
+          collection(db, 'profiles', userId, 'myThemes',),
+          orderBy(subCollection, order),
+          startAfter(lastDocSnap),
+          limit(10)
+        );
+      }
+    }
+  const unsubscribe = onSnapshot(myQuery, async(snapshot) => {
+    const my = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+      transparent: false
+    }));
+    if (snapshot.empty) {
+      return await getCachedImages(userId, 'myThemes', subCollection, order);
+    }
+    const cachedImages = await getCachedImages(userId, 'myThemes', subCollection, order);
+
+    // **Deduplicate**: Create a map of IDs to remove duplicates
+    const uniqueImagesMap = new Map();
+    [...my, ...cachedImages].forEach((img) => {
+      uniqueImagesMap.set(img.id, img); // Latest image data overwrites old one
+    });
+
+    // Convert back to an array
+    const updatedImages = Array.from(uniqueImagesMap.values());
+
+    // Save to AsyncStorage
+    await saveCachedImages(userId, 'myThemes', subCollection, order, updatedImages);
+    await saveLastDocId(userId, 'myThemes', subCollection, order, my[0].id); // Store latest image doc ID
+    if (my) {
+      setMyThemes(my);
+    }
+    else {
+      setMyThemes([]);
+    }
+    
+    if (snapshot.docs.length > 0) {
+      setMyLastVisible(snapshot.docs[snapshot.docs.length - 1]);
+    }
+
+  return unsubscribe;
+  });
+  /* if (!userId) {
     throw new Error("userId is undefined");
   }
   else if (subCollection == 'bought_count') {
-    const tempPosts = []
-    try { 
-      const myQuery = query(collection(db, 'profiles', userId, 'myThemes'), orderBy('timestamp', 'desc'), limit(10))
-      const querySnapshot = await getDocs(myQuery)
-      querySnapshot.forEach((doc) => {
-        tempPosts.push({id: doc.id, ...doc.data(), transparent: false})
-      });
-      return {tempPosts, lastMyVisible: querySnapshot.docs[querySnapshot.docs.length - 1]}
-    }
-    catch (e) {
-      console.error(e)
-    }
+    
   }
   else {
     const tempPosts = []
@@ -1369,7 +1380,7 @@ export const fetchMyThemes = async(userId, subCollection, order) => {
     catch (e) {
       console.error(e)
     }
-  }
+  } */
 }
 export const fetchMoreMyThemes = async(userId, subCollection, order, lastVisible) => {
   if (!userId) {
@@ -2019,7 +2030,7 @@ export const applyTheme = async(userId, theme, selling, profile, posts, both, se
       })
     }
     else if (posts) {
-      await updateDoc(doc(db, 'profiles', user.uid), {
+      await updateDoc(doc(db, 'profiles', userId), {
         postBackground: theme,
         forSale: selling,
         postBought: selling
@@ -2033,7 +2044,7 @@ export const applyTheme = async(userId, theme, selling, profile, posts, both, se
     }
     else if (both) {
       setApplyLoading(true)
-      await updateDoc(doc(db, 'profiles', user.uid), {
+      await updateDoc(doc(db, 'profiles', userId), {
         background: theme,
         postBackground: theme,
         forSale: selling,

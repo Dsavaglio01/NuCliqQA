@@ -49,7 +49,7 @@ const ProfileComponent = ({preview, previewMade, applying, viewing, previewImage
     useEffect(() => {
       let unsubscribe;
       if (name == user.uid && postSetting && posts.length == 0) {
-
+        console.log('first')
         // Call the utility function and pass state setters as callbacks
         unsubscribe = fetchPosts(user.uid, setPosts, setLastVisible);
         // Handle loading state
@@ -68,6 +68,7 @@ const ProfileComponent = ({preview, previewMade, applying, viewing, previewImage
         }
       };
     }, [name, postSetting, person, profile.blockedUsers]);
+    console.log(posts.length)
     useEffect(() => {
       let unsubscribe;
       if (user.uid == name && repostSetting && reposts.length == 0) {

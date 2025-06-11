@@ -102,24 +102,26 @@ const CommentsModal = ({commentModal, closeCommentModal, deleteReply, postNull, 
       }
     }, [replyToReplyFocus]);
     useEffect(() => {
+      if (comments.length == 0){
         const loadComments = async() => {
-          if (isLoaded.current) return;
+          /* if (isLoaded.current) return;
           const cachedComments = await getComments(focusedPost.id)
 
           if (cachedComments) {
             setComments(JSON.parse(cachedComments));
             isLoaded.current = true; // Mark as loaded
             return; // Skip fetching if cache exists
-          }
+          } */
           const { comments: newComments, lastVisible } = await fetchComments(
             focusedPost, blockedUsers, videoStyling ? 'videos' : 'posts'
           );
           setComments(newComments);
           await saveComments(focusedPost.id, newComments.slice(0, 50))
           setLastCommentVisible(lastVisible);
-          isLoaded.current = true;
+          //isLoaded.current = true;
         }
         loadComments();
+      }
     }, [comments])
     const handleNewComment = (inputText) => {
     const sanitizedText = inputText.replace(/\n/g, ''); // Remove all new line characters
@@ -206,7 +208,7 @@ if (!ableToShare) {
                           headers: {
                             'Content-Type': 'application/json', // Set content type as needed
                           },
-                          body: JSON.stringify({ data: {tempCommentId: tempCommentId, textModerationURL: TEXT_MODERATION_URL, newReply: newReply, commentSnap: commentSnap.data(), reply: reply, user: user.uid, focusedPost: focusedPost, username: profile.userName}}), // Send data as needed
+                          body: JSON.stringify({ data: {tempCommentId: tempCommentId, textModerationURL: TEXT_MODERATION_URL, newReply: newReply, commentSnap: commentSnap.data(), reply: reply, userId: user.uid, focusedPost: focusedPost, username: profile.userName}}), // Send data as needed
                         })
                         const data = await response.json();
                         if (data.link) {
@@ -347,7 +349,6 @@ if (!ableToShare) {
             postId: focusedPost.id,
             user: user.uid
   }
-  console.log(tempReplyName)
   if (commentSnap.exists() && username !== commentSnap.data().username) {
     try {
                             const response = await fetch(`http://10.0.0.225:4000/api/newReplyToReply`, {
@@ -355,7 +356,7 @@ if (!ableToShare) {
                           headers: {
                             'Content-Type': 'application/json', // Set content type as needed
                           },
-                          body: JSON.stringify({ data: {tempCommentId: tempCommentId, textModerationURL: TEXT_MODERATION_URL, newReply: newReply, commentSnap: commentSnap.data(), reply: reply, user: user.uid, focusedPost: focusedPost, username: profile.userName}}), // Send data as needed
+                          body: JSON.stringify({ data: {tempCommentId: tempCommentId, textModerationURL: TEXT_MODERATION_URL, newReply: newReply, commentSnap: commentSnap.data(), reply: reply, userId: user.uid, focusedPost: focusedPost, username: profile.userName}}), // Send data as needed
                         })
                         const data = await response.json();
                         if (data.link) {
@@ -504,7 +505,7 @@ if (!ableToShare) {
                           headers: {
                             'Content-Type': 'application/json', // Set content type as needed
                           },
-                          body: JSON.stringify({ data: {tempReplyId: tempReplyId, textModerationURL: TEXT_MODERATION_URL, newReply: newReply, commentSnap: commentSnap.data(), reply: reply, user: user.uid, focusedPost: focusedPost, username: profile.userName}}), // Send data as needed
+                          body: JSON.stringify({ data: {tempReplyId: tempReplyId, textModerationURL: TEXT_MODERATION_URL, newReply: newReply, commentSnap: commentSnap.data(), reply: reply, userId: user.uid, focusedPost: focusedPost, username: profile.userName}}), // Send data as needed
                         })
                         const data = await response.json();
                         if (data.link) {
@@ -569,7 +570,7 @@ if (!ableToShare) {
                           headers: {
                             'Content-Type': 'application/json', // Set content type as needed
                           },
-                          body: JSON.stringify({ data: {tempReplyId: tempReplyId, reply: reply, textModerationURL: TEXT_MODERATION_URL, newReply: newReply, user: user.uid, focusedPost: focusedPost,}}), // Send data as needed
+                          body: JSON.stringify({ data: {tempReplyId: tempReplyId, reply: reply, textModerationURL: TEXT_MODERATION_URL, newReply: newReply, userId: user.uid, focusedPost: focusedPost,}}), // Send data as needed
                         })
                         const data = await response.json();
                         if (data.link) {
@@ -628,9 +629,7 @@ if (!ableToShare) {
       }
   }
   else {
-    console.log('fjdsklfsdklfksklfdkldfsljk')
   setSingleCommentLoading(true)
-  console.log(`tempReplyId: ${tempReplyId}`)
   const commentSnap = await getDoc(doc(db, 'posts', focusedPost.id, 'comments', tempReplyId))
   console.log(commentSnap.exists())
     const newReply = {reply: reply,
@@ -651,7 +650,7 @@ if (!ableToShare) {
                           headers: {
                             'Content-Type': 'application/json', // Set content type as needed
                           },
-                          body: JSON.stringify({ data: {tempReplyId: tempReplyId, textModerationURL: TEXT_MODERATION_URL, newReply: newReply, commentSnap: commentSnap.data(), reply: reply, user: user.uid, focusedPost: focusedPost, username: profile.userName}}), // Send data as needed
+                          body: JSON.stringify({ data: {tempReplyId: tempReplyId, textModerationURL: TEXT_MODERATION_URL, newReply: newReply, commentSnap: commentSnap.data(), reply: reply, userId: user.uid, focusedPost: focusedPost, username: profile.userName}}), // Send data as needed
                         })
                         const data = await response.json();
                         if (data.link) {
@@ -719,7 +718,7 @@ if (!ableToShare) {
                           headers: {
                             'Content-Type': 'application/json', // Set content type as needed
                           },
-                          body: JSON.stringify({ data: {tempReplyId: tempReplyId, reply: reply, textModerationURL: TEXT_MODERATION_URL, newReply: newReply, user: user.uid, focusedPost: focusedPost,}}), // Send data as needed
+                          body: JSON.stringify({ data: {tempReplyId: tempReplyId, reply: reply, textModerationURL: TEXT_MODERATION_URL, newReply: newReply, userId: user.uid, focusedPost: focusedPost,}}), // Send data as needed
                         })
                         const data = await response.json();
                         //console.log(data)
@@ -795,7 +794,7 @@ if (!ableToShare) {
                           headers: {
                             'Content-Type': 'application/json', // Set content type as needed
                           },
-                          body: JSON.stringify({ data: {newComment: newComment, textModerationURL: TEXT_MODERATION_URL, blockedUsers: blockedUsers, pfp: pfp, notificationToken: notificationToken, user: user.uid, focusedPost: focusedPost, username: profile.userName}}), // Send data as needed
+                          body: JSON.stringify({ data: {newComment: newComment, textModerationURL: TEXT_MODERATION_URL, blockedUsers: blockedUsers, pfp: pfp, notificationToken: notificationToken, userId: user.uid, focusedPost: focusedPost, username: profile.userName}}), // Send data as needed
                         })
                         const data = await response.json();
                         if (data.link) {
@@ -842,7 +841,7 @@ if (!ableToShare) {
                           headers: {
                             'Content-Type': 'application/json', // Set content type as needed
                           },
-                          body: JSON.stringify({ data: {newComment: newComment, textModerationURL: TEXT_MODERATION_URL, blockedUsers: blockedUsers, pfp: pfp, notificationToken: notificationToken, user: user.uid, focusedPost: focusedPost, username: profile.userName}}), // Send data as needed
+                          body: JSON.stringify({ data: {newComment: newComment, textModerationURL: TEXT_MODERATION_URL, blockedUsers: blockedUsers, pfp: pfp, notificationToken: notificationToken, userId: user.uid, focusedPost: focusedPost, username: profile.userName}}), // Send data as needed
                         })
                         const data = await response.json();
                         if (data.link) {
@@ -900,7 +899,7 @@ if (!ableToShare) {
                           headers: {
                             'Content-Type': 'application/json', // Set content type as needed
                           },
-                          body: JSON.stringify({ data: {newComment: newComment, textModerationURL: TEXT_MODERATION_URL, blockedUsers: blockedUsers, pfp: pfp, notificationToken: notificationToken, user: user.uid, focusedPost: focusedPost, username: profile.userName}}), // Send data as needed
+                          body: JSON.stringify({ data: {newComment: newComment, textModerationURL: TEXT_MODERATION_URL, blockedUsers: blockedUsers, pfp: pfp, notificationToken: notificationToken, userId: user.uid, focusedPost: focusedPost, username: profile.userName}}), // Send data as needed
                         })
                         const data = await response.json();
                         if (data.link) {
@@ -947,7 +946,7 @@ if (!ableToShare) {
                           headers: {
                             'Content-Type': 'application/json', // Set content type as needed
                           },
-                          body: JSON.stringify({ data: {newComment: newComment, textModerationURL: TEXT_MODERATION_URL, blockedUsers: blockedUsers, pfp: pfp, notificationToken: notificationToken, user: user.uid, focusedPost: focusedPost, username: profile.userName}}), // Send data as needed
+                          body: JSON.stringify({ data: {newComment: newComment, textModerationURL: TEXT_MODERATION_URL, blockedUsers: blockedUsers, pfp: pfp, notificationToken: notificationToken, userId: user.uid, focusedPost: focusedPost, username: profile.userName}}), // Send data as needed
                         })
                         const data = await response.json();
                         if (data.link) {
@@ -1077,6 +1076,7 @@ function replyFunction(item, element) {
   
   setTempReplyName(element.username); 
   setTempCommentId(item.id); 
+  console.log(element)
   setTempReplyId(element.id);
 }
 async function toggleShowReply(e) {
@@ -1169,7 +1169,7 @@ async function addLike(item) {
                     <MaterialCommunityIcons name='chevron-down' size={25} color="#808080" style={{alignSelf: 'center'}}/>
                 </TouchableOpacity> : <></>}
                 {item.showReply ? 
-                    <View>
+                    <View> 
                         {item.actualReplies.map((element) => {
                           const closeRow = (index) => {
                               if (prevOpenedRow && prevOpenedRow !== row[index]) {
@@ -1307,7 +1307,7 @@ async function addLike(item) {
                   </>
                 ) : null}
 
-                {!reportCommentModal && comments.length === 0 && !commentsLoading ? (
+                {!reportCommentModal && comments.length === 0 && !commentsLoading && !textInputRef ? (
                   <TouchableHighlight 
                     onPress={Keyboard.dismiss} 
                     underlayColor={'transparent'} 
@@ -1341,7 +1341,8 @@ async function addLike(item) {
             {/* KeyboardAvoiding Input Box */}
             <View style={styles.addCommentSecondContainer}>
               <View style={{ flexDirection: 'row', marginTop: '5%', marginHorizontal: '5%', width: '90%' }}>
-                {pfp !== undefined ? (
+                {pfp ? (
+                  console.log(pfp),
                   <FastImage 
                     source={{ uri: pfp, priority: 'normal' }} 
                     style={{ height: 35, width: 35, borderRadius: 25 }}

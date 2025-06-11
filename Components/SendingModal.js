@@ -1,4 +1,4 @@
-import { FlatList, StyleSheet, Text, View, Alert, TextInput, KeyboardAvoidingView} from 'react-native'
+import { FlatList, StyleSheet, Text, View, Alert, TextInput, KeyboardAvoidingView, ActivityIndicator} from 'react-native'
 import React, { useState, useMemo, useEffect, useContext} from 'react'
 import useAuth from '../Hooks/useAuth';
 import { db } from '../firebase';
@@ -18,6 +18,7 @@ const SendingModal = ({route}) => {
     const [completeFriends, setCompleteFriends] = useState([]);
     const navigation = useNavigation();
     const [caption, setCaption] = useState('');
+    const [loading, setLoading] = useState(false);
     const [actuallySending, setActuallySending] = useState(false);
     const [person, setPerson] = useState(null);
     const [friendsInfo, setFriendsInfo] = useState([]);
@@ -148,6 +149,7 @@ const SendingModal = ({route}) => {
     }
     useMemo(()=> {
       setFriends([])
+      setLoading(true)
       const fetchData = async() => {
         const { friendsArray } = await fetchLimitedFriends(user.uid, profile.followers, profile.following)
         setFriends(friendsArray)
@@ -160,10 +162,18 @@ const SendingModal = ({route}) => {
         Promise.all(friends.map(async(item) => await getDoc(doc(db, 'profiles', item.id))))
       .then(snapshots => {
         setFriendsInfo(snapshots.map(snapshot => ({id: snapshot.id, ...snapshot.data(), checked: false})))
+        setTimeout(() => {
+          setLoading(false)
+        }, 750);
       })
       .catch(error => {
        console.error(error)
       });
+      }
+      else {
+        setTimeout(() => {
+          setLoading(false)
+        }, 750);
       }
     }, [friends])
     const renderChecked = (id) => {
@@ -212,20 +222,26 @@ const SendingModal = ({route}) => {
         <MaterialCommunityIcons name='close' size={30} color={"#fafafa"} style={{marginLeft: 'auto'}} onPress={() => navigation.goBack()}/>
       </View>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}  keyboardVerticalOffset={Platform.OS === 'ios' ? 20 : 0} style={{flex: 1}}>
-        {friendsInfo.length > 0 ? 
+        {friendsInfo.length > 0 && !loading ? 
           <FlatList 
             data={friendsInfo}
             renderItem={renderFriends}
             numColumns={3}
             ListFooterComponent={<View style={{paddingBottom: 75}}/>}
             contentContainerStyle={{marginVertical: '2.5%'}}
-          /> : 
+          /> : !loading ?
           <View style={styles.noPostsContainer}>
             <Text style={styles.noPostsText}>No Friends to Share with Yet!</Text>
-          </View>}
+          </View> : 
+          <View style={{flex: 1, alignItems: 'center', justifyContent: 'center'}}>
+            <ActivityIndicator color={"#9edaff"}/>
+          </View>
+          
+          }
           <View style={styles.buttonContainer}>
             <NextButton text={"Add to Story"}/>
-            <NextButton text={"Re-Vibe"}/>
+            {/* {payload.post[0].text ? <NextButton text={"Re-Vibe"}/> : 
+            null} */}
           </View>
           {actuallySending ?
             <View style={styles.addCommentSecondContainer}>

@@ -43,7 +43,7 @@ const HomeScreen = ({route}) => {
   const [activeIndex, setActiveIndex] = useState(0);
   const [messageNotifications, setMessageNotifications] = useState([]);
   const [nonMessageNotifications, setNonMessageNotifications] = useState([]);
-  showToast('Friend Request', 'EdwinD has requested to follow you.')
+  //showToast('Friend Request', 'EdwinD has requested to follow you.')
 
 useEffect(() => {
     const loadStory = async() => {

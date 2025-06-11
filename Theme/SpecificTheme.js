@@ -71,7 +71,7 @@ const SpecificTheme = ({route}) => {
         if (data.done) {
           
           setThemeLoading(false)
-          schedulePushThemeNotification(profile.userName, profile.notificationToken, name)
+         // schedulePushThemeNotification(profile.userName, profile.notificationToken, name)
           navigation.navigate('All', {goToPurchased: true})
         }
       } catch (e) {

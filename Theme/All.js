@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, FlatList, TouchableOpacity, Keyboard, ActivityIndicator, Dimensions} from 'react-native'
+import { StyleSheet, Text, View, FlatList, TouchableOpacity, Keyboard, ActivityIndicator} from 'react-native'
 import React, {useState, useEffect, useMemo, useCallback, useContext} from 'react'
 import SearchInput from '../Components/SearchInput'
 import { useNavigation } from '@react-navigation/native'
@@ -543,8 +543,6 @@ const All = ({route}) => {
       </TouchableOpacity>
     )
   }
-
-
   return (
     <Provider>
     <View style={styles.container}>
@@ -673,7 +671,7 @@ const All = ({route}) => {
             <ThemeComponent specific={true} free={free} purchased={purchased} my={my} user={user}
             item={filteredGroup[0]} groupId={groupId} name={name} freeTempPosts={freeTempPosts} 
             updateMyThemes={setMyThemes} updateFreeTempPosts={setFreeTempPosts}/>
-          : free && freeTempPosts.length > 0 ? 
+          : free && freeTempPosts && freeTempPosts.length > 0 ? 
           <FlatList 
           data={freeTempPosts}
             renderItem={({item}) => <ThemeComponent free={free} purchased={purchased} my={my} user={user}
@@ -699,6 +697,7 @@ const All = ({route}) => {
             onScroll={handleScroll}
           />
           : purchased && purchasedThemes.length > 0 ?
+          
           <>
           <FlatList 
               data={purchasedThemes}
