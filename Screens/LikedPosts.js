@@ -13,6 +13,7 @@ import { db } from '../firebase';
 import _ from 'lodash'
 import { useFonts, Montserrat_500Medium, Montserrat_700Bold } from '@expo-google-fonts/montserrat';
 import themeContext from '../lib/themeContext';
+import MiniPost from '../Components/MiniPost';
 const LikedPosts = () => {
     const {user} = useAuth()
     const [posts, setPosts] = useState([]);
@@ -167,9 +168,9 @@ const LikedPosts = () => {
       {posts.length > 0 ? <>
       <FlatList 
       data={posts}
-      renderItem={renderPosts}
+      renderItem={(item, index) => <MiniPost item={item.item} index={index} repost={false} name={user.uid}/>}
       keyExtractor={(item) =>item.id.toString()}
-      numColumns={2}
+      numColumns={3}
       scrollEnabled
       style={{margin: '5%', marginTop: '2.5%', marginLeft: '7.5%', height: '100%'}}
       ListFooterComponent={loading ? (

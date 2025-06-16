@@ -16,21 +16,22 @@ const MiniPost = ({item, index, repost, name}) => {
                     </ChatBubble>
                 </View>
             </TouchableOpacity> :
+            item.post[0] &&
             item.post[0].image ? 
                 <TouchableOpacity style={styles.border} onPress={() => navigation.navigate('Post', {post: item.id, name: name, groupId: null, video: false})}>
                     <FastImage source={{uri: item.post[0].post}} style={styles.image}/>
-                </TouchableOpacity> : item.post[0].video ? <>
+                </TouchableOpacity> : item.post[0] && item.post[0].video ? <>
                 <TouchableOpacity style={styles.border} onPress={() => navigation.navigate('Post', {post: item.id, name: name, groupId: null, video: true})}>
                     <MaterialCommunityIcons name='play' size={30} style={styles.playIcon} color={"#000"}/>
                     <FastImage source={{uri: item.post[0].thumbnail}} style={styles.image}/>
                 </TouchableOpacity>
-                </> : <TouchableOpacity style={styles.border} onPress={() => navigation.navigate('Post', {post: item.id, name: name, groupId: null, video: false})}>
+                </> :item.post[0] ? <TouchableOpacity style={styles.border} onPress={() => navigation.navigate('Post', {post: item.id, name: name, groupId: null, video: false})}>
                     <View style={{padding: 10}}>
                     <ChatBubble bubbleColor='#fff' tailColor='#fff'>
                         <Text style={styles.text}>{item.post[0].value}</Text>
                     </ChatBubble>
                     </View>
-                </TouchableOpacity>
+                </TouchableOpacity> : <></>
             }
         </View>
     ) 

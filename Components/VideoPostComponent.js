@@ -298,7 +298,9 @@ const VideoPostComponent = ({data, fetchMoreData, home, loading, lastVisible, ac
     setIsPaused(false)
   }
 };
+
     const renderItem = (item, index) => {
+      console.log(item.index, activeIndex)
     if (item.item.likedBy != undefined) {
       if (item.item.post != null && item.item.post.length == 1 && item.item.post[0].video) {
     return (
