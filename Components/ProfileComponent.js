@@ -237,10 +237,14 @@ const ProfileComponent = ({preview, previewMade, applying, viewing, previewImage
       <View style={{flexDirection: 'row'}}>
           <View style={{width: '77.5%'}}>
             <View style={styles.usernameContainer}>
-              <Text style={styles.nameAge} numberOfLines={1}>@{viewing ? person.username : profile.userName}</Text>
-              {viewing && person.privacy ? <MaterialCommunityIcons name='lock-outline' size={20} color={"#fff"} style={styles.lock}/> : null}
+              <View style={{flexDirection: 'row'}}>
+                <Text style={styles.nameAge} numberOfLines={1}>@{viewing ? person.username : profile.userName}</Text>
+                {viewing && person.privacy ? <MaterialCommunityIcons name='lock-outline' size={20} color={"#fff"} style={styles.lock}/> : null}
+              </View>
+              <Text style={styles.nameAge}>|</Text>
+                <Text style={styles.nameAge} numberOfLines={1}>{viewing ? person.firstName : profile.firstName} {viewing ? person.lastName : profile.lastName}</Text>
             </View>
-            <Text style={styles.nameAge} numberOfLines={1}>{viewing ? person.firstName : profile.firstName} {viewing ? person.lastName : profile.lastName}</Text>
+              
           </View>
           <TouchableOpacity style={styles.pfpLoading} activeOpacity={1} onPress={!profile.pfp ? null : viewing ? () => setImageModal(true) : () => pickImage()} onLongPress={!profile.pfp || viewing ? null : () => setImageModal(true)}>
               {(loading || imageLoading) && person != null && !(person.blockedUsers.includes(user.uid) || profile.blockedUsers.includes(person.id)) ? 
@@ -304,7 +308,9 @@ const ProfileComponent = ({preview, previewMade, applying, viewing, previewImage
                 <Text style={styles.headerSupplementText}>{'Followers'}</Text>
               </TouchableOpacity>
             </View>
-            {posts.length > 0 && postSetting && viewing ? !person.privacy : true ? <FlatList 
+            {loading ? 
+              <ActivityIndicator color={"#9edaff"} style={{alignSelf: 'center'}}/> 
+            : posts.length > 0 && postSetting && viewing ? !person.privacy : true ? <FlatList 
             data={additionalInfoMode ? posts.slice(0, 6) : previewMade | preview | applying ? posts.slice(0, 6) : posts}
             renderItem={renderPosts}
             keyExtractor={item => item.id}
@@ -556,7 +562,8 @@ const styles = StyleSheet.create({
     },
     usernameContainer: {
       flexDirection: 'row', 
-      width: '90%'
+      width: '90%',
+      marginVertical: '2.5%'
     },
     lock: {
       alignSelf: 'center', 
