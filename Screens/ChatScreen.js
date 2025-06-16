@@ -1,4 +1,4 @@
-import { StyleSheet, Text, TouchableOpacity, View, Keyboard, FlatList, ActivityIndicator, KeyboardAvoidingView, Share} from 'react-native'
+import { StyleSheet, Text, TouchableOpacity, View, Keyboard, FlatList, ActivityIndicator, KeyboardAvoidingView} from 'react-native'
 import React, {useState, useEffect, useMemo, useContext} from 'react'
 import {MaterialCommunityIcons} from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -16,7 +16,7 @@ import PreviewChat from '../Components/Chat/PreviewChat';
 import { fetchFriendsForMessages, fetchFriendsForActiveUsers, fetchMoreFriendsForMessages, deleteCheckedNotifications, fetchMessageNotifications} 
 from '../firebaseUtils';
 import generateId from '../lib/generateId';
-
+import ShareApp from '../Components/Chat/ShareApp';
 const ChatScreen = ({route}) => {
     const profile = useContext(ProfileContext);
     const navigation = useNavigation();
@@ -28,13 +28,7 @@ const ChatScreen = ({route}) => {
     const [filtered, setFiltered] = useState([]);
     const [completeMessages, setCompleteMessages] = useState([]);
     const [messageNotifications, setMessageNotifications] = useState([]);
-    const [completeFriends, setCompleteFriends] = useState([]);
-    const [ogActiveFriends, setOgActiveFriends] = useState([]);
-    const [activeFriends, setActiveFriends] = useState([]);
-    const [activeFriendsInfo, setActiveFriendsInfo] = useState([]);
     const [filteredGroup, setFilteredGroup] = useState([]);
-    const [friendsInfo, setFriendsInfo] = useState([]);
-    const [lastMessages, setLastMessages] = useState([]);
     const [searching, setSearching] = useState(false)
     const [moreResults, setMoreResults] = useState(false);
   const [moreResultButton, setMoreResultButton] = useState(false);
@@ -80,55 +74,6 @@ const ChatScreen = ({route}) => {
       }
     };
   }, [profile, user]);
-    
-    useMemo(() => {
-      if (friends.length > 0) {
-        Promise.all(friends.map(async(item) => await getDoc(doc(db, 'profiles', item.id))))
-      .then(snapshots => {
-        setFriendsInfo(snapshots.map(snapshot => ({id: snapshot.id, ...snapshot.data(), checked: false})))
-      })
-      .catch(error => {
-        // Handle errors
-      });
-      }
-    }, [friends])
-    useMemo(() => {
-      if (ogActiveFriends.length > 0) {
-        Promise.all(ogActiveFriends.map(async(item) => await getDoc(doc(db, 'profiles', item.id))))
-      .then(snapshots => {
-
-        setActiveFriendsInfo(snapshots.map(snapshot => ({id: snapshot.id, ...snapshot.data(), checked: false})))
-      })
-      .catch(error => {
-        // Handle errors
-      });
-      }
-    }, [ogActiveFriends])
-    /* //console.log(friendsInfo)
-    useMemo(() => {
-      if (friends.length > 0) {
-        Promise.all(friends.map(async(item) => await getDoc(doc(db, 'friends', item.friendId))))
-        .then(snapshots => {
-          setCompleteFriends(snapshots.map(snapshot => ({id: snapshot.id, ...snapshot.data()})))
-        })
-        .catch(error => {
-          // Handle errors
-        });
-      }
-    }, [friends])
-    //console.log(friends.length) */
-    useMemo(() => {
-       const newArray = activeFriendsInfo.map((item) => {
-          if (item.active == true) {
-            return item;
-          }
-          else {
-            return null;
-          }
-        })
-        const filtered = newArray.filter((item) => item !== null);
-        setActiveFriends(filtered);
-    }, [activeFriendsInfo])
 
     function fetchMoreData() {
       if (lastVisible != undefined) {
@@ -143,19 +88,6 @@ const ChatScreen = ({route}) => {
         }
       }
     }
-    useMemo(()=> {
-      if (completeFriends.length > 0){
-        console.log(completeFriends)
-        Promise.all(completeFriends.map(async(item) => await getDoc(doc(db, 'friends', item.id))))
-      .then(snapshots => {
-        setLastMessages(snapshots.map(snapshot => ({id: snapshot.id, ...snapshot.data()})))
-      })
-      .catch(error => {
-        // Handle errors
-      });
-  }
-
-    }, [completeFriends])
 
     useMemo(() => {
       if (profile && completeMessages.length == 0) {
@@ -182,27 +114,6 @@ const ChatScreen = ({route}) => {
         }, 500);
       }
     }, [profile, completeMessages])
-    const url = 'https://apps.apple.com/us/app/nucliq/id6451544113'
-    const shareApp = async() => {
-      try {
-        const result = await Share.share({
-          message: (`Join me on NuCliq! Use my referral code when you sign up:\n${profile.referralCode}\n${url}`)
-        });
-        if (result.action === Share.sharedAction) {
-          if (result.activityType) {
-            console.log('shared with activity type of: ', result.activityType)
-          }
-          else {
-            console.log('shared')
-          }
-        } else if (result.action === Share.dismissedAction) {
-          console.log('dismissed')
-        }
-      }
-      catch (error) {
-        console.log(error)
-      }
-    }
 
     useEffect(() => {
         if (specificSearch.length > 0) {
@@ -265,7 +176,6 @@ const renderEvents = ({item, index}) => {
       </View>
     )
   }
-  console.log(completeMessages.length)
 
   return (
     <Provider>
@@ -275,12 +185,12 @@ const renderEvents = ({item, index}) => {
             <MaterialCommunityIcons name='chevron-left' color={"#fafafa"} size={35}/>
           </TouchableOpacity>
           <Text style={styles.headerText}>Messages</Text>
-          <MaterialCommunityIcons name='share-variant-outline' size={27.5} color={"#fafafa"} onPress={shareApp}/>
+          <ShareApp profile={profile}/>
         </View>
         <Divider />
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{flex: 1}}>
         {message ? <>
-        {loading && completeMessages.length == 0 ?  <View style={{alignItems: 'center', flex: 1, justifyContent: 'center'}}>
+        {loading && completeMessages.length == 0 ?  <View style={styles.loadingContainer}>
             <ActivityIndicator color={"#9EDAFF"}/> 
           </View> :
         <>
@@ -334,7 +244,7 @@ const renderEvents = ({item, index}) => {
               {filteredGroup.length > 0 ? 
               <FlatList 
                   data={filteredGroup}
-                  renderItem={({item}) => <PreviewChat item={item} completeFriends={completeFriends} filteredGroup={filteredGroup} group={false} 
+                  renderItem={({item}) => <PreviewChat item={item} filteredGroup={filteredGroup} group={false} 
                   messageNotifications={messageNotifications}/>}
                   keyExtractor={(item) => item.id.toString()}
                   style={{height: '50%'}}
@@ -343,7 +253,7 @@ const renderEvents = ({item, index}) => {
               completeMessages.length > 0 ? 
               <FlatList 
                   data={completeMessages}
-                  renderItem={({item}) => <PreviewChat item={item} completeFriends={completeFriends} filteredGroup={filteredGroup} group={false} 
+                  renderItem={({item}) => <PreviewChat item={item} filteredGroup={filteredGroup} group={false} 
                   messageNotifications={messageNotifications}/>}
                   keyExtractor={(item) => item.id.toString()}
                   style={{height: '100%'}}
@@ -357,11 +267,6 @@ const renderEvents = ({item, index}) => {
               
           </View> : null}
         </>} 
-        {/* : !loading && friendsInfo.filter(obj => completeMessages.some(otherObj => otherObj.id === obj.id)).length == 0 ? 
-        <View style={styles.noTextContainer}>
-          <Text style={styles.noFriendsText}>Sorry no Friends to Chat With</Text>
-          <MaterialCommunityIcons name='emoticon-sad-outline' color={modeTheme.color} size={50} style={styles.sadEmoji}/>
-        </View> : null} */}
         </> : null}
               
         </KeyboardAvoidingView>
@@ -558,5 +463,10 @@ const styles = StyleSheet.create({
   sadEmoji: {
     alignSelf: 'center', 
     marginTop: '10%'
+  },
+  loadingContainer: {
+    alignItems: 'center', 
+    flex: 1, 
+    justifyContent: 'center'
   }
 })
