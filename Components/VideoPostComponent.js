@@ -287,7 +287,7 @@ const VideoPostComponent = ({data, fetchMoreData, home, loading, lastVisible, ac
   };
   const handleSnap = async (index) => {
     setActivePostIndex(0)
-    setActiveIndex(0);
+    setActiveIndex(index)
     if (index >= actualData.length - 2) {
       fetchMoreData();
     }
@@ -298,27 +298,25 @@ const VideoPostComponent = ({data, fetchMoreData, home, loading, lastVisible, ac
     setIsPaused(false)
   }
 };
-
-    const renderItem = (item, index) => {
-      console.log(item.index, activeIndex)
-    if (item.item.likedBy != undefined) {
-      if (item.item.post != null && item.item.post.length == 1 && item.item.post[0].video) {
+    const renderItem = ({item, index}) => {
+    if (item) {
+      if (item.post != null && item.post.length == 1 && item.post[0].video) {
     return (
     <>
-        <View style={styles.ultimateVideoContainer} key={item.item.id}>
+        <View style={styles.ultimateVideoContainer} key={item.id}>
           
-     <TouchableOpacity activeOpacity={1} style={{flex: 1}} onLongPress={() => openMenu(item.item)}>
+     <TouchableOpacity activeOpacity={1} style={{flex: 1}} onLongPress={() => openMenu(item)}>
       
       <View style={styles.captionPosting}>
         
-            {!item.item ? <ActivityIndicator color={"#9EDAFF"} /> :
+            {!item ? <ActivityIndicator color={"#9EDAFF"} /> :
             
             <Suspense fallback={ <ActivityIndicator color={"#9EDAFF"} />}>
               <LazyVideo 
                 videoRef={videoRef}
                 style={styles.video}
-                source={item.item.post[0].post}
-                shouldPlay={item.index == activeIndex && focused && !isPaused ? true : false}
+                source={item.post[0].post}
+                shouldPlay={index == activeIndex && focused && !isPaused ? true : false}
                 onPlaybackStatusUpdate={handleStatusUpdate}  
               />
               
@@ -341,57 +339,61 @@ const VideoPostComponent = ({data, fetchMoreData, home, loading, lastVisible, ac
             </View> 
           : null} */}
             </View>
-            <View style={item.item.caption && viewing ? [styles.videoContainer, {marginTop: '-35%'}] : item.item.caption && !viewing ? [styles.videoContainer, {marginTop: '-45%'}] :
-            !item.item.caption && viewing ? [styles.videoContainer, {marginTop: '-25%'}] : [styles.videoContainer, {marginTop: '-35%'}]}>
-            {item.item.pfp ? <FastImage source={{uri: item.item.pfp, priority: 'normal'}} style={styles.pfp}/> : 
+            <View style={item.caption && viewing ? [styles.videoContainer, {marginTop: '-30%'}] : item.caption && !viewing ? [styles.videoContainer, {marginTop: '-40%'}] :
+            !item.caption && viewing ? [styles.videoContainer, {marginTop: '-25%'}] : [styles.videoContainer, {marginTop: '-35%'}]}>
+            {item.pfp ? <FastImage source={{uri: item.pfp, priority: 'normal'}} style={styles.pfp}/> : 
           <FastImage source={require('../assets/defaultpfp.jpg')} style={styles.pfp}/>
           }
           <View style={styles.userHeader}>
-            <TouchableOpacity onPress={item.item.userId != user.uid ? () => navigation.navigate('ViewingProfile', {name: item.item.userId, viewing: true}) : () => navigation.navigate('Profile', {screen: 'ProfileScreen', params: {name: user.uid, preview: false, viewing: false, previewImage: null, previewMade: false, applying: false}})}>
-              <Text numberOfLines={1} style={styles.addText}>@{item.item.username}</Text>
+            <TouchableOpacity style={{alignSelf: 'center'}} onPress={item.userId != user.uid ? () => navigation.navigate('ViewingProfile', {name: item.userId, viewing: true}) : () => navigation.navigate('Profile', {screen: 'ProfileScreen', params: {name: user.uid, preview: false, viewing: false, previewImage: null, previewMade: false, applying: false}})}>
+              <Text numberOfLines={1} style={styles.addText}>@{item.username}</Text>
             </TouchableOpacity>
-            {!item.item.blockedUsers.includes(user.uid) ? item.item.loading ? <View style={styles.rightAddContainer}>
+            {!item.blockedUsers.includes(user.uid) && item.loading ? <View style={styles.rightAddContainer}>
             <ActivityIndicator color={"#9edaff"}/> 
-            </View> :
-            <FollowButtons actualData={actualData} friendId={item.item.userId} updateActualData={setActualData} username={username} user={user} item={item.item} ogUsername={ogUsername} smallKeywords={smallKeywords} largeKeywords={largeKeywords} style={{marginTop: 5}}/> : null
-   }
+            </View> : <FollowButtons actualData={actualData} friendId={item.userId} updateActualData={setActualData} username={username} user={user} item={item} ogUsername={ogUsername} smallKeywords={smallKeywords} largeKeywords={largeKeywords} 
+              style={{marginTop: 5}}/>}
           </View>
-            {!reportedPosts.includes(item.item.id) ? 
+            {!reportedPosts.includes(item.id) ? 
           <TouchableOpacity style={styles.menuContainer}>
-            <Menu visible={item.item.reportVisible}
-                    onDismiss={() => closeMenu(item.item)}
+            <Menu visible={item.reportVisible}
+                    onDismiss={() => closeMenu(item)}
                     contentStyle={styles.menuContentStyle}
                     anchor={<Entypo name='dots-three-vertical' size={25} color={"transparent"} onPress={null}/>}>
-                  <Menu.Item title="Report" titleStyle={{color: "#fafafa"}} onPress={() => navigation.navigate('ReportPage', {id: item.item.id, theme: false, comment: null, cliqueId: null, post: true, video: true, comments: false, message: false, cliqueMessage: false, reportedUser: item.item.userId})}/>
+                  <Menu.Item title="Report" titleStyle={{color: "#fafafa"}} onPress={() => navigation.navigate('ReportPage', {id: item.id, theme: false, comment: null, cliqueId: null, post: true, video: true, comments: false, message: false, cliqueMessage: false, reportedUser: item.userId})}/>
             </Menu>
           
             </TouchableOpacity>
             : null }
           </View> 
-          {item.item.post[0].video ? item.item.caption.length > 0 ? 
-            <TouchableOpacity style={styles.videoCaptionContainer} onPress={() => setFocusedPost(item.item)}>
-              <Text numberOfLines={1} style={styles.username}><Text style={styles.usernameCaption}>{item.item.username}</Text> 
-              {`${edit ? caption ? item.item.caption : item.item.caption : item.item.caption}`}</Text>
+          {item.post[0].video ? item.caption.length > 0 ? 
+            <TouchableOpacity style={styles.videoCaptionContainer} onPress={() => setFocusedPost(item)}>
+              <View style={{flexDirection: 'row', flexWrap: 'nowrap'}}>
+              <Text style={styles.usernameCaption}>{item.username}</Text>
+              <Text style={styles.username} numberOfLines={1}>
+                {`${edit ? caption ? item.caption : item.caption : item.caption}`}
+              </Text>
+            </View>
+
           </TouchableOpacity> : null : null}
             {
-            <View style={item.item.mentions && item.item.mentions.length > 0 ? {flexDirection: 'column', marginTop: '-64%', width: 100, marginLeft: '80%', justifyContent: 'flex-end'} : {flexDirection: 'column', marginTop: '-50%', width: 100, marginLeft: '80%', justifyContent: 'flex-end'} }>
+            <View style={item.mentions && item.mentions.length > 0 ? {flexDirection: 'column', marginTop: '-64%', width: 100, marginLeft: '80%', justifyContent: 'flex-end'} : {flexDirection: 'column', marginTop: '-50%', width: 100, marginLeft: '80%', justifyContent: 'flex-end'} }>
               <LikeButton videoStyling={true} item={item} user={user} updateTempPostsAddLike={addHomeLike} friends={friends} requests={requests} 
                 updateTempPostsRemoveLike={removeHomeLike}/>
           <View style={styles.videoButton}>
-          <TouchableOpacity onPress={() => setFocusedPost(item.item)}>
+          <TouchableOpacity onPress={() => setFocusedPost(item)}>
             <MaterialCommunityIcons name='message-outline' size={Dimensions.get('screen').height / 30.61}color={"#fafafa"} style={{alignSelf: 'center'}}/>
           </TouchableOpacity>
-          <Text style={styles.postFooterText}>{item.item.comments > 999 && item.item.comments < 1000000 ? `${item.item.comments / 1000}k` : item.item.comments > 999999 ? `${item.item.comments / 1000000}m` : item.item.comments}</Text>
+          <Text style={styles.postFooterText}>{item.comments > 999 && item.comments < 1000000 ? `${item.comments / 1000}k` : item.comments > 999999 ? `${item.comments / 1000000}m` : item.comments}</Text>
           </View>
-          {!item.item.private ? 
-          <TouchableOpacity onPress={() => navigation.navigate('SendingModal', {payload: item.item, payloadUsername: item.item.username, video: true, theme: false})} style={styles.videoButton}>
+          {!item.private ? 
+          <TouchableOpacity onPress={() => navigation.navigate('SendingModal', {payload: item, payloadUsername: item.username, video: true, theme: false})} style={styles.videoButton}>
             <Ionicons name='arrow-redo-outline' color={"#fafafa"}  size={Dimensions.get('screen').height / 27.67} style={styles.sendingVideo}/>
           </TouchableOpacity> : null}
           <SaveButton item={item} user={user} updateTempPostsAddSave={addHomeSave} home={home} clique={clique} videoStyling={true}
           updateTempPostsCliqueAddSave={addCliqueSave} updateTempPostsCliqueRemoveSave={removeCliqueSave} 
           updateTempPostsRemoveSave={removeHomeSave}/>
-          {item.item.mentions && item.item.mentions.length > 0 ?
-          <TouchableOpacity style={{margin: '5%'}} onPress={() => navigation.navigate('Mention', {mentions: item.item.mentions, friends: friends, requests: requests})}>
+          {item.mentions && item.mentions.length > 0 ?
+          <TouchableOpacity style={{margin: '5%'}} onPress={() => navigation.navigate('Mention', {mentions: item.mentions, friends: friends, requests: requests})}>
             <MaterialCommunityIcons name='at' size={Dimensions.get('screen').height / 37.5} style={styles.at} color={"#fafafa"}/>
           </TouchableOpacity>
           : null}
@@ -522,6 +524,8 @@ const styles = StyleSheet.create({
     },
     usernameCaption: {
       fontFamily: 'Montserrat_700Bold', 
+      color: "#fafafa",
+      paddingRight: 8,
       fontSize: Dimensions.get('screen').height / 54.95
     },
     loadingContainer: {
@@ -529,8 +533,8 @@ const styles = StyleSheet.create({
       marginTop: '2.5%'
     },
     pfp: {
-        height: Dimensions.get('screen').height / 30.36,
-        width: Dimensions.get('screen').height / 30.36, 
+        height: Dimensions.get('screen').height / 22.5,
+        width: Dimensions.get('screen').height / 22.5, 
         borderRadius: 8
     },
     userHeader: {
@@ -541,7 +545,8 @@ const styles = StyleSheet.create({
         flexDirection: 'row', 
         width: '90%', 
         marginLeft: '5%', 
-        justifyContent: 'flex-start'
+        justifyContent: 'flex-start',
+        paddingBottom: 5
     },
     menuContentStyle: {
         backgroundColor: "#121212",

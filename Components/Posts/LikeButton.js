@@ -5,27 +5,27 @@ import { useNavigation } from '@react-navigation/native';
 function LikeButton({item, user, updateTempPostsAddLike, friends, requests, updateTempPostsRemoveLike, videoStyling}) {
   const navigation = useNavigation();
   const addHomeLike = useCallback(async() => {
-      await updateTempPostsAddLike(item.item, item.item.likedBy)
+      await updateTempPostsAddLike(item, item.likedBy)
     },
     [item, updateTempPostsAddLike]);
   const removeHomeLike = useCallback(async() => {
-      await updateTempPostsRemoveLike(item.item, item.item.likedBy)
+      await updateTempPostsRemoveLike(item, item.likedBy)
     },
     [item, updateTempPostsRemoveLike]);
   return (
     <View style={videoStyling ? styles.videoButton : styles.container}>
-        <TouchableOpacity onPress={item.item.likedBy.includes(user.uid) == false ? () => {addHomeLike(item.item, item.item.likedBy)} 
-        : () => {removeHomeLike(item.item)}}>
-            {item.item.likedBy != undefined ? item.item.likedBy.includes(user.uid) ? <MaterialCommunityIcons name='cards-heart' 
+        <TouchableOpacity onPress={item.likedBy.includes(user.uid) == false ? () => {addHomeLike(item, item.likedBy)} 
+        : () => {removeHomeLike(item)}}>
+            {item.likedBy != undefined ? item.likedBy.includes(user.uid) ? <MaterialCommunityIcons name='cards-heart' 
             size={videoStyling ? Dimensions.get('screen').height / 33.76 : 27.5} style={{alignSelf: 'center'}} color="red"/> 
             : <MaterialCommunityIcons name='cards-heart-outline' color={"#fafafa"} 
             size={videoStyling ? Dimensions.get('screen').height / 33.76 : 27.5}  
             style={{alignSelf: 'center'}}/> : null}
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => navigation.navigate('Likes', {postLikes: item.item.likedBy, friends: friends, requests: requests})}>
-            <Text style={styles.postFooterText}>{item.item.likedBy.length > 999 && item.item.likedBy.length < 1000000 ? 
-            `${item.item.likedBy.length / 1000}k` : item.item.likedBy.length > 999999 ? `${item.item.likedBy.length / 1000000}m` 
-            : item.item.likedBy.length}</Text>
+        <TouchableOpacity onPress={() => navigation.navigate('Likes', {postLikes: item.likedBy, friends: friends, requests: requests})}>
+            <Text style={styles.postFooterText}>{item.likedBy.length > 999 && item.likedBy.length < 1000000 ? 
+            `${item.likedBy.length / 1000}k` : item.likedBy.length > 999999 ? `${item.likedBy.length / 1000000}m` 
+            : item.likedBy.length}</Text>
         </TouchableOpacity>
     </View>
   )

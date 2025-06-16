@@ -4,27 +4,27 @@ import { TouchableOpacity, StyleSheet} from 'react-native';
 function SaveButton({item, user, updateTempPostsAddSave, home, clique, updateTempPostsRemoveSave, updateTempPostsCliqueAddSave,
     updateTempPostsCliqueRemoveSave, videoStyling}) {
     const addHomeSave = useCallback(async() => {
-        console.log(item.item.id)
-        await updateTempPostsAddSave(item.item, item.item.savedBy)
+        console.log(item.id)
+        await updateTempPostsAddSave(item, item.savedBy)
         },
         [item, updateTempPostsAddSave]);
     const removeHomeSave = useCallback(async() => {
-        await updateTempPostsRemoveSave(item.item, item.item.savedBy)
+        await updateTempPostsRemoveSave(item, item.savedBy)
         },
         [item, updateTempPostsRemoveSave]);
     const addCliqueSave = useCallback(async() => {
-        await updateTempPostsCliqueAddSave(item.item, item.item.savedBy)
+        await updateTempPostsCliqueAddSave(item, item.savedBy)
     },
     [item, updateTempPostsCliqueAddSave]);
     const removeCliqueSave = useCallback(async() => {
-        await updateTempPostsCliqueRemoveSave(item.item, item.item.savedBy)
+        await updateTempPostsCliqueRemoveSave(item, item.savedBy)
     },
     [item, updateTempPostsCliqueRemoveSave]);
   return (
-        <TouchableOpacity style={videoStyling ? styles.videoButton : null} onPress={item.item.savedBy.includes(user.uid) == false ? home ? 
-        () => {addHomeSave(item.item)} : clique ? () => addCliqueSave(item.item) : null : home ? 
-        () => {removeHomeSave(item.item)} : clique ? () => removeCliqueSave(item.item) : null}>
-            {item.item.savedBy.includes(user.uid) ? <MaterialCommunityIcons name='bookmark' color={"#9EDAFF"} size={30} 
+        <TouchableOpacity style={videoStyling ? styles.videoButton : null} onPress={item.savedBy.includes(user.uid) == false ? home ? 
+        () => {addHomeSave(item)} : clique ? () => addCliqueSave(item) : null : home ? 
+        () => {removeHomeSave(item)} : clique ? () => removeCliqueSave(item) : null}>
+            {item.savedBy.includes(user.uid) ? <MaterialCommunityIcons name='bookmark' color={"#9EDAFF"} size={30} 
             style={{alignSelf: 'center'}}/> : <MaterialCommunityIcons name='bookmark-plus-outline' color={"#fafafa"} size={30} 
             style={{alignSelf: 'center'}}/>}
         </TouchableOpacity>

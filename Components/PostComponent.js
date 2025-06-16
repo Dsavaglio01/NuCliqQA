@@ -559,43 +559,43 @@ const PostComponent = ({data, forSale, background, home, loading, lastVisible, a
       }
       setActualData(newData);
   }
-    const renderItem = (item, index) => {
-    if (item.item.likedBy != undefined) {
-      if (item.item.post != null && item.item.post.length > 1) {
+    const renderItem = ({item, index}) => {
+    if (item.likedBy != undefined) {
+      if (item.post != null && item.post.length > 1) {
     return (
       <>
-      <View style={item.item.index == 0 ? [styles.ultimateContainer, {marginTop: '-7.5%'}] : styles.ultimateContainer} key={item.item.id}>
-        <TouchableOpacity onPress={home ? () => {addDoubleHomeLike(item.item, item.item.likedBy)} : clique ? () => addDoubleCliqueLike(item.item, item.item.likedBy) : null} activeOpacity={1}>
-    <FastImage source={item.item.background ? {uri: item.item.background} : require('../assets/Default_theme.jpg')} style={styles.postingContainer}>
+      <View style={item.index == 0 ? [styles.ultimateContainer, {marginTop: '-7.5%'}] : styles.ultimateContainer} key={item.id}>
+        <TouchableOpacity onPress={home ? () => {addDoubleHomeLike(item, item.likedBy)} : clique ? () => addDoubleCliqueLike(item, item.likedBy) : null} activeOpacity={1}>
+    <FastImage source={item.background ? {uri: item.background} : require('../assets/Default_theme.jpg')} style={styles.postingContainer}>
       <View style={[styles.posting, {height: Dimensions.get('screen').height / 2, zIndex: 99}]}>
         
-        {item.item.username != username ? <View style={styles.postHeader}>
-           {item.item.pfp ? <FastImage source={{uri: item.item.pfp, priority: 'normal'}} style={styles.pfp}/> : 
+        {item.username != username ? <View style={styles.postHeader}>
+           {item.pfp ? <FastImage source={{uri: item.pfp, priority: 'normal'}} style={styles.pfp}/> : 
           <FastImage source={require('../assets/defaultpfp.jpg')} style={styles.pfp}/>
           }
-            <TouchableOpacity onPress={() => navigation.navigate('ViewingProfile', {name: item.item.userId, viewing: true})}>
-              <Text numberOfLines={1} style={styles.addText}>@{item.item.username}</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('ViewingProfile', {name: item.userId, viewing: true})}>
+              <Text numberOfLines={1} style={styles.addText}>@{item.username}</Text>
             </TouchableOpacity>
-            {!item.item.blockedUsers.includes(user.uid) ? item.item.loading ? 
+            {!item.blockedUsers.includes(user.uid) ? item.loading ? 
             <View style={styles.rightAddContainer}>
             <ActivityIndicator color={"#9edaff"}/> 
             </View>
-            : <FollowButtons actualData={actualData} friendId={item.item.userId} updateActualData={setActualData} username={username} user={user} item={item.item} ogUsername={ogUsername} smallKeywords={smallKeywords} largeKeywords={largeKeywords} style={styles.addContainer}/> : null
+            : <FollowButtons actualData={actualData} friendId={item.userId} updateActualData={setActualData} username={username} user={user} item={item} ogUsername={ogUsername} smallKeywords={smallKeywords} largeKeywords={largeKeywords} style={styles.addContainer}/> : null
    }
           </View> 
           : <View style={styles.postHeader}>
-            {item.item.pfp ? <FastImage source={{uri: item.item.pfp, priority: 'normal'}} style={styles.pfp}/> : 
+            {item.pfp ? <FastImage source={{uri: item.pfp, priority: 'normal'}} style={styles.pfp}/> : 
           <FastImage source={require('../assets/defaultpfp.jpg')} style={styles.pfp}/>
           }
             <TouchableOpacity onPress={() => navigation.navigate('Profile', {screen: 'ProfileScreen', params: {name: user.uid, preview: false, viewing: false, previewImage: null, previewMade: false, applying: false}})} style={{marginLeft: '2.5%'}}>
-              <Text style={styles.addText}>@{item.item.username}</Text>
+              <Text style={styles.addText}>@{item.username}</Text>
             </TouchableOpacity>
             
           </View>}
           <GestureHandlerRootView style={styles.multiItemContainer}>
           <Carousel
           width={340}
-          data={item.item.post}
+          data={item.post}
           
           //mode='vertical-stack'
           modeConfig={{
@@ -609,7 +609,7 @@ const PostComponent = ({data, forSale, background, home, loading, lastVisible, a
             
           </GestureHandlerRootView>
           <View style={styles.paginationContainer}>
-            {item.item.post.map((e, index) => (
+            {item.post.map((e, index) => (
               <PaginationDot 
                 key={index} 
                 isActive={index === activePostIndex} 
@@ -623,37 +623,37 @@ const PostComponent = ({data, forSale, background, home, loading, lastVisible, a
                 <LikeButton videoStyling={false} item={item} user={user} updateTempPostsAddLike={addHomeLike} friends={friends}
                 updateTempPostsRemoveLike={removeHomeLike}/>
           <View style={styles.commentContainer}>
-          <TouchableOpacity onPress={!clique ? () => setFocusedPost(item.item) : () => setFocusedPost(item.item)}>
+          <TouchableOpacity onPress={!clique ? () => setFocusedPost(item) : () => setFocusedPost(item)}>
             <MaterialCommunityIcons name='message-outline' color={theme.color} size={26} style={{alignSelf: 'center'}} />
           </TouchableOpacity>
-          <Text style={styles.postFooterText}>{item.item.comments > 999 && item.item.comments < 1000000 ? `${item.item.comments / 1000}k` : item.item.comments > 999999 ? `${item.item.comments / 1000000}m` : item.item.comments}</Text>
+          <Text style={styles.postFooterText}>{item.comments > 999 && item.comments < 1000000 ? `${item.comments / 1000}k` : item.comments > 999999 ? `${item.comments / 1000000}m` : item.comments}</Text>
           </View>
-          {!item.item.private ? 
-           <TouchableOpacity onPress={!clique ? () => navigation.navigate('SendingModal', {payload: item.item, payloadUsername: item.item.username, video: false, theme: false}) :
-        () => navigation.navigate('GroupChat', {id: cliqueId, group: cliqueId, pfp: cliqueIdPfp, groupName: cliqueIdName, post: item.item})}>
+          {!item.private ? 
+           <TouchableOpacity onPress={!clique ? () => navigation.navigate('SendingModal', {payload: item, payloadUsername: item.username, video: false, theme: false}) :
+        () => navigation.navigate('GroupChat', {id: cliqueId, group: cliqueId, pfp: cliqueIdPfp, groupName: cliqueIdName, post: item})}>
             <Ionicons name='arrow-redo-outline' color={theme.color} size={28} style={styles.sending}/>
           </TouchableOpacity> : null}
           <SaveButton item={item} user={user} updateTempPostsAddSave={addHomeSave} home={home} clique={clique} videoStyling={false}
           updateTempPostsCliqueAddSave={addCliqueSave} updateTempPostsCliqueRemoveSave={removeCliqueSave} 
           updateTempPostsRemoveSave={removeHomeSave}/>
-          {item.item.mentions && item.item.mentions.length > 0 ?
-          <TouchableOpacity onPress={() => navigation.navigate('Mention', {mentions: item.item.mentions, friends: friends})}>
+          {item.mentions && item.mentions.length > 0 ?
+          <TouchableOpacity onPress={() => navigation.navigate('Mention', {mentions: item.mentions, friends: friends})}>
             <MaterialCommunityIcons name='at' size={25} style={styles.mention} color={theme.color}/>
           </TouchableOpacity>
           : null}
           </View>
           
             
-       {item.item.caption.length > 0 ? 
-            <TouchableOpacity style={styles.captionContainer} onPress={() => setFocusedPost(item.item)}>
-              <Text numberOfLines={1} style={{color: theme.color}}><Text style={styles.usernameCaption}>{item.item.username}</Text> {`${edit ? caption ? item.item.caption : item.item.caption : item.item.caption}`}</Text>
+       {item.caption.length > 0 ? 
+            <TouchableOpacity style={styles.captionContainer} onPress={() => setFocusedPost(item)}>
+              <Text numberOfLines={1} style={{color: theme.color}}><Text style={styles.usernameCaption}>{item.username}</Text> {`${edit ? caption ? item.caption : item.caption : item.caption}`}</Text>
           </TouchableOpacity> : null}
-          <Text style={styles.postText}>{getDateAndTime(item.item.timestamp)}</Text>
+          <Text style={styles.postText}>{getDateAndTime(item.timestamp)}</Text>
         </View>
         <View style={[[styles.rightArrow, {borderLeftColor: theme.backgroundColor}], {borderLeftArrow: theme.backgroundColor}]} />
-        {item.item.background && item.item.postBought ? 
+        {item.background && item.postBought ? 
       
-      <TouchableOpacity style={styles.buyThemeContainer} onPress={!post ? () => buyTheme(item.item.background, item.item.userId) : null}>
+      <TouchableOpacity style={styles.buyThemeContainer} onPress={!post ? () => buyTheme(item.background, item.userId) : null}>
         <FontAwesome name='photo' size={22.5} style={{alignSelf: 'center'}}/>
       </TouchableOpacity>: null}
         </FastImage>
@@ -668,93 +668,93 @@ const PostComponent = ({data, forSale, background, home, loading, lastVisible, a
         
     )
    }
-   else if (item.item.post != null && item.item.post.length == 1 && !item.item.repost) {
+   else if (item.post != null && item.post.length == 1 && !item.repost) {
     //console.log(edit, caption)
-    //console.log(item.item.userId)
+    //console.log(item.userId)
       return (
         <>
-        <View style={item.index == 0 ? styles.firstUltimateContainer : styles.ultimateContainer} key={item.item.id}>
-          <TouchableOpacity onPress={home ? () => {addDoubleHomeLike(item.item, item.item.likedBy)} : clique ? () => addDoubleCliqueLike(item.item, item.item.likedBy) : null} activeOpacity={1}>
-            <FastImage source={item.item.background ? {uri: item.item.background} : require('../assets/Default_theme.jpg')} 
-            style={ item.item.post[0].image || item.item.post[0].text ? styles.postingContainer : styles.videoPostingContainer}>
+        <View style={item.index == 0 ? styles.firstUltimateContainer : styles.ultimateContainer} key={item.id}>
+          <TouchableOpacity onPress={home ? () => {addDoubleHomeLike(item, item.likedBy)} : clique ? () => addDoubleCliqueLike(item, item.likedBy) : null} activeOpacity={1}>
+            <FastImage source={item.background ? {uri: item.background} : require('../assets/Default_theme.jpg')} 
+            style={ item.post[0].image || item.post[0].text ? styles.postingContainer : styles.videoPostingContainer}>
       <View>
-      <View style={item.item.post[0].image ? [styles.posting, {height: Dimensions.get('screen').height / 2.1, paddingBottom: 5}] : styles.posting}>
-        {item.item.post[0].image || item.item.post[0].text ?
+      <View style={item.post[0].image ? [styles.posting, {height: Dimensions.get('screen').height / 2.1, paddingBottom: 5}] : styles.posting}>
+        {item.post[0].image || item.post[0].text ?
         <View style={ styles.postHeader}>
-            {item.item.pfp ? <FastImage source={{uri: item.item.pfp, priority: 'normal'}} style={styles.pfp}/> : 
+            {item.pfp ? <FastImage source={{uri: item.pfp, priority: 'normal'}} style={styles.pfp}/> : 
           <FastImage source={require('../assets/defaultpfp.jpg')} style={styles.pfp}/>
           }
-            <TouchableOpacity onPress={item.item.userId != user.uid ? () => navigation.navigate('ViewingProfile', {name: item.item.userId, viewing: true}) : () => navigation.navigate('Profile', {screen: 'ProfileScreen', params: {name: user.uid, preview: false, viewing: false, previewImage: null, previewMade: false, applying: false}})}>
-              <Text style={styles.addText}>@{item.item.username}</Text>
+            <TouchableOpacity onPress={item.userId != user.uid ? () => navigation.navigate('ViewingProfile', {name: item.userId, viewing: true}) : () => navigation.navigate('Profile', {screen: 'ProfileScreen', params: {name: user.uid, preview: false, viewing: false, previewImage: null, previewMade: false, applying: false}})}>
+              <Text style={styles.addText}>@{item.username}</Text>
             </TouchableOpacity>
-            {!item.item.blockedUsers.includes(user.uid) ? item.item.loading ? <View style={styles.rightAddContainer}>
+            {!item.blockedUsers.includes(user.uid) ? item.loading ? <View style={styles.rightAddContainer}>
             <ActivityIndicator color={"#9edaff"}/> 
             </View> :
-            <FollowButtons actualData={actualData} friendId={item.item.userId} updateActualData={setActualData} username={username} user={user} item={item.item} ogUsername={ogUsername} smallKeywords={smallKeywords} largeKeywords={largeKeywords} style={styles.addContainer}/> : null
+            <FollowButtons actualData={actualData} friendId={item.userId} updateActualData={setActualData} username={username} user={user} item={item} ogUsername={ogUsername} smallKeywords={smallKeywords} largeKeywords={largeKeywords} style={styles.addContainer}/> : null
    }
           </View> 
           : null}
-        {item.item.post[0].image ? 
+        {item.post[0].image ? 
         <Pinchable>
-        <FastImage source={{uri: item.item.post[0].post, priority: 'normal'}}
+        <FastImage source={{uri: item.post[0].post, priority: 'normal'}}
         style={[{ height: Dimensions.get('screen').height / 2.75, width: Dimensions.get('screen').width / 1.2, borderRadius: 8, alignSelf: 'center'}]}/>
         </Pinchable> : 
-   <CustomMentionText text={item.item.post[0].value} />}
-          {item.item.mood && item.item.mood.length > 0 ? <Text style={styles.mood}>{item.item.mood}</Text> : null}
+   <CustomMentionText text={item.post[0].value} />}
+          {item.mood && item.mood.length > 0 ? <Text style={styles.mood}>{item.mood}</Text> : null}
             </View>
             
-          {item.item.post[0].image || item.item.post[0].text ?
+          {item.post[0].image || item.post[0].text ?
           <>
            <View style={styles.postFooter}>
                   <View style={styles.buttonContainer}>
                     <LikeButton videoStyling={false} item={item} user={user} updateTempPostsAddLike={addHomeLike} friends={friends} 
                     updateTempPostsRemoveLike={removeHomeLike}/>
           <View style={styles.commentContainer}>
-          <TouchableOpacity onPress={() => setFocusedPost(item.item)}>
+          <TouchableOpacity onPress={() => setFocusedPost(item)}>
             <MaterialCommunityIcons name='message-outline' size={26} color={theme.color} style={{alignSelf: 'center'}}/>
           </TouchableOpacity>
-          <Text style={styles.postFooterText}>{item.item.comments > 999 && item.item.comments < 1000000 ? `${item.item.comments / 1000}k` : item.item.comments > 999999 ? `${item.item.comments / 1000000}m` : item.item.comments}</Text>
+          <Text style={styles.postFooterText}>{item.comments > 999 && item.comments < 1000000 ? `${item.comments / 1000}k` : item.comments > 999999 ? `${item.comments / 1000000}m` : item.comments}</Text>
           </View>
-          {!item.item.private ? 
-          <TouchableOpacity onPress={!clique ? () => navigation.navigate('SendingModal', {payload: item.item, payloadUsername: item.item.username, video: false, theme: false}) :
-        () => navigation.navigate('GroupChat', {id: cliqueId, group: cliqueId, pfp: cliqueIdPfp, groupName: cliqueIdName, post: item.item})}>
+          {!item.private ? 
+          <TouchableOpacity onPress={!clique ? () => navigation.navigate('SendingModal', {payload: item, payloadUsername: item.username, video: false, theme: false}) :
+        () => navigation.navigate('GroupChat', {id: cliqueId, group: cliqueId, pfp: cliqueIdPfp, groupName: cliqueIdName, post: item})}>
             <Ionicons name='arrow-redo-outline' color={theme.color} size={28} style={styles.sending}/>
           </TouchableOpacity> : null}
           <SaveButton item={item} user={user} updateTempPostsAddSave={addHomeSave} home={home} clique={clique} videoStyling={false}
           updateTempPostsCliqueAddSave={addCliqueSave} updateTempPostsCliqueRemoveSave={removeCliqueSave} 
           updateTempPostsRemoveSave={removeHomeSave}/>
 
-          {item.item.mentions && item.item.mentions.length > 0 ?
-          <TouchableOpacity onPress={() => navigation.navigate('Mention', {mentions: item.item.mentions, friends: friends})}>
+          {item.mentions && item.mentions.length > 0 ?
+          <TouchableOpacity onPress={() => navigation.navigate('Mention', {mentions: item.mentions, friends: friends})}>
             <MaterialCommunityIcons name='at' size={25} style={styles.mention} color={theme.color}/>
           </TouchableOpacity>
           : null}
-          {item.item.post[0].text && item.item.userId != user.uid && !item.item.private ? 
+          {item.post[0].text && item.userId != user.uid && !item.private ? 
           <View style={{flexDirection: 'row', alignItems: 'center'}}>
-          <TouchableOpacity onPress={() => {setRepostModal(true); setRepostItem(item.item)}}>
+          <TouchableOpacity onPress={() => {setRepostModal(true); setRepostItem(item)}}>
             <AntDesign name='retweet' size={25} style={styles.mention} color={theme.color}/> 
           </TouchableOpacity>
-          {item.item.reposts ?
+          {item.reposts ?
           <View>
-            <Text style={styles.postFooterText}>{item.item.reposts > 999 && item.item.reposts < 1000000 ? `${item.item.reposts / 1000}k` : item.item.reposts > 999999 ? `${item.item.reposts / 1000000}m` : item.item.reposts}</Text>
+            <Text style={styles.postFooterText}>{item.reposts > 999 && item.reposts < 1000000 ? `${item.reposts / 1000}k` : item.reposts > 999999 ? `${item.reposts / 1000000}m` : item.reposts}</Text>
           </View>
           : null}
           </View>
           : null}
           </View>
           
-            {item.item.caption.length > 0 ? 
-            <TouchableOpacity style={styles.captionContainer} onPress={() => setFocusedPost(item.item)}>
-             <Text numberOfLines={1} style={{color: theme.color}}><Text style={styles.usernameCaption}>{item.item.username}</Text> {`${edit ? caption ? item.item.caption : item.item.caption : item.item.caption}`}</Text>
+            {item.caption.length > 0 ? 
+            <TouchableOpacity style={styles.captionContainer} onPress={() => setFocusedPost(item)}>
+             <Text numberOfLines={1} style={{color: theme.color}}><Text style={styles.usernameCaption}>{item.username}</Text> {`${edit ? caption ? item.caption : item.caption : item.caption}`}</Text>
           </TouchableOpacity> : null}
-          <Text style={styles.postText}>{getDateAndTime(item.item.timestamp)}</Text>
+          <Text style={styles.postText}>{getDateAndTime(item.timestamp)}</Text>
         </View> 
         <View style={[[styles.rightArrow, {borderLeftColor: theme.backgroundColor}], {borderLeftArrow: theme.backgroundColor}]} />
         </> : null}
         </View>
-        {item.item.background && item.item.postBought ? 
+        {item.background && item.postBought ? 
       
-      <TouchableOpacity style={styles.buyThemeContainer} onPress={!post ? () => buyTheme(item.item.background, item.item.userId) : null}>
+      <TouchableOpacity style={styles.buyThemeContainer} onPress={!post ? () => buyTheme(item.background, item.userId) : null}>
         <FontAwesome name='photo' size={22.5} style={{alignSelf: 'center'}}/>
       </TouchableOpacity>: null}
         </FastImage>
@@ -771,36 +771,36 @@ const PostComponent = ({data, forSale, background, home, loading, lastVisible, a
    else {
     return (
         <>
-        <View style={item.index == 0 ? styles.firstUltimateContainer : styles.ultimateContainer} key={item.item.id}>
-    <FastImage source={item.item.background ? {uri: item.item.background} : require('../assets/Default_theme.jpg')}
+        <View style={item.index == 0 ? styles.firstUltimateContainer : styles.ultimateContainer} key={item.id}>
+    <FastImage source={item.background ? {uri: item.background} : require('../assets/Default_theme.jpg')}
     style={styles.postingContainer}>
       <View>
       <View style={styles.posting}>
         <View style={ styles.postHeader}>
-            {item.item.pfp ? <FastImage source={{uri: item.item.pfp, priority: 'normal'}} style={styles.pfp}/> : 
+            {item.pfp ? <FastImage source={{uri: item.pfp, priority: 'normal'}} style={styles.pfp}/> : 
           <FastImage source={require('../assets/defaultpfp.jpg')} style={styles.pfp}/>
           }
-            <TouchableOpacity onPress={item.item.userId != user.uid ? () => navigation.navigate('ViewingProfile', {name: item.item.userId, viewing: true}) : () => navigation.navigate('Profile', {screen: 'ProfileScreen', params: {name: user.uid, preview: false, viewing: false, previewImage: null, previewMade: false, applying: false}})}>
-              <Text style={styles.addText}>@{item.item.username}</Text>
+            <TouchableOpacity onPress={item.userId != user.uid ? () => navigation.navigate('ViewingProfile', {name: item.userId, viewing: true}) : () => navigation.navigate('Profile', {screen: 'ProfileScreen', params: {name: user.uid, preview: false, viewing: false, previewImage: null, previewMade: false, applying: false}})}>
+              <Text style={styles.addText}>@{item.username}</Text>
             </TouchableOpacity>
-            {!item.item.blockedUsers.includes(user.uid) ? item.item.loading ? <View style={styles.rightAddContainer}>
+            {!item.blockedUsers.includes(user.uid) ? item.loading ? <View style={styles.rightAddContainer}>
             <ActivityIndicator color={"#9edaff"}/> 
             </View> :
-            <FollowButtons actualData={actualData} friendId={item.item.userId} updateActualData={setActualData} username={username} user={user} item={item.item} ogUsername={ogUsername} smallKeywords={smallKeywords} largeKeywords={largeKeywords} style={styles.addContainer}/> : null
+            <FollowButtons actualData={actualData} friendId={item.userId} updateActualData={setActualData} username={username} user={user} item={item} ogUsername={ogUsername} smallKeywords={smallKeywords} largeKeywords={largeKeywords} style={styles.addContainer}/> : null
    }
           </View> 
-          <Text style={styles.standardPostText}>{item.item.caption}</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('Post', {post: item.item.post.id, name: user.uid, groupId: null, video: false})} activeOpacity={1} style={styles.repostContainer}>
+          <Text style={styles.standardPostText}>{item.caption}</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('Post', {post: item.post.id, name: user.uid, groupId: null, video: false})} activeOpacity={1} style={styles.repostContainer}>
             <View style={ styles.postHeader}>
-            {item.item.post.pfp ? <FastImage source={{uri: item.item.post.pfp, priority: 'normal'}} style={{height: 33, width: 33, borderRadius: 8}}/> : 
+            {item.post.pfp ? <FastImage source={{uri: item.post.pfp, priority: 'normal'}} style={{height: 33, width: 33, borderRadius: 8}}/> : 
           <FastImage source={require('../assets/defaultpfp.jpg')} style={{height: 33, width: 33, borderRadius: 8}}/>
           }
             <TouchableOpacity>
-              <Text style={styles.addText}>@{item.item.post.username}</Text>
+              <Text style={styles.addText}>@{item.post.username}</Text>
             </TouchableOpacity>
-            <Text style={{fontSize: 12.29, color: theme.color, }}>{getDateAndTime(item.item.post.timestamp)}</Text>
+            <Text style={{fontSize: 12.29, color: theme.color, }}>{getDateAndTime(item.post.timestamp)}</Text>
           </View> 
-            <Text style={styles.standardPostText}>{item.item.post.post[0].value}</Text>
+            <Text style={styles.standardPostText}>{item.post.post[0].value}</Text>
           </TouchableOpacity>
             </View>
           <>
@@ -809,30 +809,30 @@ const PostComponent = ({data, forSale, background, home, loading, lastVisible, a
                     <LikeButton videoStyling={false} item={item} user={user} updateTempPostsAddLike={addHomeLike} friends={friends} 
                     updateTempPostsRemoveLike={removeHomeLike}/>
           <View style={styles.commentContainer}>
-          <TouchableOpacity onPress={() => setFocusedPost(item.item)}>
+          <TouchableOpacity onPress={() => setFocusedPost(item)}>
             <MaterialCommunityIcons name='message-outline' size={26} color={theme.color} style={{alignSelf: 'center'}}/>
           </TouchableOpacity>
-          <Text style={styles.postFooterText}>{item.item.comments > 999 && item.item.comments < 1000000 ? `${item.item.comments / 1000}k` : item.item.comments > 999999 ? `${item.item.comments / 1000000}m` : item.item.comments}</Text>
+          <Text style={styles.postFooterText}>{item.comments > 999 && item.comments < 1000000 ? `${item.comments / 1000}k` : item.comments > 999999 ? `${item.comments / 1000000}m` : item.comments}</Text>
           </View>
           <SaveButton item={item} user={user} updateTempPostsAddSave={addHomeSave} home={home} clique={clique} videoStyling={false}
           updateTempPostsCliqueAddSave={addCliqueSave} updateTempPostsCliqueRemoveSave={removeCliqueSave} 
           updateTempPostsRemoveSave={removeHomeSave}/>
-          {item.item.mentions && item.item.mentions.length > 0 ?
-          <TouchableOpacity onPress={() => navigation.navigate('Mention', {mentions: item.item.mentions, friends: friends})}>
+          {item.mentions && item.mentions.length > 0 ?
+          <TouchableOpacity onPress={() => navigation.navigate('Mention', {mentions: item.mentions, friends: friends})}>
             <MaterialCommunityIcons name='at' size={25} style={styles.mention} color={theme.color}/>
           </TouchableOpacity>
           : null}
           
           </View>
-          <Text style={styles.postText}>{getDateAndTime(item.item.timestamp)}</Text>
+          <Text style={styles.postText}>{getDateAndTime(item.timestamp)}</Text>
         </View>
         <View style={[styles.rightArrow, {borderLeftColor: theme.backgroundColor, zIndex: -1,}]} />
         </>
         </View>
   
-        {item.item.background && item.item.postBought ? 
+        {item.background && item.postBought ? 
       
-      <TouchableOpacity style={styles.buyThemeContainer} onPress={!post ? () => buyTheme(item.item.background, item.item.userId) : null}>
+      <TouchableOpacity style={styles.buyThemeContainer} onPress={!post ? () => buyTheme(item.background, item.userId) : null}>
        <FontAwesome name='photo' size={22.5} style={{alignSelf: 'center'}}/>
       </TouchableOpacity>: null}
         </FastImage>
