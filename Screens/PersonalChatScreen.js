@@ -292,7 +292,7 @@ useEffect(() => {
   useEffect(() => {
     let unsub;
     unsub = onSnapshot(doc(db, 'profiles', person.id), (document) => {
-      if (document.data().messageTyping) {
+      if (document.data()) {
         if (document.data().messageTyping == user.uid) {
           setTyping(true)
         }

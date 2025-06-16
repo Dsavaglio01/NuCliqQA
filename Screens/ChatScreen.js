@@ -3,7 +3,7 @@ import React, {useState, useEffect, useMemo, useContext} from 'react'
 import {MaterialCommunityIcons} from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import useAuth from '../Hooks/useAuth';
-import { onSnapshot, doc, getDoc} from 'firebase/firestore';
+import { onSnapshot, doc, getDoc, query, where, collection, getDocs, documentId} from 'firebase/firestore';
 import SearchInput from '../Components/SearchInput';
 import { Provider } from 'react-native-paper';
 import {Divider} from 'react-native-paper'
@@ -15,6 +15,7 @@ import ProfileContext from '../lib/profileContext';
 import PreviewChat from '../Components/Chat/PreviewChat';
 import { fetchFriendsForMessages, fetchFriendsForActiveUsers, fetchMoreFriendsForMessages, deleteCheckedNotifications, fetchMessageNotifications} 
 from '../firebaseUtils';
+import generateId from '../lib/generateId';
 
 const ChatScreen = ({route}) => {
     const profile = useContext(ProfileContext);
@@ -103,10 +104,9 @@ const ChatScreen = ({route}) => {
       });
       }
     }, [ogActiveFriends])
-    //console.log(friendsInfo)
+    /* //console.log(friendsInfo)
     useMemo(() => {
       if (friends.length > 0) {
-        console.log(friends)
         Promise.all(friends.map(async(item) => await getDoc(doc(db, 'friends', item.friendId))))
         .then(snapshots => {
           setCompleteFriends(snapshots.map(snapshot => ({id: snapshot.id, ...snapshot.data()})))
@@ -116,7 +116,7 @@ const ChatScreen = ({route}) => {
         });
       }
     }, [friends])
-    //console.log(friends.length)
+    //console.log(friends.length) */
     useMemo(() => {
        const newArray = activeFriendsInfo.map((item) => {
           if (item.active == true) {
@@ -157,28 +157,31 @@ const ChatScreen = ({route}) => {
 
     }, [completeFriends])
 
-    useEffect(() => {
-      // Find the corresponding object in array2 and replace its value
-      if (lastMessages.length > 0 && friendsInfo.length > 0) {
-      const updatedArray2 = friendsInfo.map(obj2 => {
-        console.log(obj2.id)
-        if (lastMessages.find(obj1 => obj1.id.includes(obj2.id))) {
-          return { ...obj2, messageActive:lastMessages.find(obj1 => obj1.id.includes(obj2.id)).active, messageId: lastMessages.find(obj1 => obj1.id.includes(obj2.id)).messageId, lastMessage: lastMessages.find(obj1 => obj1.id.includes(obj2.id)).lastMessage,
-          lastMessageTimestamp: lastMessages.find(obj1 => obj1.id.includes(obj2.id)).lastMessageTimestamp};
-        }
-        return obj2;
-      });
-      // Update the state variable array2 with the modified array
-      new Promise(resolve => {
-        setCompleteMessages(updatedArray2
-        .filter((e) => e.lastMessageTimestamp != undefined)
-        .slice()
-              .sort((a, b) => b.lastMessageTimestamp - a.lastMessageTimestamp));
-          resolve(); // Resolve the Promise after setCompleteMessages is done
-      }).finally(() => setLoading(false)); 
-    }
-    }, [lastMessages, friendsInfo])
-
+    useMemo(() => {
+      if (profile && completeMessages.length == 0) {
+        const followingSet = new Set(profile.following);
+        const mutuals = profile.followers.filter(id => followingSet.has(id));
+        const queryRef = collection(db, 'friends')
+        mutuals.map(async(item) => {
+          try { 
+            const firstName = (await getDoc(doc(db, 'profiles', item))).data().firstName
+            const lastName = (await getDoc(doc(db, 'profiles', item))).data().lastName
+            const q = query(queryRef, where(documentId(), '==', generateId(item, user.uid)))
+            const querySnapshot = await getDocs(q);
+            console.log(querySnapshot.docs.length)
+            querySnapshot.forEach((doc) => {
+              // doc.data() is never undefined for query doc snapshots
+              setCompleteMessages([...completeMessages, {id: doc.id, firstName: firstName, lastName: lastName, ...doc.data()}])
+            });
+          } catch (e) {
+            console.error(e)
+          }
+        })
+        setTimeout(() => {
+          setLoading(false)
+        }, 500);
+      }
+    }, [profile, completeMessages])
     const url = 'https://apps.apple.com/us/app/nucliq/id6451544113'
     const shareApp = async() => {
       try {
@@ -262,7 +265,7 @@ const renderEvents = ({item, index}) => {
       </View>
     )
   }
-
+  console.log(completeMessages.length)
 
   return (
     <Provider>
@@ -278,10 +281,9 @@ const renderEvents = ({item, index}) => {
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{flex: 1}}>
         {message ? <>
         {loading && completeMessages.length == 0 ?  <View style={{alignItems: 'center', flex: 1, justifyContent: 'center'}}>
-            <ActivityIndicator color={modeTheme.theme != 'light' ? "#9EDAFF" : "#005278"} size={"large"}/> 
-          </View> : friendsInfo.filter(obj => completeMessages.some(otherObj => otherObj.id === obj.id)).length > 0 ?
+            <ActivityIndicator color={"#9EDAFF"}/> 
+          </View> :
         <>
-        {friendsInfo.filter(obj => completeMessages.some(otherObj => otherObj.id === obj.id)).length > 0 ? 
             <View style={{margin: '5%'}}>
               <TouchableOpacity activeOpacity={1} style={{width: '100%', marginTop: '2.5%', zIndex: 0}}>
               <View style={{flexDirection: 'row'}}>
@@ -328,7 +330,6 @@ const renderEvents = ({item, index}) => {
                 </TouchableOpacity>
                 
             </View>
-        : null}
           {!searching ? <View style={{flex: 1}}>
               {filteredGroup.length > 0 ? 
               <FlatList 
@@ -345,25 +346,22 @@ const renderEvents = ({item, index}) => {
                   renderItem={({item}) => <PreviewChat item={item} completeFriends={completeFriends} filteredGroup={filteredGroup} group={false} 
                   messageNotifications={messageNotifications}/>}
                   keyExtractor={(item) => item.id.toString()}
-                  style={activeFriends.filter(obj => completeMessages.some(otherObj => otherObj.id === obj.id)).length > 0 ? {height: '100%'} : {height: '100%'}}
+                  style={{height: '100%'}}
                   ListFooterComponent={<View style={{paddingBottom: 75}}/>}
                   onScroll={handleScroll}
-              /> : null
-              }
-              {loading ? 
-              <View>
-            <ActivityIndicator color={modeTheme.theme != 'light' ? "#9EDAFF" : "#005278"}/> 
-          </View> : null
-              }
+              /> : loading ?  <View>
+                <ActivityIndicator color={"#9EDAFF"}/> 
+            </View> : null}
 
               
               
           </View> : null}
-        </> : !loading && friendsInfo.filter(obj => completeMessages.some(otherObj => otherObj.id === obj.id)).length == 0 ? 
+        </>} 
+        {/* : !loading && friendsInfo.filter(obj => completeMessages.some(otherObj => otherObj.id === obj.id)).length == 0 ? 
         <View style={styles.noTextContainer}>
           <Text style={styles.noFriendsText}>Sorry no Friends to Chat With</Text>
           <MaterialCommunityIcons name='emoticon-sad-outline' color={modeTheme.color} size={50} style={styles.sadEmoji}/>
-        </View> : null}
+        </View> : null} */}
         </> : null}
               
         </KeyboardAvoidingView>

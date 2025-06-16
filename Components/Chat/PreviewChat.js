@@ -10,7 +10,7 @@ const PreviewChat = ({item, completeFriends, filteredGroup, group, messageNotifi
     }
   return ( 
     <View>
-        <TouchableOpacity style={styles.messageContainer} activeOpacity={1} onPress={() => {deleteMessageNotifications(item); navigation.navigate('PersonalChat', {person: item, friendId: completeFriends.filter((element) => element.id.includes(item.id))[0].id})}}>
+        <TouchableOpacity style={styles.messageContainer} activeOpacity={1} onPress={() => {deleteMessageNotifications(item); navigation.navigate('PersonalChat', {person: item, friendId: item.id})}}>
             <FastImage source={item.pfp ? {uri: item.pfp} : require('../../assets/defaultpfp.jpg')} style={styles.pfp}/>
             <View style={styles.header}>
                 <Text numberOfLines={1} style={styles.name}>{item.firstName} {item.lastName}</Text>
