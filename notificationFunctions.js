@@ -243,7 +243,7 @@ export const schedulePushLikeNotification = async(id, username, notificationToke
     })
   }
   }
-export const  schedulePushImageNotification = async(id, firstName, lastName, notificationToken, friendId) => {
+export const schedulePushImageNotification = async(id, firstName, lastName, notificationToken, friendId) => {
     let notis = (await getDoc(doc(db, 'profiles', id))).data().allowNotifications
     let activeNoties = (await getDoc(doc(db, 'profiles', id))).data().activeOnMessage
     let banned = (await getDoc(doc(db, 'profiles', id))).data().banned

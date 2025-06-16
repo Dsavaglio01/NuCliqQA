@@ -247,10 +247,10 @@ const ProfileComponent = ({preview, previewMade, applying, viewing, previewImage
               
           </View>
           <TouchableOpacity style={styles.pfpLoading} activeOpacity={1} onPress={!profile.pfp ? null : viewing ? () => setImageModal(true) : () => pickImage()} onLongPress={!profile.pfp || viewing ? null : () => setImageModal(true)}>
-              {(loading || imageLoading) && person != null && !(person.blockedUsers.includes(user.uid) || profile.blockedUsers.includes(person.id)) ? 
-              <ActivityIndicator style={styles.profileCircle} color={"#9EDAFF"} /> : viewing ? person.pfp : profile.pfp ? <FastImage source={{uri: viewing ? person.pfp : profile.pfp}} style={styles.profileCircle} /> 
-              : <FastImage source={require('../assets/defaultpfp.jpg')} style={styles.profileCircle} />}
-            </TouchableOpacity>
+            {(loading || imageLoading) && person != null && !(person.blockedUsers.includes(user.uid) || profile.blockedUsers.includes(person.id)) ? 
+            <ActivityIndicator style={styles.profileCircle} color={"#9EDAFF"} /> : viewing ? person.pfp : profile.pfp ? <FastImage source={{uri: viewing ? person.pfp : profile.pfp}} style={styles.profileCircle} /> 
+            : <FastImage source={require('../assets/defaultpfp.jpg')} style={styles.profileCircle} />}
+          </TouchableOpacity>
           </View>
           {viewing ? person.bio : profile.bio.length > 0 ? 
             <TouchableOpacity onPress={() => setAdditionalInfoMode(!additionalInfoMode)} style={styles.bioContainer}>
@@ -441,10 +441,11 @@ const styles = StyleSheet.create({
       paddingBottom: 0,
     },
     pfpLoading: {
-      marginTop: '-7.5%', 
+      marginTop: '-12.5%', 
       alignItems: 'flex-end', 
       marginRight: '5%', 
-      flex: 1
+      flex: 1,
+      zIndex: 5
     },
     bioContainer: {
       flexDirection: 'row', 
@@ -576,4 +577,12 @@ const styles = StyleSheet.create({
       paddingLeft: 8.75,
       lineHeight: 14.5
     },
+    profileCircle: {
+      width: 82.5,
+      height: 82.5,
+      borderRadius: 8,
+      borderWidth: 2,
+      marginTop: 7.5,
+      borderColor: "#9edaff",
+    }
 })

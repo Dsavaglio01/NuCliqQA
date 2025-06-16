@@ -91,7 +91,7 @@ const ContentList = ({route}) => {
                 setPosts([]);
                 new Promise(resolve => {
       const getLikes = async() => {
-        
+        setLoading(true)
         const first = query(collection(db, "profiles", user.uid, 'saves'), orderBy('timestamp', 'desc'), limit(10));
         const querySnapshot = await getDocs(first);
         setLastVisible(querySnapshot.docs[querySnapshot.docs.length - 1])
@@ -118,7 +118,9 @@ const ContentList = ({route}) => {
       }
       getLikes()
       resolve()
-      }).finally(() => setLoading(false))
+      }).finally(() => setTimeout(() => {
+        setLoading(false)
+      }, 500))
       
         }
         else if (archived) {
