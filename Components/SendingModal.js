@@ -19,6 +19,7 @@ const SendingModal = ({route}) => {
     const navigation = useNavigation();
     const [caption, setCaption] = useState('');
     const [loading, setLoading] = useState(false);
+    const [sendLoading, setSendLoading] = useState(false);
     const [actuallySending, setActuallySending] = useState(false);
     const [person, setPerson] = useState(null);
     const [friendsInfo, setFriendsInfo] = useState([]);
@@ -41,6 +42,7 @@ const SendingModal = ({route}) => {
     }, [alert])
     function addPostToChatter() {
       if (ableToShare) {
+        setSendLoading(true)
         Promise.all(friendsInfo.map(async(item) => {
         if (item.checked == true && payload && video && !theme) {
           const friendId = completeFriends.filter((element) => element.id.includes(item.id))
@@ -73,7 +75,7 @@ const SendingModal = ({route}) => {
       active: true,
       lastMessageTimestamp: serverTimestamp()
     }
-    )).then(() => setActuallySending(false)).then(() => setAlert(true)).then(() => schedulePushPostNotification(person, friendId[0].id, profile.firstName, profile.lastName, payload.username, person.notificationToken))
+    )).then(() => setActuallySending(false)).then(() => setAlert(true)).then(() => setSendLoading(false)).then(() => schedulePushPostNotification(person, friendId[0].id, profile.firstName, profile.lastName, payload.username, person.notificationToken))
         } 
         else if (item.checked == true && payload && !video && !theme) {
           const friendId = completeFriends.filter((element) => element.id.includes(item.id))
@@ -104,7 +106,7 @@ const SendingModal = ({route}) => {
       active: true,
       lastMessageTimestamp: serverTimestamp()
     }
-    )).then(() => setActuallySending(false)).then(() => setAlert(true)).then(() => schedulePushPostNotification(person, friendId[0].id, profile.firstName, profile.lastName, payload.username, person.notificationToken))
+    )).then(() => setActuallySending(false)).then(() => setAlert(true)).then(() => setSendLoading(false)).then(() => schedulePushPostNotification(person, friendId[0].id, profile.firstName, profile.lastName, payload.username, person.notificationToken))
         } 
       else if (item.checked == true && theme && payload) {
         const friendId = completeFriends.filter((element) => element.id.includes(item.id))
@@ -136,7 +138,7 @@ const SendingModal = ({route}) => {
       active: true,
       lastMessageTimestamp: serverTimestamp()
     }
-    )).then(() => setActuallySending(false)).then(() => setAlert(true)).then(() => schedulePushThemeNotification(person, friendId[0].id, profile.firstName, profile.lastName, person.notificationToken))
+    )).then(() => setActuallySending(false)).then(() => setAlert(true)).then(() => setSendLoading(false)).then(() => schedulePushThemeNotification(person, friendId[0].id, profile.firstName, profile.lastName, person.notificationToken))
       }
       }))
       
@@ -144,7 +146,6 @@ const SendingModal = ({route}) => {
       else {
         Alert.alert('Post unavailable to share')
       }
-      
       
     }
     useMemo(()=> {
@@ -238,18 +239,17 @@ const SendingModal = ({route}) => {
           </View>
           
           }
-          <View style={styles.buttonContainer}>
+          {/* <View style={styles.buttonContainer}>
             <NextButton text={"Add to Story"}/>
-            {/* {payload.post[0].text ? <NextButton text={"Re-Vibe"}/> : 
-            null} */}
-          </View>
+          </View> */}
           {actuallySending ?
             <View style={styles.addCommentSecondContainer}>
               <View style={styles.inputContainer}>
                 <TextInput style={styles.input} autoFocus={true} returnKeyType='send' placeholder={"Add message..."} placeholderTextColor={"#fafafa"}
                   maxLength={200} value={caption} onChangeText={setCaption}/>
                 <View style={{marginBottom: 10}}>
-                  <NextButton text={"Send"} onPress={() => addPostToChatter()}/>
+                  {sendLoading ? <ActivityIndicator color={"#9edaff"} style={{alignSelf: 'center'}}/> : 
+                  <NextButton text={"Send"} onPress={() => addPostToChatter()}/>}
                 </View>
               </View> 
             </View> 

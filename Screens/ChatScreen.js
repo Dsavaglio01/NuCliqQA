@@ -105,14 +105,16 @@ const ChatScreen = ({route}) => {
     }, [ogActiveFriends])
     //console.log(friendsInfo)
     useMemo(() => {
-      
-      Promise.all(friends.map(async(item) => await getDoc(doc(db, 'friends', item.friendId))))
-      .then(snapshots => {
-        setCompleteFriends(snapshots.map(snapshot => ({id: snapshot.id, ...snapshot.data()})))
-      })
-      .catch(error => {
-        // Handle errors
-      });
+      if (friends.length > 0) {
+        console.log(friends)
+        Promise.all(friends.map(async(item) => await getDoc(doc(db, 'friends', item.friendId))))
+        .then(snapshots => {
+          setCompleteFriends(snapshots.map(snapshot => ({id: snapshot.id, ...snapshot.data()})))
+        })
+        .catch(error => {
+          // Handle errors
+        });
+      }
     }, [friends])
     //console.log(friends.length)
     useMemo(() => {
@@ -141,9 +143,9 @@ const ChatScreen = ({route}) => {
         }
       }
     }
-    console.log(friends)
     useMemo(()=> {
       if (completeFriends.length > 0){
+        console.log(completeFriends)
         Promise.all(completeFriends.map(async(item) => await getDoc(doc(db, 'friends', item.id))))
       .then(snapshots => {
         setLastMessages(snapshots.map(snapshot => ({id: snapshot.id, ...snapshot.data()})))
@@ -153,10 +155,13 @@ const ChatScreen = ({route}) => {
       });
   }
 
-    }, [completeFriends]);
+    }, [completeFriends])
+
     useEffect(() => {
       // Find the corresponding object in array2 and replace its value
+      if (lastMessages.length > 0 && friendsInfo.length > 0) {
       const updatedArray2 = friendsInfo.map(obj2 => {
+        console.log(obj2.id)
         if (lastMessages.find(obj1 => obj1.id.includes(obj2.id))) {
           return { ...obj2, messageActive:lastMessages.find(obj1 => obj1.id.includes(obj2.id)).active, messageId: lastMessages.find(obj1 => obj1.id.includes(obj2.id)).messageId, lastMessage: lastMessages.find(obj1 => obj1.id.includes(obj2.id)).lastMessage,
           lastMessageTimestamp: lastMessages.find(obj1 => obj1.id.includes(obj2.id)).lastMessageTimestamp};
@@ -171,7 +176,9 @@ const ChatScreen = ({route}) => {
               .sort((a, b) => b.lastMessageTimestamp - a.lastMessageTimestamp));
           resolve(); // Resolve the Promise after setCompleteMessages is done
       }).finally(() => setLoading(false)); 
-    }, [lastMessages])
+    }
+    }, [lastMessages, friendsInfo])
+
     const url = 'https://apps.apple.com/us/app/nucliq/id6451544113'
     const shareApp = async() => {
       try {
@@ -193,6 +200,7 @@ const ChatScreen = ({route}) => {
         console.log(error)
       }
     }
+
     useEffect(() => {
         if (specificSearch.length > 0) {
       setSearching(true)
@@ -352,9 +360,9 @@ const renderEvents = ({item, index}) => {
               
           </View> : null}
         </> : !loading && friendsInfo.filter(obj => completeMessages.some(otherObj => otherObj.id === obj.id)).length == 0 ? 
-        <View style={{justifyContent: 'center', flex: 1, marginBottom: '40%', alignItems: 'center'}}>
-          <Text style={[styles.noFriendsText, {color: modeTheme.color}]}>Sorry no Friends to Chat With</Text>
-          <MaterialCommunityIcons name='emoticon-sad-outline' color={modeTheme.color} size={50} style={{alignSelf: 'center', marginTop: '10%'}}/>
+        <View style={styles.noTextContainer}>
+          <Text style={styles.noFriendsText}>Sorry no Friends to Chat With</Text>
+          <MaterialCommunityIcons name='emoticon-sad-outline' color={modeTheme.color} size={50} style={styles.sadEmoji}/>
         </View> : null}
         </> : null}
               
@@ -456,6 +464,7 @@ const styles = StyleSheet.create({
     fontSize: 19.20,
     fontFamily: 'Montserrat_500Medium',
     padding: 10,
+    color: "#fafafa",
     textAlign: 'center'
   },
   greenDot: {
@@ -542,4 +551,14 @@ const styles = StyleSheet.create({
     width: '80%',
     fontFamily: 'Montserrat_500Medium'
   },
+  noTextContainer: {
+    justifyContent: 'center', 
+    flex: 1, 
+    marginBottom: '40%', 
+    alignItems: 'center'
+  },
+  sadEmoji: {
+    alignSelf: 'center', 
+    marginTop: '10%'
+  }
 })

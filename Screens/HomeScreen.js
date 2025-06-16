@@ -234,9 +234,9 @@ useEffect(() => {
         {searching ? 
           <SearchComponent user={user} home={true} closeSearching={() => setSearching(false)}/> : <></>}
         <View>
-          {!searching ? 
+          {/* {!searching ? 
             <StoriesArray story={story} user={user} profile={profile} userId={user.uid}/>
-          : null}
+          : null} */}
           {!searching && postDone && user && tempPosts.length > 0 ? 
           <PostComponent fetchMoreData={handlePostScroll} data={tempPosts} forSale={profile.forSale} background={profile.background} home={true} loading={loading} lastVisible={lastVisible} 
           actualClique={null} videoStyling={null || false} cliqueIdPfp={null} cliqueIdName={null} post={null} blockedUsers={profile.blockedUsers}

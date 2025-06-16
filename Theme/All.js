@@ -259,26 +259,35 @@ const All = ({route}) => {
     }
     
   }
-  useMemo(() => {
+  useEffect(() => {
+    let unsubscribe;
     const getThemes = async() => {
-    if (user.uid && free && mostPopular) {
-      const { tempPosts, lastFreeVisible } = await fetchFreeThemes('bought_count', 'desc', user.uid);
-      setFreeTempPosts(tempPosts);
-      setLastVisible(lastFreeVisible);
+      if (user.uid && free && mostPopular) {
+        unsubscribe = await fetchFreeThemes(user.uid, 'bought_count', 'desc', setFreeTempPosts, setLastVisible);
+      }
+      if (user.uid && free && sortIncreasingDate) {
+        unsubscribe = await fetchFreeThemes(user.uid, 'timestamp', 'desc', setFreeTempPosts, setLastVisible);
+      }
+      else if (user.uid && free && sortDecreasingDate) {
+        unsubscribe = await fetchFreeThemes(user.uid, 'timestamp', 'asc', setFreeTempPosts, setLastVisible);
+      }
+      else if (user.uid && free && sortDecreasingPrice) {
+        unsubscribe = await fetchFreeThemes(user.uid, 'price', 'asc', setFreeTempPosts, setLastVisible);
+      }
+      else if (user.uid && free && sortIncreasingPrice) {
+        unsubscribe = await fetchFreeThemes(user.uid, 'price', 'desc', setFreeTempPosts, setLastVisible);
+      }
     }
-    else if (user.uid && free && sortIncreasingDate) {
-      const { tempPosts, lastFreeVisible } = await fetchFreeThemes('timestamp', 'desc', user.uid);
-      setFreeTempPosts(tempPosts);
-      setLastVisible(lastFreeVisible);
-    }
-    else if (user.uid && free && sortDecreasingDate) {
-      const { tempPosts, lastFreeVisible } = await fetchFreeThemes('timestamp', 'asc', user.uid);
-      setFreeTempPosts(tempPosts);
-      setLastVisible(lastFreeVisible);
-    }
-  }
-  getThemes();
-  }, [mostPopular, free, user?.uid, sortIncreasingDate, sortDecreasingDate])
+    getThemes();
+    return () => {
+      if (unsubscribe) {
+        setTimeout(() => {
+          setLoading(false)
+        },  500);
+        return unsubscribe;
+      }
+    };
+  }, [user?.uid, free, mostPopular, sortIncreasingDate, sortDecreasingDate, sortIncreasingPrice, sortDecreasingPrice]);
   async function fetchMoreFreeData () {
     if (mostPopular && lastVisible != undefined) {
       const { tempPosts, lastFreeVisible } = await fetchMoreFreeThemes('bought_count', 'desc', lastVisible, user.uid);

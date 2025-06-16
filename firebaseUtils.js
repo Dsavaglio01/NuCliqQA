@@ -1140,7 +1140,6 @@ export const fetchCliqueData = async(groupId, setContacts, setRequests, setRepor
  * @throws {Error} - If `userId` or `subCollection` is not provided.
 */
 export const fetchPurchasedThemes = async(userId, subCollection, order, setPurchasedThemes, setPurchasedLastVisible) => {
-  console.log('Im here')
   if (!userId || !subCollection) {
     throw new Error("userId is undefined");
   }
@@ -1240,64 +1239,23 @@ export const fetchMoreFreeThemes = async(subCollection, order, freeLastVisible, 
  * @throws {Error} - If `subCollection` is not provided.
 */
 export const fetchFreeThemes = async (subCollection, order, userId) => {
-  if (!subCollection) {
-    throw new Error("subcollection is undefined");
+  if (!userId || !subCollection) {
+    throw new Error("userId is undefined");
   }
-
-  const tempPosts = [];
-  try {
-    let q = query(
-      collection(db, 'freeThemes'),
-      orderBy(subCollection, order),
-      limit(10)
-    );
-
-    const lastDocId = await getLastDocId(userId, 'free', subCollection, order);
-    if (lastDocId) {
-      const lastDocSnap = await getDoc(doc(db, 'freeThemes', lastDocId));
-      if (lastDocSnap.exists()) {
-        q = query(
-          collection(db, 'freeThemes'),
-          orderBy(subCollection, order),
-          startAfter(lastDocSnap),
-          limit(10)
-        );
-      }
+  const purchasedQuery = query(collection(db, 'freeThemes'), orderBy(subCollection, order), limit(10))
+  const unsubscribe = onSnapshot(purchasedQuery, (snapshot) => {
+    const purchased = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+      transparent: false
+    }));
+    setPurchasedThemes(purchased);
+    if (snapshot.docs.length > 0) {
+      setPurchasedLastVisible(snapshot.docs[snapshot.docs.length - 1]);
     }
-
-    const querySnapshot = await getDocs(q);
-    if (querySnapshot.empty) {
-      console.log('No new themes, using cached images');
-      return await getCachedImages(userId, 'free', subCollection, order);
-    }
-
-    querySnapshot.forEach((doc) => {
-      tempPosts.push({ id: doc.id, ...doc.data(), transparent: false });
-    });
-
-    // Fetch cached images
-    const cachedImages = await getCachedImages(userId, 'free', subCollection, order);
-
-    // **Deduplicate**: Create a map of IDs to remove duplicates
-    const uniqueImagesMap = new Map();
-    [...tempPosts, ...cachedImages].forEach((img) => {
-      uniqueImagesMap.set(img.id, img); // Latest image data overwrites old one
-    });
-
-    // Convert back to an array
-    const updatedImages = Array.from(uniqueImagesMap.values());
-
-    // Save to AsyncStorage
-    await saveCachedImages(userId, 'free', subCollection, order, updatedImages);
-    await saveLastDocId(userId, 'free', subCollection, order, tempPosts[0].id); // Store latest image doc ID
-
-    return {
-      tempPosts: updatedImages,
-      lastFreeVisible: querySnapshot.docs[querySnapshot.docs.length - 1],
-    };
-  } catch (e) {
-    console.error(e);
-  }
+    console.log(purchased.length)
+  return unsubscribe;
+  });
 };
 
 /**
@@ -2065,4 +2023,20 @@ export const applyTheme = async(userId, theme, selling, profile, posts, both, se
 export const activePerson = async(personId) => {
   const docSnap = await getDoc(doc(db, 'profiles', personId))
   return docSnap.data()
+}
+export const unBlock = async(item, userId, setPosts, posts) => {
+  if (!item || !userId) {
+    throw new Error("userId or item is undefined");
+  }
+  const batch = writeBatch(db)
+  const profileRef = doc(db, 'profiles', userId)
+  const secondProfileRef = doc(db, 'profiles', item.id)
+  batch.update(profileRef, {
+    blockedUsers: arrayRemove(item.id)
+  })
+  batch.update(secondProfileRef, {
+    usersThatBlocked: arrayRemove(userId)
+  })
+  await batch.commit();
+  setPosts(posts.filter((e) => e.id != item.id))
 }

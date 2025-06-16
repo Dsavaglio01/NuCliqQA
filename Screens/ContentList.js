@@ -1,6 +1,6 @@
 import { ActivityIndicator, FlatList, Dimensions, Alert, StyleSheet, Text, View } from 'react-native'
 import React, { useContext, useEffect, useState } from 'react'
-import { collection, getDoc, getDocs, onSnapshot, query, where, doc, updateDoc, arrayRemove, limit, startAfter, orderBy } from 'firebase/firestore';
+import { collection, getDoc, getDocs, onSnapshot, query, where, doc, updateDoc, limit, startAfter, orderBy } from 'firebase/firestore';
 import useAuth from '../Hooks/useAuth';
 import { TouchableOpacity } from 'react-native-gesture-handler';
 import { useNavigation } from '@react-navigation/native';
@@ -15,6 +15,8 @@ import { db } from '../firebase';
 import _ from 'lodash'
 import themeContext from '../lib/themeContext';
 import ProfileContext from '../lib/profileContext';
+import { unBlock } from '../firebaseUtils';
+import MiniPost from '../Components/MiniPost';
 const ContentList = ({route}) => {
     const {likes, comments, saves, archived, cards, blocked, mentions} = route.params;
     const {user} = useAuth()
@@ -200,14 +202,7 @@ const ContentList = ({route}) => {
     processPosts();
   }
     }, [postDone, posts, comments])
-    //console.log(posts.length)
-    /* useEffect(() => {
-      if (done) {
-        setPosts([...posts, ...tempPosts])
-      }
-    }, [done]) */
-    //console.log(posts.length)
-    //console.log(loading)render
+
     async function fetchMoreData() {
       if (lastVisible != undefined) {
         if (mentions) {
@@ -350,54 +345,14 @@ const ContentList = ({route}) => {
                 </TouchableOpacity>
                 </View>
               <View style={{ marginLeft: 'auto', marginRight: '1%'}}>
-                <NextButton text={"Un-Block"} textStyle={{fontSize: 12.29, fontFamily: 'Montserrat_500Medium'}} onPress={() => unBlock(item)}/>
+                <NextButton text={"Un-Block"} textStyle={{fontSize: 12.29, fontFamily: 'Montserrat_500Medium'}} 
+                onPress={() => unBlock(item, user.uid, setPosts, posts)}/>
               </View>
             </View>
           </View>
       )
       
      //console.log(item.id)
-    }
-    //console.log(posts.length)
-    async function unBlock(item) {
-      //console.log(item)
-      /* await updateDoc(doc(db, 'profiles', user.uid), {
-        blockedUsers: arrayRemove(item.id)
-      }).then(async() => await updateDoc(doc(db, 'profiles', item.id), {
-        
-      })) */
-      await updateDoc(doc(db, 'profiles', user.uid), {
-      blockedUsers: arrayRemove(item.id)
-    }).then(async() => await updateDoc(doc(db, 'profiles', item.id), {
-      usersThatBlocked: arrayRemove(user.uid)
-    })).then(() => setPosts(posts.filter((e) => e.id != item.id)))
-    }
-    const renderPosts = ({item, index}) => {
-      //console.log(item)
-      return (
-        !item.repost && item.post[0].image ? 
-      <TouchableOpacity style={{borderRadius: 10, margin: '2.5%', width: 155,
-    height: 155 / 1.015625,}} onPress={!item.repost ? () => navigation.navigate('Post', {post: item.id,  name: item.userId, groupId: null, video: false}) : () => navigation.navigate('Repost', {post: item.id,  name: item.userId, groupId: null})}>
-        <FastImage source={{uri: item.post[0].post, priority: 'normal'}} style={styles.image}/>
-      </TouchableOpacity> : item.repost && item.post.post[0].image ? 
-      <TouchableOpacity style={{borderRadius: 10, margin: '2.5%', width: 155,
-    height: 155 / 1.015625,}} onPress={!item.repost ? () => navigation.navigate('Post', {post: item.id,  name: item.userId, groupId: null, video: false}) : () =>navigation.navigate('Repost', {post: item.id,  name: item.userId, groupId: null})}>
-        <FastImage source={{uri: item.post.post[0].post, priority: 'normal'}} style={styles.image}/>
-      </TouchableOpacity> : !item.repost && item.post[0].video ? <TouchableOpacity style={{borderRadius: 10, margin: '2.5%', width: 155,
-    height: 155 / 1.015625,}} onPress={!item.repost ? () => navigation.navigate('Post', {post: item.id,  name: item.userId, groupId: null, video: true}) : () =>navigation.navigate('Repost', {post: item.id,  name: item.userId, groupId: null})}>
-        <FastImage source={{uri: item.post[0].thumbnail, priority: 'normal'}} style={styles.image}/>
-      </TouchableOpacity> : item.repost && item.post.post[0].video ? <TouchableOpacity style={{borderRadius: 10, margin: '2.5%', width: 155,
-    height: 155 / 1.015625,}} onPress={!item.repost ? () => navigation.navigate('Post', {post: item.id,  name: item.userId, groupId: null, video: true}) :() => navigation.navigate('Repost', {post: item.id,  name: item.userId, groupId: null})}>
-        <FastImage source={{uri: item.post.post[0].thumbnail, priority: 'normal'}} style={styles.image}/>
-      </TouchableOpacity> : !item.repost ?
-      <TouchableOpacity style={{borderRadius: 10, margin: '2.5%', width: 155,
-    height: 155 / 1.015625, backgroundColor: "#262626"}} onPress={!item.repost ? () => navigation.navigate('Post', {post: item.id,  name: item.userId, groupId: null, video: false}) : () => navigation.navigate('Repost', {post: item.id,  name: item.userId, groupId: null})}>
-        <Text style={[styles.image, {fontSize: item.post[0].textSize, color: theme.color}]}>{item.post[0].value}</Text>
-      </TouchableOpacity> : <TouchableOpacity style={{borderRadius: 10, margin: '2.5%', width: 155,
-    height: 155 / 1.015625, backgroundColor: "#262626"}} onPress={!item.repost ? () => navigation.navigate('Post', {post: item.id,  name: item.userId, groupId: null, video: false}) : () => navigation.navigate('Repost', {post: item.id,  name: item.userId, groupId: null})}>
-        <Text style={[styles.image, {fontSize: item.post.post[0].textSize, color: theme.color}]}>{item.post.post[0].value}</Text>
-      </TouchableOpacity>
-    ) 
     }
     const renderComments = ({item, index}) => {
       //console.log(item)
@@ -458,45 +413,45 @@ const ContentList = ({route}) => {
       </>
       {<>
        {saves && !loading && posts.length == 0 ? 
-       <View style={{flex: 1, justifyContent: 'center', marginBottom: '50%'}}>
-      <Text style={[styles.headerText, {color: theme.color}]}>No Saved Posts Yet!</Text> 
-      <MaterialCommunityIcons name='emoticon-sad-outline' size={50} style={{alignSelf: 'center', marginTop: '5%'}} color={theme.color}/>
+       <View style={styles.noTextContainer}>
+      <Text style={styles.headerText}>No Saved Posts Yet!</Text> 
+      <MaterialCommunityIcons name='emoticon-sad-outline' size={50} style={styles.sadEmoji} color={theme.color}/>
       
       </View>
       : archived && !loading && posts.length == 0 ?  
-      <View style={{flex: 1, justifyContent: 'center', marginBottom: '50%'}}>
-      <Text style={[styles.headerText, {color: theme.color}]}>No Archived Posts Yet!</Text> 
-      <MaterialCommunityIcons name='emoticon-sad-outline' size={50} style={{alignSelf: 'center', marginTop: '5%'}} color={theme.color}/>
+      <View style={styles.noTextContainer}>
+      <Text style={styles.headerText}>No Archived Posts Yet!</Text> 
+      <MaterialCommunityIcons name='emoticon-sad-outline' size={50} style={styles.sadEmoji} color={theme.color}/>
       
       </View> :
       cards && !loading && editedCards.length == 0 ?
-      <View style={{flex: 1, justifyContent: 'center', marginBottom: '50%'}}>
-      <Text style={[styles.headerText, {color: theme.color}]}>No Saved Payment Methods Yet!</Text> 
-      <MaterialCommunityIcons name='emoticon-sad-outline' size={50} style={{alignSelf: 'center', marginTop: '5%'}} color={theme.color}/>
+      <View style={styles.noTextContainer}>
+      <Text style={styles.headerText}>No Saved Payment Methods Yet!</Text> 
+      <MaterialCommunityIcons name='emoticon-sad-outline' size={50} style={styles.sadEmoji} color={theme.color}/>
       <View style={{marginTop: '10%', marginLeft: '5%', marginRight: '5%'}}>
         <NextButton text={"Explore Themes"} onPress={() => navigation.navigate('Themes', {screen: 'All', params: {name: null, groupId: null, goToMy: false, groupTheme: null, group: null, registers: false} })}/>
       </View>
       </View> :
        likes && !loading && posts.length == 0 ? 
-      <View style={{flex: 1, justifyContent: 'center', marginBottom: '50%'}}>
-      <Text style={[styles.headerText, {color: theme.color}]}>No Liked Posts Yet!</Text> 
-      <MaterialCommunityIcons name='emoticon-sad-outline' size={50} style={{alignSelf: 'center', marginTop: '5%'}} color={theme.color}/>
+      <View style={styles.noTextContainer}>
+      <Text style={styles.headerText}>No Liked Posts Yet!</Text> 
+      <MaterialCommunityIcons name='emoticon-sad-outline' size={50} style={styles.sadEmoji} color={theme.color}/>
       
       </View>  : 
       mentions && !loading && posts.length == 0 ?
-      <View style={{flex: 1, justifyContent: 'center', marginBottom: '50%'}}>
-      <Text style={[styles.headerText, {color: theme.color}]}>No Mentioned Posts Yet!</Text> 
-      <MaterialCommunityIcons name='emoticon-sad-outline' size={50} style={{alignSelf: 'center', marginTop: '5%'}}  color={theme.color}/>
+      <View style={styles.noTextContainer}>
+      <Text style={styles.headerText}>No Mentioned Posts Yet!</Text> 
+      <MaterialCommunityIcons name='emoticon-sad-outline' size={50} style={styles.sadEmoji}  color={theme.color}/>
       </View> :
       blocked && !loading && posts.length == 0 ?
-      <View style={{flex: 1, justifyContent: 'center', marginBottom: '50%'}}>
-      <Text style={[styles.headerText, {color: theme.color}]}>No Blocked Users Yet</Text> 
-      <MaterialCommunityIcons name='emoticon-happy-outline' size={50} style={{alignSelf: 'center', marginTop: '5%'}} color={theme.color}/>
+      <View style={styles.noTextContainer}>
+      <Text style={styles.headerText}>No Blocked Users Yet</Text> 
+      <MaterialCommunityIcons name='emoticon-happy-outline' size={50} style={styles.sadEmoji} color={theme.color}/>
       </View> :
       comments && !loading && completePosts.length == 0 ? 
-      <View style={{flex: 1, justifyContent: 'center', marginBottom: '50%'}}>
-      <Text style={[styles.headerText, {color: theme.color}]}>No Commented Posts Yet!</Text> 
-      <MaterialCommunityIcons name='emoticon-sad-outline' size={50} style={{alignSelf: 'center', marginTop: '5%'}} color={theme.color}/>
+      <View style={styles.noTextContainer}>
+      <Text style={styles.headerText}>No Commented Posts Yet!</Text> 
+      <MaterialCommunityIcons name='emoticon-sad-outline' size={50} style={styles.sadEmoji} color={theme.color}/>
       
       </View> :
       cards ? 
@@ -518,12 +473,15 @@ const ContentList = ({route}) => {
         )
       }))}
       </View> : null}
-      {posts.length > 0 ? <>
+      {loading ? <View style={styles.loadingContainer}>
+        <ActivityIndicator color={"#9edaff"}/> 
+        </View> : posts.length > 0 ? <>
       <FlatList 
       data={comments ? completePosts : posts}
-      renderItem={blocked ? renderBlocked : comments ? renderComments : renderPosts}
+      renderItem={blocked ? renderBlocked : comments ? renderComments : ({item, index}) => <MiniPost item={item} index={index} repost={false}
+       name={user.uid}/> }
       keyExtractor={(item) =>item.id.toString()}
-      numColumns={blocked || comments ? 1 : 2}
+      numColumns={blocked || comments ? 1 : 3}
       scrollEnabled
       style={saves || mentions ? {margin: '5%', marginTop: '2.5%', marginLeft: '7.5%'} : {margin: '5%', marginTop: '2.5%',}}
       ListFooterComponent={<View style={{paddingBottom: 100}}/>}
@@ -531,9 +489,6 @@ const ContentList = ({route}) => {
       onScroll={handleScroll}
       />
       </>: null}
-      {loading ? <View style={{flex: 1, alignItems: 'center', justifyContent:'center', marginTop: '5%'}}>
-        <ActivityIndicator color={theme.theme != 'light' ? "#9EDAFF" : "#005278"}/> 
-        </View> : null}
        </>
       }
       
@@ -558,7 +513,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     padding: 10,
     margin: '2.5%',
-    //marginTop: '8%',
+    color: "#fafafa",
     fontWeight: '700'
   },
   image: {
@@ -572,23 +527,22 @@ const styles = StyleSheet.create({
     marginLeft: '5%'
   },
   friendsContainer: {
-      backgroundColor: '#fff',
-        borderRadius: 10,
-        borderBottomWidth: 1,
-        borderBottomColor: "#d3d3d3",
-        padding: 10,
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        width: '105%',
-        marginLeft: '-2.5%'
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#d3d3d3",
+    padding: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '105%',
+    marginLeft: '-2.5%'
     },
-    name: {
-        fontSize: 15.36,
-        paddingTop: 5,
-        fontFamily: 'Montserrat_700Bold',
-        //width: '95%'
-    },
+  name: {
+    fontSize: 15.36,
+    paddingTop: 5,
+    fontFamily: 'Montserrat_700Bold',
+  },
     message: {
         fontSize: 15.36,
         fontFamily: 'Montserrat_500Medium',
@@ -603,5 +557,18 @@ const styles = StyleSheet.create({
       paddingLeft: 15,
       fontFamily: 'Montserrat_500Medium',
       maxWidth: '75%'
+    },
+    loadingContainer: {
+      flex: 1,
+      marginTop: '5%'
+    },
+    sadEmoji: {
+      alignSelf: 'center', 
+      marginTop: '5%'
+    },
+    noTextContainer: {
+      flex: 1, 
+      justifyContent: 'center', 
+      marginBottom: '50%'
     }
 })
