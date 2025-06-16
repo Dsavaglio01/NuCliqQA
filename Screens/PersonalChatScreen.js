@@ -419,12 +419,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#121212"
   },
   username: {
-      fontSize: 15.36,
-      fontFamily: 'Montserrat_500Medium',
-      padding: 10,
-      textAlign: 'center',
-      color: "#fafafa"
-    },
+    fontSize: 15.36,
+    fontFamily: 'Montserrat_500Medium',
+    padding: 10,
+    textAlign: 'center',
+    color: "#fafafa"
+  },
 });
 
 export default PersonalChatScreen;

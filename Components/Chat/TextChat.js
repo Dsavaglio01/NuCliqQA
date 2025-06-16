@@ -23,8 +23,6 @@ const TextChat = React.memo(({item, user, person, lastMessageId, readBy, newMess
     const userBubbleStyle = {
     backgroundColor: '#9edaff',
     padding: 10,
-    
-    marginHorizontal: 5,
     borderRadius: 20,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 5,
@@ -87,7 +85,7 @@ const TextChat = React.memo(({item, user, person, lastMessageId, readBy, newMess
     }
   }
   return (
-    <View style={{marginVertical: '-2.5%'}}>
+    <View style={{paddingBottom: 5}}>
         <MessageImageModal imageModal={imageModal} closeImageModal={() => setImageModal(false)} image={image}/>
         {item.message.text != undefined ?
             <View style={item.user == user.uid ? styles.user : styles.notUser}>
@@ -209,7 +207,6 @@ const styles = StyleSheet.create({
         height: 40,
         backgroundColor: "#fafafa",
         borderRadius: 20,
-        marginRight: 10, // Add spacing between image and text
     },
     timestampContainer: { 
         width: 80,  

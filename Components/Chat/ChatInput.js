@@ -104,8 +104,9 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         paddingHorizontal: 8,
         marginBottom: '2.5%',
-        marginLeft: '2.5%',
-        marginRight: '2.5%',
+        marginLeft: '3.75%',
+        width: '92.5%',
+        //marginRight: '2.5%',
         flexDirection: 'row'
     }, 
     keyboardFocused: {

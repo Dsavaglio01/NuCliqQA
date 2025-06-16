@@ -343,76 +343,23 @@ export const fetchMorePersonalMessages = async (friendId, messages, setMessages,
 
 export const fetchPersonalMessages = async (friendId, setMessages, setLastVisible, setUnsubscribe) => {
   if (!friendId) return;
-  try {
-    // Base query
-    let q = query(
-      collection(db, 'friends', friendId, 'chats'),
-      orderBy('timestamp', 'desc'),
-      limit(25)
-    );
-
-    // Check last document ID for pagination
-    const lastDocId = await getLastPersonalChatDocId(friendId);
-    if (lastDocId) {
-      const lastDocSnap = await getDoc(doc(db, 'friends', friendId, 'chats', lastDocId));
-      if (lastDocSnap.exists()) {
-        q = query(
-          collection(db, 'friends', friendId, 'chats'),
-          orderBy('timestamp', 'desc'),
-          startAfter(lastDocSnap), // Fixed: Pass the document snapshot
-          limit(25)
-        );
-      }
-    }
-
-    // Check if there's a previous listener & unsubscribe it
-    if (setUnsubscribe) {
-      setUnsubscribe((prevUnsub) => {
-        if (prevUnsub) prevUnsub(); // Unsubscribe from previous listener
-        return null; // Reset before setting a new one
-      });
-    }
-
-    // Get messages from Firestore
-    const querySnapshot = await getDocs(q);
-    if (querySnapshot.empty) {
-      console.log('No new messages, using cached messages');
-      return await getChatMessages(friendId);
-    }
-
-    // **Set up real-time updates but ensure only one listener exists**
-    const unsubscribe = onSnapshot(q, async (snapshot) => {
-      const chats = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-        copyModal: false,
-        saveModal: false,
-      }));
-
-      const cachedMessages = await getChatMessages(friendId);
-
-      // **Deduplication** (avoid duplicate messages in cache)
-      const uniqueMessages = new Map();
-      [...chats, ...cachedMessages].forEach((msg) => uniqueMessages.set(msg.id, msg));
-
-      const updatedMessages = Array.from(uniqueMessages.values());
-
-      // Save updated messages to AsyncStorage
-      await saveChatMessages(friendId, updatedMessages);
-      await saveLastPersonalChatDocId(friendId, snapshot.docs[snapshot.docs.length - 1]?.id); // Store last doc ID
-
-      // **Update UI**
-      setMessages(updatedMessages);
-      setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
-    });
-
-    // Store unsubscribe function so we can clean up later
-    setUnsubscribe(() => unsubscribe);
-
-    return unsubscribe;
-  } catch (error) {
-    console.error('Error fetching personal messages:', error);
+  if (!friendId) {
+    throw new Error("friendId is undefined");
   }
+  const q = query(collection(db, 'friends', friendId, 'chats'), orderBy('timestamp', 'desc'), limit(25))
+  const unsubscribe = onSnapshot(q, (snapshot) => {
+    const messages = snapshot.docs.map((doc)=> ({
+      id: doc.id,
+      ...doc.data(),
+      copyModal: false,
+      saveModal: false
+    }));
+    setMessages(messages)
+    if (snapshot.docs.length > 0) {
+      setLastVisible(snapshot.docs[snapshot.docs.length - 1])
+    }
+  })
+  return unsubscribe;
 };
 
 export const fetchGroupNotifications = async(groupId, userId, collectionName, setMessageNotifications) => {

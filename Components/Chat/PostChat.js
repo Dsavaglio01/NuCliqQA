@@ -22,6 +22,8 @@ const PostChat = React.memo(({item, user, person, lastMessageId, postNull, subsc
     backgroundColor: '#9edaff',
     padding: 10,
     margin: 5,
+    marginTop: 0,
+    marginBottom: 0,
     borderRadius: 20,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 5,
@@ -76,9 +78,8 @@ const PostChat = React.memo(({item, user, person, lastMessageId, postNull, subsc
     backgroundColor: '#9edaff',
   }
   const postContainer = {
-    margin: 5,
-    marginLeft: '-2.5%',
     padding: 10,
+    marginLeft: '-5%',
     borderTopLeftRadius: 5,
     borderTopRightRadius: 20,
     maxWidth: 270,
@@ -126,7 +127,8 @@ const PostChat = React.memo(({item, user, person, lastMessageId, postNull, subsc
   }
   
   return (
-    postNull ? 
+    <View style={{paddingBottom: 25}}>
+    {postNull ? 
         <View style={item.user == user.uid ? styles.user : styles.notUser}>
             {item.user != user.uid && ( // Only show image for non-user messages
                 <FastImage source={person.pfp ? { uri: person.pfp } : require('../../assets/defaultpfp.jpg')} // Replace with actual image URL
@@ -234,8 +236,10 @@ const PostChat = React.memo(({item, user, person, lastMessageId, postNull, subsc
               </View> 
           : null}
             {lastMessageId == item.id && readBy.includes(item.toUser) && item.user == user.uid && <Text style={styles.readReceipt}>Read</Text>}
+          </View>}
           </View>
   )
+  
 })
 
 export default PostChat

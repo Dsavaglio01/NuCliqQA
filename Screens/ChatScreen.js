@@ -111,7 +111,7 @@ const ChatScreen = ({route}) => {
         })
         setTimeout(() => {
           setLoading(false)
-        }, 500);
+        }, 250);
       }
     }, [profile, completeMessages])
 
@@ -190,7 +190,7 @@ const renderEvents = ({item, index}) => {
         <Divider />
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{flex: 1}}>
         {message ? <>
-        {loading && completeMessages.length == 0 ?  <View style={styles.loadingContainer}>
+        {loading && completeMessages.length == 0 ? <View style={styles.loadingContainer}>
             <ActivityIndicator color={"#9EDAFF"}/> 
           </View> :
         <>
@@ -249,7 +249,9 @@ const renderEvents = ({item, index}) => {
                   keyExtractor={(item) => item.id.toString()}
                   style={{height: '50%'}}
                   contentContainerStyle={{zIndex: 0}}
-              /> :
+              /> : loading && completeMessages.length == 0 ? <View>
+              <ActivityIndicator color={"#9EDAFF"}/> 
+          </View> :
               completeMessages.length > 0 ? 
               <FlatList 
                   data={completeMessages}
@@ -259,9 +261,7 @@ const renderEvents = ({item, index}) => {
                   style={{height: '100%'}}
                   ListFooterComponent={<View style={{paddingBottom: 75}}/>}
                   onScroll={handleScroll}
-              /> : loading ?  <View>
-                <ActivityIndicator color={"#9EDAFF"}/> 
-            </View> : null}
+              /> : <></>}
 
               
               
