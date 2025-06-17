@@ -1185,24 +1185,28 @@ export const fetchMoreFreeThemes = async(subCollection, order, freeLastVisible, 
  * @returns {Function} - An unsubscribe function to stop listening to changes.
  * @throws {Error} - If `subCollection` is not provided.
 */
-export const fetchFreeThemes = async (subCollection, order, userId) => {
-  if (!userId || !subCollection) {
-    throw new Error("userId is undefined");
+export const fetchFreeThemes = async (subCollection, order, userId, setFreeTempPosts, setLastVisible) => {
+  if (!subCollection) {
+    throw new Error("subcollection is undefined");
   }
-  const purchasedQuery = query(collection(db, 'freeThemes'), orderBy(subCollection, order), limit(10))
-  const unsubscribe = onSnapshot(purchasedQuery, (snapshot) => {
-    const purchased = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-      transparent: false
-    }));
-    setPurchasedThemes(purchased);
-    if (snapshot.docs.length > 0) {
-      setPurchasedLastVisible(snapshot.docs[snapshot.docs.length - 1]);
+  const tempPosts = []
+  try {
+    const q = query(collection(db, 'freeThemes'), orderBy(subCollection, order), limit(10))
+    const querySnapshot = await getDocs(q)
+    querySnapshot.forEach((doc) => {
+      tempPosts.push({id: doc.id, ...doc.data(), transparent: false})
+    });
+    if (tempPosts) {
+      return {tempPosts: tempPosts, lastFreeVisible: querySnapshot.docs[querySnapshot.docs.length - 1]}
     }
-    console.log(purchased.length)
-  return unsubscribe;
-  });
+    else {
+      return {tempPosts: [], lastFreeVisible: null}
+    }
+    
+  } 
+  catch (e) {
+    console.error(e)
+  }
 };
 
 /**
