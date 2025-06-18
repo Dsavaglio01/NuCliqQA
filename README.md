@@ -39,5 +39,5 @@ NuCliq is in beta, achieving 100+ downloads during testing. Active development c
 ![Apply Theme View](https://imgur.com/gallery/apply-theme-EOkcbhC)
 
 ## Demos
-Image/Text Posting demo: [here](https://drive.google.com/file/d/1Npwm9BXX3IhD2UDUSrZ-rdpjJBnlrnMy/view?usp=drive_link)
+Image/Text Posting demo: [here](https://drive.google.com/file/d/1Npwm9BXX3IhD2UDUSrZ-rdpjJBnlrnMy/view?usp=drive_link) <br/>
 Liking/Saving Posts demo: [here](https://drive.google.com/file/d/1jV3dXp4XV_srjggivZ8nWi1w7WX-aVQT/view?usp=drive_link)
