@@ -40,4 +40,5 @@ NuCliq is in beta, achieving 100+ downloads during testing. Active development c
 
 ## Demos
 Image/Text Posting demo: [here](https://drive.google.com/file/d/1Npwm9BXX3IhD2UDUSrZ-rdpjJBnlrnMy/view?usp=drive_link) <br/>
-Liking/Saving Posts demo: [here](https://drive.google.com/file/d/1jV3dXp4XV_srjggivZ8nWi1w7WX-aVQT/view?usp=drive_link)
+Liking/Saving Posts demo: [here](https://drive.google.com/file/d/1jV3dXp4XV_srjggivZ8nWi1w7WX-aVQT/view?usp=drive_link) <br/>
+Commenting/Replying on Posts demo: [here](https://drive.google.com/file/d/1HzACvB9w3nDS3kbsOtcnadyD5vzBlaub/view?usp=drive_link) <br/>
